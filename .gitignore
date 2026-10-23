@@ -1,0 +1,11 @@
+# Reference material stays private: textbooks, papers and other authors' workbooks
+*.pdf
+*.xlsx
+*.xlsm
+*.xls
+*.7z
+references/
+
+node_modules/
+.DS_Store
+Thumbs.db

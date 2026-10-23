@@ -1,0 +1,9 @@
+{
+  "name": "pk-tools",
+  "private": true,
+  "description": "Clinical pharmacokinetic dosing tools",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "test": "node --test phenytoin/tests/calc.test.js"
+  }
+}
