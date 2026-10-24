@@ -1,0 +1,1046 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Digoxin Dosing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Digoxin initial dosing, level interpretation, K/CL fitting and dose adjustment (one-compartment, superposition, MAP Bayesian).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+.wrap > * { min-width: 0; }
+.hdr-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hdr-right small { color: var(--muted); font-size: .74rem; }
+.credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+.credit a { color: var(--accent); }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.lvlrow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px; }
+textarea { font: 400 .82rem var(--font-data); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px; width: 100%; min-height: 4.5em; }
+textarea.note { min-height: 9em; }
+.copied { font-size: .8rem; color: var(--ok); }
+.modeline { font-size: .8rem; color: var(--muted); }
+.modeline b { color: var(--ink); font-weight: 600; }
+dl.calc dd.full { grid-column: 1 / -1; text-align: left; font-family: var(--font-body); color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .76rem; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.theme { font: 500 .78rem var(--font-body); color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+@media (max-width: 480px) { .lvlrow { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 1.35rem; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Digoxin Dosing</h1>
+    <div class="hdr-right">
+      <small>Model</small>
+      <div class="seg" id="modelSeg" role="group" aria-label="Parameter set">
+        <button type="button" data-value="literature" aria-pressed="true" title="Literature-recommended values (lit/digoxin-theophylline.md)">Literature</button>
+        <button type="button" data-value="site" aria-pressed="false" title="Reproduces the pkineticdrugdosing.com calculator, including its rounding">Site</button>
+        <button type="button" data-value="workbook" aria-pressed="false" title="Reproduces the site's Excel digoxin workbooks (Paulson Vd, K and V Bayesian fit)">Workbook</button>
+      </div>
+      <button type="button" class="theme" id="themeBtn" aria-label="Colour theme">Theme: auto</button>
+    </div>
+  </header>
+  <p class="credit">Equations from the digoxin pages of Marshall Pierce, PharmD, at <a href="https://pkineticdrugdosing.com/index.html" target="_blank" rel="noopener">pkineticdrugdosing.com</a>, cross-checked against the literature and the Lanoxin label.</p>
+
+  <div class="strip" id="strip" aria-label="Patient summary"></div>
+
+  <section class="card" id="patientPanel">
+    <h2>Patient</h2>
+    <div class="fields">
+      <label>Age (years) <input id="age" type="number" min="0" step="any" value="65"></label>
+      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button type="button" class="ub" data-units="in,cm" data-for="ht">in</button></span></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button type="button" class="ub" data-units="kg,lb" data-for="wt">kg</button></span></label>
+      <label>SCr, most recent <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button type="button" class="ub" data-units="mg/dL,µmol/L" data-for="scr" data-pair="scrOld">mg/dL</button></span></label>
+      <label>Earlier SCr (optional) <span class="ig"><input id="scrOld" type="number" min="0" step="any" placeholder="stable"><button type="button" class="ub" tabindex="-1" disabled data-mirror="scr">mg/dL</button></span></label>
+      <label>Hours between SCr values <input id="scrHours" type="number" min="0" step="any" value="24"></label>
+      <label>Heart failure (CHF) <select id="chf"><option value="unknown">Unknown (uses CHF equation)</option><option value="no">No</option><option value="yes">Yes</option></select></label>
+      <label>Indication
+        <select id="ind">
+          <option value="hf">Heart failure (HFrEF)</option>
+          <option value="af">AF / flutter rate control</option>
+          <option value="afhf">AF with heart failure</option>
+        </select>
+      </label>
+      <label>Dosage form
+        <select id="form">
+          <option value="tablet">Tablet (62.5 / 125 / 250 mcg)</option>
+          <option value="elixir">Oral solution 50 mcg/mL</option>
+          <option value="iv">Injection (100 or 250 mcg/mL)</option>
+          <option value="capsule">Soft-gel capsule (legacy)</option>
+        </select>
+      </label>
+      <label>Thyroid status
+        <select id="thyroid"><option value="normal">Normal</option><option value="hypo">Hypothyroid</option><option value="hyper">Hyperthyroid</option></select>
+      </label>
+      <label>Serum K⁺ (mmol/L, optional) <input id="kplus" type="number" min="0" step="any" placeholder="—"></label>
+      <label>Serum Mg (mmol/L, optional) <input id="mg" type="number" min="0" step="any" placeholder="—"></label>
+      <div class="wide">
+        <span class="hint">Interacting drugs (CL multipliers multiply; the site suggests using only the strongest to stay conservative)</span>
+        <div class="checks" id="interChecks"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="paraMal"> Paralysis or malnutrition (workbook SCr floor 0.5)</label>
+      <label>Other CL multiplier (optional) <input id="otherMult" type="number" min="0" step="any" placeholder="1.0"></label>
+      <label>Target
+        <select id="targetSet">
+          <option value="lit">Guideline (HF 0.5–0.9; AF &lt;1.2)</option>
+          <option value="siteCalc">Site calculator (aim 1.0)</option>
+          <option value="siteInfo">Site info page</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <label class="customT" hidden>Aim (ng/mL) <input id="tAim" type="number" min="0" step="any" value="0.7"></label>
+      <label class="customT" hidden>Low (ng/mL) <input id="tLo" type="number" min="0" step="any" value="0.5"></label>
+      <label class="customT" hidden>High (ng/mL) <input id="tHi" type="number" min="0" step="any" value="0.9"></label>
+    </div>
+  </section>
+
+  <nav class="seg" role="tablist" aria-label="Situation">
+    <button type="button" role="tab" id="tab-initial" data-tab="initial" aria-selected="true">Initial dosing</button>
+    <button type="button" role="tab" id="tab-interp" data-tab="interp" aria-selected="false">Interpret level</button>
+    <button type="button" role="tab" id="tab-adjust" data-tab="adjust" aria-selected="false">Adjust dose</button>
+  </nav>
+
+  <section class="card tabpanel" id="panel-initial" role="tabpanel" aria-labelledby="tab-initial">
+    <h2>Initial regimen</h2>
+    <div class="fields">
+      <label>Loading dose
+        <select id="ldMode"><option value="auto">Auto (AF yes, HF no)</option><option value="yes">Give loading dose</option><option value="no">No loading dose</option></select>
+      </label>
+      <label>Loading-dose route <select id="ldForm"><option value="same">Same as dosage form</option><option value="iv">IV</option><option value="tablet">Tablet</option></select></label>
+      <label>Schedules allowed <select id="weekly"><option value="yes">Daily or days-per-week</option><option value="no">Daily only</option></select></label>
+    </div>
+  </section>
+
+  <section class="card tabpanel" id="panel-level" hidden>
+    <h2>Dose history and levels</h2>
+    <div class="fields">
+      <label>Current dose (mcg) <input id="hDose" type="number" min="0" step="any" value="125"></label>
+      <label>Schedule
+        <select id="hPat">
+          <option value="7">Every day</option><option value="6">6 days/week (Mon–Sat)</option><option value="5">5 days/week (Mon–Fri)</option>
+          <option value="4">4 days/week (Mon/Wed/Fri/Sat)</option><option value="3">3 days/week (Mon/Wed/Fri)</option>
+          <option value="2">2 days/week (Mon/Fri)</option><option value="1">1 day/week (Mon)</option>
+        </select>
+      </label>
+      <label>Dose on other days (mcg) <input id="hDose2" type="number" min="0" step="any" value="0"></label>
+      <label>Regimen form <select id="hForm"><option value="same">Same as dosage form</option><option value="tablet">Tablet</option><option value="elixir">Oral solution</option><option value="iv">IV</option><option value="capsule">Capsule</option></select></label>
+      <label>Regimen started (first dose, usual time) <input id="hStart" type="datetime-local"></label>
+      <label>Loading dose given (total mcg, 0 = none) <input id="hLd" type="number" min="0" step="any" value="0"></label>
+      <label>Loading started (50/25/25 % q6h) <input id="hLdStart" type="datetime-local"></label>
+      <label>Fit method
+        <select id="fitMethod">
+          <option value="auto">Auto (MAP Bayesian; site: K only; workbook: K and V)</option>
+          <option value="map">MAP Bayesian (CL and V; workbook K and V)</option>
+          <option value="mapK">MAP Bayesian, K only (V fixed)</option>
+          <option value="cl">Least squares K/CL (V fixed)</option>
+          <option value="lsKV">Least squares K and V</option>
+        </select>
+      </label>
+      <label>History model
+        <select id="ssMode"><option value="auto">Auto (site: steady state)</option><option value="history">Actual dose history (superposition)</option><option value="ss">Assume steady state</option></select>
+      </label>
+      <div class="wide lvlrow"><label>Level 1 drawn <input id="l1t" type="datetime-local"></label><label>Level 1 (ng/mL) <input id="l1c" type="number" min="0" step="any" value="0.9"></label></div>
+      <div class="wide lvlrow"><label>Level 2 drawn (optional) <input id="l2t" type="datetime-local"></label><label>Level 2 (ng/mL) <input id="l2c" type="number" min="0" step="any" placeholder="—"></label></div>
+      <div class="wide lvlrow"><label>Level 3 drawn (optional) <input id="l3t" type="datetime-local"></label><label>Level 3 (ng/mL) <input id="l3c" type="number" min="0" step="any" placeholder="—"></label></div>
+      <label class="wide">Changed or missed doses (one per line: <code>YYYY-MM-DD HH:MM mcg</code>; 0 removes a scheduled dose)
+        <textarea id="hEdits" spellcheck="false" placeholder="2026-10-20 09:00 0"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <details class="card" id="advanced">
+    <summary>Advanced: equations and policies</summary>
+    <div class="body">
+      <div class="fields">
+        <label>Vd equation
+          <select id="vdEq"><option value="auto">Model default (Reuning: literature 3.1, site 3.12; workbook Paulson)</option><option value="reuning">Reuning (3.8·Wt + 3.1·CrCl)</option><option value="jusko">Jusko (literature: × Wt/70; site/workbook: × BSA/1.73)</option><option value="paulson">Paulson-Welling ((4.5 + 0.028·CrCl per 1.73 m²)·Wt)</option></select>
+        </label>
+        <label>CL equation
+          <select id="clEq"><option value="auto">Model default (Sheiner)</option><option value="sheiner">Sheiner</option><option value="koup">Koup / Jusko</option></select>
+        </label>
+        <label>CrCl weight (literature)
+          <select id="wPolicy"><option value="adjIfObese">AdjBW if obese, else min(IBW, TBW)</option><option value="minIbwTbw">min(IBW, TBW)</option><option value="ibw">IBW</option><option value="tbw">TBW</option></select>
+        </label>
+        <label>SCr floor (literature) <select id="scrFloor"><option value="">Off</option><option value="0.7">0.7 mg/dL</option><option value="0.8">0.8 mg/dL</option></select></label>
+        <label>Site peak attenuation Φ(K)
+          <select id="phi"><option value="auto">Site model only</option><option value="on">Always</option><option value="off">Never</option></select>
+        </label>
+        <label>Workbook input time, all forms (h) <input id="wbTin" type="number" min="0.01" step="any" value="0.25"></label>
+        <label>Prior CV on CL (log-normal) <input id="cvCL" type="number" min="0.05" step="any" value="0.35"></label>
+        <label>Prior CV on V (log-normal) <input id="cvV" type="number" min="0.05" step="any" value="0.35"></label>
+        <label>Residual proportional CV <input id="cvA" type="number" min="0" step="any" value="0.1"></label>
+        <label>Residual additive SD (ng/mL) <input id="sdNg" type="number" min="0" step="any" value="0.15"></label>
+      </div>
+      <p class="hint">Literature model (approved sign-off): Reuning Vd 3.8·Wt + 3.1·CrCl and Sheiner CL (Winter, Basic Clinical Pharmacokinetics ch. 3), Wt = min(IBW, TBW), absolute Cockcroft-Gault CrCl (Chow when SCr is changing), no intermediate rounding, oral first-order absorption ka 1.6 h⁻¹ (no lag), IV 0.25 h input, MAP priors log-normal CV 35 % with residual 0.15 ng/mL + 10 %. Paulson-Welling, (4.5 + 0.028·CrCl per 1.73 m², BSA from ABW)·Wt, is a selectable alternative <span class="src" title="Reproduces the cached comparison-sheet value 587.057 L in both of the site's Excel workbooks (spec §13; workbook-checks/digoxin.md A5, D1)">src</span>. Site model: reproduces DigoxinDosing.asp (Reuning Vd with 3.12, Sheiner CL, LBW = min(IBW, ABW) rounded to 0.1 kg, CrCl, Vd and CL rounded to 0.1, K to 4 dp, LD/MD to 0.001 mg, target 1 ng/mL, lb ÷ 2.2). The site's own Excel tools use Paulson Vd and give 2–30 % smaller Vd and loading doses than its web calculator.</p>
+      <p class="hint">Workbook model: reproduces the site's Excel tools (digoxinweb.xlsm and the K/VD fitting workbook; spec §13). Paulson-Welling Vd; Sheiner CL with the interaction factor applied once (digoxinweb applies it twice in CHF; that bug is not reproduced); one interaction (the strongest); LBW = min(IBW, ABW), Peck under 18 y or 48 in; SCr floor 0.7 mg/dL in adults (0.5 with paralysis/malnutrition); Chow for changing SCr; no rounding; every dose is a zero-order input of the time set above (default 0.25 h); no Φ; capsule F 1. Fitting: normal priors on K and V (CV 30 % each), residual 10 % of the observed level, bounds K 0.1–10 × and V 0.5–2 × population; least squares is unweighted. How it differs from the web calculator (Site model): Paulson instead of Reuning 3.12 Vd, an SCr floor, 0.25 h instead of 1 h oral input, no rounding chain, no Φ, and a K-and-V Bayesian fit instead of a K-only least-squares fit. The prior and residual fields above apply to the literature and site models only. Not ported: the per-interval K intercept 0.014 h⁻¹, the days/hours mix-up in "assume steady state", and the patient name/MRN export.</p>
+    </div>
+  </details>
+
+  <div id="result" aria-live="polite"></div>
+
+  <details class="card">
+    <summary>About digoxin dosing (educational)</summary>
+    <div class="body">
+      <p>Digoxin follows linear one-compartment kinetics once distribution is complete (4–6 h after IV, 6–8 h or more after oral). Levels drawn earlier are falsely high and cannot be fitted. Draw at least 4–6 h after IV and 6–12 h after oral doses; just before the next dose is best. Earlier levels are excluded from fitting.</p>
+      <p>Half-life is about 1.5–2 days with normal renal function and 3.5–6 days in anuria, so steady state takes 1–3 weeks. A level drawn earlier is not at steady state; use the dose-history (superposition) fit.</p>
+      <p>Targets: heart failure 0.5–0.9 ng/mL (aim 0.7; DIG trial post hoc, Rathore 2003, Ahmed 2006; ESC 2021 HF: aim &lt;1.2); AF rate control &lt;1.2 ng/mL (2023 ACC/AHA/ACCP/HRS, class 2a; ARISTOTLE). The site's older ranges (calculator trough 0.8–1.2 HF and 1.5–2 AF; info page 0.5–0.8 HF and 0.5–2 AF) are kept as selectable options only.</p>
+      <p>Loading doses are usually unnecessary in chronic heart failure. For AF they are given as 50%, 25%, 25% six hours apart (label 10–15 mcg/kg lean weight orally, 8–12 mcg/kg IV).</p>
+      <p>Toxicity is more likely with hypokalaemia, hypomagnesaemia, hypercalcaemia, hypothyroidism and falling renal function, and can occur in the "normal" range. Signs: nausea, vomiting, visual colour changes, confusion, bradycardia, AV block and ventricular arrhythmias.</p>
+      <p>Interactions are modelled as CL multipliers derived from the Lanoxin label (amiodarone 0.5, quinidine 0.5 with Vd 0.7, verapamil 0.6, dronedarone 0.4, propafenone 0.6, itraconazole 0.55, clarithromycin 0.6, ranolazine 0.67, carvedilol 0.75, canagliflozin 0.8). The site uses verapamil 0.75, dronedarone 0.5, propafenone 0.75 and azoles 0.5. Thyroid ±30 % on CL and V is approximate. Heart failure status "Unknown" uses the CHF equation (conservative, Winter); no extra flat reduction is applied.</p>
+      <p>Site-parity note: the site's displayed peak (<code>CmaxssExact</code>) is 0.1–0.7 % below the exact steady-state superposition by an unexplained factor Φ(K). The site model applies the empirical fit −ln Φ ≈ 0.134·K + 13·K²; turn it off in Advanced.</p>
+    </div>
+  </details>
+
+  <footer>For educational use and clinical decision support by trained clinicians only. Results are model estimates from population parameters and limited levels: check timing, adherence, renal function, electrolytes, interactions and the clinical picture, and confirm every dose independently. Not a substitute for professional judgement.</footer>
+</div>
+
+<script src="lib/pkcore.js"></script>
+<script src="lib/pk-ui.js"></script>
+<script>
+// CALC-START
+// Pure digoxin math (no DOM). Uses PK.* from lib/pkcore.js for body size, CrCl, one-compartment math, fitting and rounding.
+// Internal units: dose mg, concentration mg/L (ng/mL = mg/L × 1000 at the UI edge), V L, CL L/h, time h.
+// Sources: specs/digoxin.md (site model, §12 live-server verification) and lit/digoxin-theophylline.md (literature model).
+const NG = 1000;
+const DIG = {
+  F: { literature: { tablet: 0.7, elixir: 0.8, iv: 1, capsule: 0.95 }, site: { tablet: 0.7, elixir: 0.8, iv: 1, capsule: 1 },
+    workbook: { tablet: 0.7, elixir: 0.8, iv: 1, capsule: 1 } }, // workbook `Parameter` sheet (S = 1)
+  TIN: { iv: 0.25, oral: 1 }, // zero-order input duration, h (site: 0.25 h Injection, 1 h oral; spec §4)
+  KA: 1.6, // literature oral absorption: first-order ka 1.6 h⁻¹, no lag (decisions/digoxin-theophylline.md Q6; Zhou 2010)
+  FORM_LABEL: { tablet: "tablet", elixir: "oral solution", iv: "IV", capsule: "capsule" },
+  // CL (and Vd) multipliers. literature = Lanoxin label derived (lit D14–D22); site = info page / calculator (spec §3.6).
+  INTERACTIONS: [
+    { id: "amiodarone", label: "Amiodarone", cl: { literature: 0.5, site: 0.5 } },
+    { id: "quinidine", label: "Quinidine", cl: { literature: 0.5, site: 0.5 }, vd: { literature: 0.7, site: 0.7 }, note: "Quinidine: hold one digoxin dose when starting, then reduce." },
+    { id: "verapamil", label: "Verapamil", cl: { literature: 0.6, site: 0.75 } },
+    { id: "dronedarone", label: "Dronedarone", cl: { literature: 0.4, site: 0.5 } },
+    { id: "propafenone", label: "Propafenone", cl: { literature: 0.6, site: 0.75 }, note: "Propafenone: label effect range is CL × 0.3–0.6; monitor closely." },
+    { id: "azole", label: "Itraconazole", cl: { literature: 0.55, site: 0.5 } },
+    { id: "clarithromycin", label: "Clarithromycin", cl: { literature: 0.6, site: 0.6 } },
+    { id: "ranolazine", label: "Ranolazine", cl: { literature: 0.67, site: 0.67 } },
+    { id: "carvedilol", label: "Carvedilol", cl: { literature: 0.75, site: 0.75 } },
+    { id: "canagliflozin", label: "Canagliflozin", cl: { literature: 0.8, site: 0.8 } },
+  ],
+  THYROID: { normal: { cl: 1, vd: 1 }, hypo: { cl: 0.7, vd: 0.7 }, hyper: { cl: 1.3, vd: 1.3 } },
+  // Targets in ng/mL. lit: lit D25–D27. siteCalc: calculator (LD/MD aim 1; trough goals). siteInfo: info page.
+  TARGETS: {
+    // decisions Q1: HF "0.5–0.9 ng/mL" (aim 0.7, warn ≥1.0, hard ≥1.2); AF "<1.2 ng/mL" (aim 0.9, hard ≥1.2).
+    lit: { hf: { aim: 0.7, lo: 0.5, hi: 0.9, warn: 1.0, hard: 1.2, text: "0.5–0.9 ng/mL" }, af: { aim: 0.9, lo: 0.5, hi: 1.2, warn: 1.2, hard: 1.2, text: "<1.2 ng/mL" } },
+    siteCalc: { hf: { aim: 1, lo: 0.8, hi: 1.2, peakMax: 1.5, warn: 1.2, hard: 2 }, af: { aim: 1, lo: 1.5, hi: 2, peakMax: 2.5, warn: 2, hard: 2.5 } },
+    siteInfo: { hf: { aim: 0.65, lo: 0.5, hi: 0.8, warn: 1.0, hard: 1.2 }, af: { aim: 1, lo: 0.5, hi: 2, warn: 2, hard: 2.5 } },
+  },
+  // Day patterns, Monday = index 0 (site option labels; 4/3/2/1 per week assumed, spec §12.5).
+  PATTERNS: { 7: [1, 1, 1, 1, 1, 1, 1], 6: [1, 1, 1, 1, 1, 1, 0], 5: [1, 1, 1, 1, 1, 0, 0], 4: [1, 0, 1, 0, 1, 1, 0], 3: [1, 0, 1, 0, 1, 0, 0], 2: [1, 0, 0, 0, 1, 0, 0], 1: [1, 0, 0, 0, 0, 0, 0] },
+  DAYS: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  PHI: { a: 0.134, b: 13 }, // empirical site attenuation −ln Φ = a·K + b·K² (spec §4; unexplained)
+};
+const isNum = (x) => typeof x === "number" && isFinite(x);
+// VBScript Round on the server: banker's on exact binary ties (0.5145 → 0.514). pkcore has no tie-down mode, so nudge.
+const siteRound = (x, dp) => PK.round.roundTo(x * (1 - 1e-12), Math.pow(10, -dp));
+
+// Models: "literature" (default), "site" (DigoxinDosing.asp parity), "workbook" (Pierce's Excel tools digoxinweb.xlsm and
+// Digoxin_Non_Steady_State_Or_Steady_State_K_VD_Fitting.xlsm; workbook-checks/digoxin.md, spec §13).
+// Workbook: Paulson Vd, Sheiner CL with the interaction factor applied once, LBW = min(IBW or Peck, ABW), SCr ≥ 0.7
+// (0.5 paralysis/malnutrition), KVD Chow, no rounding, one zero-order input time for every form (default 0.25 h), no Φ,
+// MAP with normal priors on K and V (CV 30 %), 10 % proportional residual, bounds K 0.1–10×, V 0.5–2×.
+// Not ported (workbook bugs): digoxinweb CHF factor squared, KVD 0.014 h⁻¹ per-interval K intercept, "assume steady state"
+// days/hours mix-up, and the MUE export of patient name/MRN.
+const WB = { tin: 0.25, scrFloor: 0.7, scrFloorParaMal: 0.5, cvK: 0.3, cvV: 0.3, cvResid: 0.1, kBounds: [0.1, 10], vBounds: [0.5, 2] };
+function setup(cfg = {}) {
+  const site = cfg.model === "site", wb = cfg.model === "workbook";
+  const model = site ? "site" : wb ? "workbook" : "literature";
+  return {
+    site, wb, model, factorSet: site || wb ? "site" : "literature", // workbook `Parameter` sheet = site table (spec §13)
+    vdEq: cfg.vdEq && cfg.vdEq !== "auto" ? cfg.vdEq : wb ? "paulson" : "reuning",
+    reuningCrCl: site ? 3.12 : 3.1, // live server 3.12; Winter-Ch3 Eq 3.1 and the workbook comparison sheet print 3.1
+    clEq: cfg.clEq && cfg.clEq !== "auto" ? cfg.clEq : "sheiner",
+    koupNR: site || wb ? 41 : 40,
+    juskoBSA: site || wb, // site info page and workbook comparison sheet: × BSA/1.73 with CrCl per 1.73 m²
+    F: DIG.F[model],
+    phi: cfg.phi === "on" ? true : cfg.phi === "off" ? false : site,
+    oralFirstOrder: model === "literature", // literature: first-order ka; site: 1 h zero-order input; workbook: tin for all
+    wbTin: isNum(cfg.wbTin) && cfg.wbTin > 0 ? cfg.wbTin : WB.tin,
+    priorType: model === "literature" ? "lognormal" : "normal",
+    weightPolicy: cfg.weightPolicy || "adjIfObese",
+    scrFloor: isNum(cfg.scrFloor) ? cfg.scrFloor : null,
+  };
+}
+const tinOf = (form, cfg) => { const s = setup(cfg); return s.wb ? s.wbTin : form === "iv" ? DIG.TIN.iv : DIG.TIN.oral; };
+
+// ---------- Patient: weights and CrCl ----------
+// p = { age, sex, ht, htUnit 'in'|'cm', wt, wtUnit 'kg'|'lb', scr, scrOld?, scrHours?, scrUnit 'mgdl'|'umol' }
+function patient(p, cfg) {
+  const s = setup(cfg), flags = [];
+  const hin = p.htUnit === "cm" ? PK.body.cmToIn(p.ht) : p.ht, hcm = PK.body.inToCm(hin);
+  const abw = p.wtUnit === "lb" ? (s.site || s.wb ? p.wt / 2.2 : PK.body.lbToKg(p.wt)) : p.wt;
+  const toMg = (x) => (p.scrUnit === "umol" ? PK.body.scrUmolToMgdl(x) : x);
+  let scr = toMg(p.scr), scrOld = isNum(p.scrOld) ? toMg(p.scrOld) : NaN;
+  const hours = p.scrHours, scrMeasured = scr;
+  const ibw = PK.body.ibw(p.sex, hin);
+  let lbw = Math.min(ibw, abw), scrFloored = false;
+  if (s.site) lbw = siteRound(lbw, 1);
+  if (s.wb) {
+    // KVD: Peck for < 18 y or < 48 in (PK.body.peckLBW; < 22 in → ABW); used = min(LBW, ABW). SCr floor in adults only.
+    if (p.age < 18 || hin < 48) lbw = Math.min(PK.body.peckLBW(p.sex, hin, abw), abw);
+    if (p.age >= 18) {
+      const fl = p.paraMal ? WB.scrFloorParaMal : WB.scrFloor;
+      if (scr < fl) { scr = fl; scrFloored = true; }
+      if (isNum(scrOld) && scrOld < fl) { scrOld = fl; scrFloored = true; }
+    }
+    if (scrFloored) flags.push({ lvl: "info", text: `Workbook SCr floor: SCr below ${p.paraMal ? WB.scrFloorParaMal : WB.scrFloor} mg/dL raised to ${p.paraMal ? WB.scrFloorParaMal : WB.scrFloor} for CrCl.` });
+  }
+  const changing = isNum(scrOld) && isNum(hours) && hours > 0 && Math.abs(scrOld - scr) > 1e-9;
+  let crcl, crclWeight, weightBasis, kcr, chow = null, method = "Cockcroft-Gault";
+  if (s.site || s.wb) {
+    crclWeight = lbw; weightBasis = "LBW";
+    if (!changing) crcl = PK.renal.cgRaw(p.age, lbw, scr, p.sex);
+    else {
+      // Site: production from LBW, creatinine Vd 0.6 × ABW (spec §3.4). Same PK.renal.chow with vdPerKg scaled.
+      chow = PK.renal.chowNonSteadyState({ age: p.age, sex: p.sex, weight: lbw, scr1: scrOld, scr2: scr, hours, vdPerKg: (0.6 * abw) / lbw });
+      crcl = chow.crcl; method = "Chow (non-steady state)";
+    }
+    kcr = (crcl * 0.06) / (0.6 * abw);
+  } else {
+    const cg = PK.renal.cockcroftGault({ age: p.age, sex: p.sex, scr, tbw: abw, heightIn: hin, weightPolicy: s.weightPolicy, scrFloor: s.scrFloor });
+    flags.push(...cg.flags.filter((f) => f.code !== "age<18"));
+    crcl = cg.crcl; crclWeight = cg.weight; weightBasis = cg.weightBasis;
+    if (changing) {
+      chow = PK.renal.chowNonSteadyState({ age: p.age, sex: p.sex, weight: cg.weight, scr1: scrOld, scr2: scr, hours });
+      if (chow.converged) { crcl = chow.crcl; method = "Chow (non-steady state)"; }
+    }
+    kcr = (crcl * 0.06) / (0.6 * crclWeight);
+  }
+  if (chow && !chow.converged) flags.push({ lvl: "crit", text: "The SCr change is not physically possible over that interval: check the values and hours. CrCl could not be estimated." });
+  let crT = PK.one.halfLife(kcr);
+  if (s.site) { crT = siteRound(crT, 1); crcl = siteRound(crcl, 1); }
+  const bsa = PK.body.bsa(abw, hcm);
+  const crclN = PK.renal.normalizeTo173(crcl, bsa);
+  if (p.age < 18) flags.push({ lvl: "crit", text: "Age under 18: these adult equations do not apply (the site does not block this). Use paediatric mcg/kg dosing." });
+  if (changing && scr > scrOld * 1.25) flags.push({ lvl: "warn", text: `Renal function is declining (SCr ${PK.round.fmt(scrOld, 2)} → ${PK.round.fmt(scr, 2)} mg/dL). Digoxin clearance will fall; dose cautiously and recheck SCr and levels.` });
+  if (crcl < 30) flags.push({ lvl: "warn", text: `CrCl ${PK.round.fmt(crcl, 0)} mL/min: digoxin half-life is long and toxicity risk is higher. Consider lower doses or days-per-week schedules.` });
+  if (crcl < 10) flags.push({ lvl: "warn", text: "CrCl under 10 mL/min: Vd falls (about 4.8 L/kg); hemodialysis removes little digoxin." });
+  return { hin, hcm, abw, ibw, lbw, bsa, scr, scrOld, scrMeasured, scrFloored, changing, crcl, crclN, crclWeight, weightBasis, crclMethod: method, crT, kcr, chow, flags };
+}
+
+// ---------- Multipliers and population parameters ----------
+// p.inter = [ids], p.otherMult, p.thyroid, p.chf (bool)
+function multipliers(p, cfg) {
+  const s = setup(cfg), list = [], notes = [];
+  let cl = 1, vd = 1;
+  let ids = (p.inter || []).filter((id) => DIG.INTERACTIONS.some((x) => x.id === id));
+  // Workbook: a single drop-down; its comment says to pick the interaction with the most impact → strongest CL factor only.
+  if (s.wb && ids.length > 1) {
+    const f = (id) => DIG.INTERACTIONS.find((x) => x.id === id).cl.site;
+    const keep = ids.reduce((a, b) => (f(b) < f(a) ? b : a));
+    notes.push(`Workbook model: one interaction only (the workbook has a single choice); the strongest, ${DIG.INTERACTIONS.find((x) => x.id === keep).label}, is used.`);
+    ids = [keep];
+  }
+  for (const id of ids) {
+    const d = DIG.INTERACTIONS.find((x) => x.id === id);
+    const c = d.cl[s.factorSet], v = d.vd ? d.vd[s.factorSet] : 1;
+    cl *= c; vd *= v;
+    list.push(`${d.label} CL × ${c}${v !== 1 ? `, Vd × ${v}` : ""}`);
+    if (d.note) notes.push(d.note);
+  }
+  if (isNum(p.otherMult) && p.otherMult > 0 && p.otherMult !== 1) { cl *= p.otherMult; list.push(`Other CL × ${p.otherMult}`); }
+  const th = DIG.THYROID[p.thyroid || "normal"];
+  if (th.cl !== 1) { cl *= th.cl; vd *= th.vd; list.push(`${p.thyroid === "hypo" ? "Hypothyroid" : "Hyperthyroid"} CL and Vd × ${th.cl}`); }
+  return { cl, vd, list, notes, count: ids.length };
+}
+// CHF input: true/'yes', false/'no', or 'unknown' (→ CHF equation, decisions Q3). No extra flat ×0.4.
+const chfEq = (chf) => chf === true || chf === "yes" || chf === "unknown";
+function popParams(pt, p, cfg) {
+  const s = setup(cfg), m = multipliers(p, cfg), cn = pt.crclN, chf = chfEq(p.chf);
+  let vRaw;
+  // Jusko: literature uses the Bauer convention (absolute CrCl, × Wt/70); site info page uses BSA/1.73 with CrCl per 1.73 m².
+  if (s.vdEq === "jusko") vRaw = s.juskoBSA ? (226 + (298 * cn) / (29.1 + cn)) * (pt.bsa / 1.73) : (226 + (298 * pt.crcl) / (29.1 + pt.crcl)) * (pt.lbw / 70);
+  // Paulson-Welling: CrCl per 1.73 m² (BSA from ABW); verified against both Pierce workbooks (spec §13, cached 587.057).
+  else if (s.vdEq === "paulson") vRaw = (4.5 + 0.028 * cn) * pt.lbw;
+  else vRaw = 3.8 * pt.lbw + s.reuningCrCl * pt.crcl;
+  let clRaw = s.clEq === "koup" ? 1.303 * pt.crcl + (chf ? 20 : s.koupNR) : chf ? 0.33 * pt.lbw + 0.9 * pt.crcl : 0.8 * pt.lbw + pt.crcl;
+  clRaw *= 0.06; // mL/min → L/h
+  let V = vRaw * m.vd, CL = clRaw * m.cl;
+  if (s.site) { V = siteRound(V, 1); CL = siteRound(CL, 1); }
+  let k = PK.one.k(CL, V);
+  if (s.site) k = siteRound(k, 4);
+  const thalf = s.site ? siteRound(PK.one.halfLife(k), 1) : PK.one.halfLife(k, Math.LN2);
+  return { V, CL, k, thalf, vRaw, clRaw, mult: m, vdEq: s.vdEq, clEq: s.clEq, chf, chfAssumed: p.chf === "unknown" };
+}
+// LD and daily dose for an average target (mg/L). Site: target 1 ng/mL, rounded to 0.001 mg.
+function popDoses(par, form, targetMgL, cfg) {
+  const s = setup(cfg), F = s.F[form];
+  let LD = PK.one.loadingDose({ cTarget: targetMgL, V: par.V, F });
+  // Site: MD from the displayed (rounded) CL, not K·V (r02: 8.1 L/h → 0.278 mg).
+  let MD = PK.one.doseForAvg({ cavg: targetMgL, tau: 24, F }, { CL: isNum(par.CL) ? par.CL : par.k * par.V, V: par.V });
+  if (s.site) { LD = siteRound(LD, 3); MD = siteRound(MD, 3); }
+  return { LD, MD, F };
+}
+
+// ---------- Weekly steady state (zero-order inputs, repeating 168 h week) ----------
+const schedule = (dose, pattern = 7, dose2 = 0) => DIG.PATTERNS[pattern].map((on) => (on ? dose : dose2 || 0));
+// Level t h after Monday's dose time (any t), for a weekly schedule of 7 doses (mg) at 24·i h.
+// ka (h⁻¹) given → first-order oral absorption (PK.one.oralSS with a 168 h interval); otherwise zero-order input over tin.
+function weekConc(t, sched, par, F, tin, ka) {
+  const q = { V: par.V, k: par.k }, A = PK.one.accumulation(par.k, 168);
+  let c = 0;
+  sched.forEach((d, i) => {
+    if (!(d > 0)) return;
+    const dt = (((t - 24 * i) % 168) + 168) % 168;
+    if (ka > 0) c += PK.one.oralSS(dt, d, ka, 168, q, { F });
+    else c += PK.one.infusion(dt, d, tin, q, { F }) + A * PK.one.infusion(dt + 168, d, tin, q, { F });
+  });
+  return c;
+}
+const kaOf = (form, cfg) => (form !== "iv" && setup(cfg).oralFirstOrder ? DIG.KA : 0);
+const phiOf = (k) => Math.exp(-(DIG.PHI.a * k + DIG.PHI.b * k * k));
+// Peak = highest end-of-input level; trough = lowest pre-dose level (site: Cmin = Cmax·e^(−K(gap − tin))).
+function weekLevels(sched, par, form, cfg) {
+  const s = setup(cfg), F = s.F[form], tin = tinOf(form, cfg), ka = kaOf(form, cfg);
+  let peak = -Infinity, trough = Infinity, peakDay = 0, troughDay = 0;
+  sched.forEach((d, i) => {
+    if (!(d > 0)) return;
+    // Peak: end of input (zero-order); for first-order absorption the maximum over 0.05 h steps in the first 8 h.
+    let pk = weekConc(24 * i + tin, sched, par, F, tin, ka);
+    if (ka > 0) for (let h = 0.05; h <= 8; h += 0.05) pk = Math.max(pk, weekConc(24 * i + h, sched, par, F, tin, ka));
+    const tr = weekConc(24 * i, sched, par, F, tin, ka);
+    if (pk > peak) { peak = pk; peakDay = i; }
+    if (tr < trough) { trough = tr; troughDay = i; }
+  });
+  const phi = s.phi ? phiOf(par.k) : 1, weekly = sched.reduce((a, b) => a + b, 0);
+  return { peak: peak * phi, trough: trough * phi, peakRaw: peak, troughRaw: trough, phi, peakDay, troughDay,
+    cavg: (F * weekly) / (par.k * par.V * 168), weekly, F, tin };
+}
+
+// ---------- Products and schedules ----------
+const PRODUCTS = {
+  tablet: { strengths: [0.25, 0.125, 0.0625], inc: 0.0625, max: 0.5 },
+  capsule: { strengths: [0.2, 0.1, 0.05], inc: 0.05, max: 0.4 },
+  elixir: { inc: 0.0125, max: 0.5, conc: 0.05 },       // 50 mcg/mL, 0.25 mL steps
+  iv: { inc: 0.025, max: 0.5, conc: 0.25, concPed: 0.1 }, // 250 mcg/mL (100 mcg/mL paediatric), 0.1 mL steps
+};
+function deliverable(form) {
+  const pr = PRODUCTS[form], out = [];
+  for (let d = pr.inc; d <= pr.max + 1e-9; d += pr.inc) out.push(+d.toFixed(6));
+  return out;
+}
+function roundDose(mg, form) {
+  const pr = PRODUCTS[form];
+  if (pr.strengths) { const r = PK.round.roundToStrengths(mg, pr.strengths, { maxUnits: 4 }); return r ? r.total : NaN; }
+  return Math.max(pr.inc, PK.round.roundTo(mg, pr.inc));
+}
+const mcg = (mg) => { const x = +(mg * 1000).toFixed(2); return String(x); };
+function unitsText(mg, form) {
+  const pr = PRODUCTS[form];
+  if (pr.strengths) {
+    const r = PK.round.roundToStrengths(mg, pr.strengths, { maxUnits: 4 });
+    const word = form === "capsule" ? "capsule" : "tablet";
+    return r.units.map((u) => `${u.count} × ${mcg(u.strength)} mcg ${word}${u.count > 1 ? "s" : ""}`).join(" + ");
+  }
+  if (form === "elixir") return `${+(mg / pr.conc).toFixed(2)} mL of 50 mcg/mL`;
+  return mg < 0.1 ? `${+(mg / pr.concPed).toFixed(2)} mL of 100 mcg/mL` : `${+(mg / pr.conc).toFixed(2)} mL of 250 mcg/mL`;
+}
+function describeSchedule(sched) {
+  const vals = [...new Set(sched)];
+  if (vals.length === 1) return `${mcg(vals[0])} mcg once daily`;
+  const groups = {};
+  sched.forEach((d, i) => { (groups[d] = groups[d] || []).push(i); });
+  const dayList = (ix) => {
+    if (ix.length >= 3 && ix.every((v, j) => j === 0 || v === ix[j - 1] + 1)) return `${DIG.DAYS[ix[0]]}–${DIG.DAYS[ix[ix.length - 1]]}`;
+    return ix.map((i) => DIG.DAYS[i]).join("/");
+  };
+  const parts = Object.keys(groups).map(Number).filter((d) => d > 0).sort((a, b) => b - a).map((d) => `${mcg(d)} mcg ${dayList(groups[d])}`);
+  const n = sched.filter((d) => d > 0).length;
+  return parts.join(", ") + (vals.includes(0) ? ` (${n} days/week; none ${dayList(groups[0])})` : "");
+}
+// Candidate regimens for an average target. Prefers daily dosing; days-per-week schedules stand in for fractional doses.
+function regimenOptions({ par, form, target, cfg, weekly = true, limit = 8 }) {
+  const ds = deliverable(form), out = [];
+  const add = (sched, kind, penalty) => {
+    const lv = weekLevels(sched, par, form, cfg);
+    const err = Math.abs(lv.cavg * NG - target.aim) / target.aim;
+    const outside = lv.cavg * NG > target.hi || lv.trough * NG > target.hi ? 1 : lv.cavg * NG < target.lo ? 0.5 : 0;
+    // Fluctuation penalty favours smoother schedules (daily > 6/wk > … > 3/wk).
+    const fluct = 0.1 * (lv.peak / lv.trough - 1);
+    out.push({ sched, kind, text: describeSchedule(sched), ...lv, err, score: err + penalty + fluct + outside });
+  };
+  ds.forEach((d, j) => {
+    add(schedule(d, 7), "daily", 0);
+    if (!weekly) return;
+    [[6, 0.05], [5, 0.06], [4, 0.12], [3, 0.18]].forEach(([n, pen]) => add(schedule(d, n), `${n}/week`, pen));
+    const lower = [ds[j - 1], d / 2].filter((x, i, a) => x > 0 && a.indexOf(x) === i && ds.some((y) => Math.abs(y - x) < 1e-9));
+    lower.forEach((d2) => add(schedule(d, 5, d2), "mixed", 0.03));
+  });
+  out.sort((a, b) => a.score - b.score);
+  return out.slice(0, limit);
+}
+// Loading dose split 50/25/25 % q6h, each part rounded to the product.
+function loadingPlan(LD, form) {
+  const parts = [0.5, 0.25, 0.25].map((f) => roundDose(LD * f, form));
+  return { exact: LD, parts, total: parts.reduce((a, b) => a + b, 0), times: [0, 6, 12] };
+}
+
+// ---------- Dose history (datetimes as "YYYY-MM-DDTHH:MM", read as wall-clock, no DST) ----------
+function hoursOf(s) {
+  const m = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d)/.exec(String(s || "").trim());
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) / 3600e3 : NaN;
+}
+const dowOf = (h) => (new Date(Math.floor(h) * 3600e3).getUTCDay() + 6) % 7; // Monday = 0
+function parseEdits(text) {
+  return String(text || "").split(/\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const m = /^(\d{4}-\d\d-\d\d[T ]\d\d:\d\d)\s+([\d.]+)/.exec(l);
+    return m ? { t: hoursOf(m[1]), dose: parseFloat(m[2]) / 1000 } : { bad: l };
+  });
+}
+// h = { start, sched (7 doses mg, Mon..Sun), form, ld (mg total), ldStart, ldForm, edits [{t, dose}] }, until (hours)
+function buildHistory(h, until, cfg) {
+  const s = setup(cfg), ev = [];
+  const mk = (t, dose, form) => {
+    const ka = kaOf(form, cfg);
+    return ka > 0 ? { t, dose, route: "oral", ka, F: s.F[form], form } : { t, dose, tinf: tinOf(form, cfg), F: s.F[form], form };
+  };
+  if (h.ld > 0 && isNum(h.ldStart)) {
+    const lf = h.ldForm || h.form;
+    loadingPlan(h.ld, lf).parts.forEach((d, i) => { const t = h.ldStart + 6 * i; if (t <= until) ev.push(mk(t, d, lf)); });
+  }
+  if (isNum(h.start)) for (let t = h.start; t <= until + 1e-9; t += 24) { const d = h.sched[dowOf(t)]; if (d > 0) ev.push(mk(t, d, h.form)); }
+  for (const e of h.edits || []) {
+    if (e.bad || !isNum(e.t) || e.t > until) continue;
+    const i = ev.findIndex((x) => Math.abs(x.t - e.t) < 0.5);
+    if (i >= 0) ev.splice(i, 1);
+    if (e.dose > 0) ev.push(mk(e.t, e.dose, h.form));
+  }
+  return ev.sort((a, b) => a.t - b.t);
+}
+// Week-anchor: hours of the Monday dose time on or before t0 (for steady-state evaluation at a calendar time).
+function weekHour(tAbs, start) {
+  const tod = (((start % 24) + 24) % 24), dayStart = Math.floor((tAbs - tod) / 24) * 24 + tod; // last dose-time at or before t
+  const monday = dayStart - 24 * dowOf(dayStart);
+  return tAbs - monday;
+}
+
+// ---------- Fitting ----------
+// o = { obs [{t, c (mg/L)}], predict: (par) => (t) => c, par0 {V, CL}, method 'map'|'cl', cv {cl, v, assay}, cfg }
+function fitLevels(o) {
+  const s = setup(o.cfg), cv = o.cv || {};
+  const predict = (th, t) => o.predict({ V: th.V, CL: th.CL, k: th.CL / th.V })(t);
+  // method: 'map' (MAP, 2 parameters) | 'mapK' (MAP, V fixed) | 'cl' (least squares, V fixed) | 'lsKV' (least squares, K and V)
+  const bayes = o.method === "map" || o.method === "mapK", fitV = o.method === "map" || o.method === "lsKV";
+  let r, V, CL, k;
+  if (s.wb) {
+    // Workbook (KVD F53/F60): fitted K and V; normal priors CV 30 % each; σ = 10 % of the observed level; LS unweighted.
+    // Solver bounds K 0.1–10 × Kpop, V 0.5–2 × Vpop: enforced by clamping inside predict (constrained optimum lies on the bound).
+    const kPop = o.par0.CL / o.par0.V, vPop = o.par0.V;
+    const kB = WB.kBounds.map((f) => f * kPop), vB = WB.vBounds.map((f) => f * vPop);
+    const clamp = (x, b) => Math.min(b[1], Math.max(b[0], x));
+    const spec = { obs: o.obs, priorType: "normal", error: { type: "proportionalObs", cv: WB.cvResid },
+      predict: (th, t) => { const K = clamp(th.K, kB), Vv = clamp(th.V, vB); return o.predict({ V: Vv, CL: K * Vv, k: K })(t); },
+      params: [{ name: "K", mean: kPop, cv: WB.cvK }, { name: "V", mean: vPop, cv: WB.cvV, fit: fitV }] };
+    r = bayes ? PK.fit.map(spec) : PK.fit.leastSquares(spec);
+    k = clamp(r.params.K, kB); V = clamp(r.params.V, vB); CL = k * V;
+    r.atBound = k === kB[0] || k === kB[1] || (fitV && (V === vB[0] || V === vB[1]));
+  } else {
+    if (bayes) {
+      // decisions Q5: log-normal priors CV 35 % on CL and V; residual additive 0.15 ng/mL + proportional 10 %.
+      r = PK.fit.map({ predict, obs: o.obs, priorType: s.priorType,
+        params: [{ name: "CL", mean: o.par0.CL, cv: cv.cl || 0.35 }, { name: "V", mean: o.par0.V, cv: cv.v || 0.35, fit: fitV }],
+        error: { type: "combined", cv: isNum(cv.assay) ? cv.assay : 0.1, sd: (isNum(cv.sdNg) ? cv.sdNg : 0.15) / NG } });
+    } else {
+      r = PK.fit.leastSquares({ predict, obs: o.obs, params: [{ name: "CL", mean: o.par0.CL }, { name: "V", mean: o.par0.V, fit: fitV }] });
+    }
+    V = r.params.V; CL = r.params.CL; k = CL / V;
+  }
+  if (s.site && o.method === "cl") { k = siteRound(k, 4); CL = k * V; } // site: KFit 4 dp, CL = KFit × Vd unrounded
+  const thalf = s.site ? siteRound(PK.one.halfLife(k), 1) : PK.one.halfLife(k, Math.LN2);
+  const par = { V, CL, k, thalf };
+  const preds = o.obs.map((x) => ({ t: x.t, obs: x.c, pred: o.predict(par)(x.t) }));
+  const worst = Math.max(...preds.map((x) => Math.abs(x.pred - x.obs) / x.obs));
+  const flags = [];
+  if (r.atBound) flags.push({ lvl: "warn", text: "Workbook fit stopped at a Solver bound (K 0.1–10 × or V 0.5–2 × population): check the dose history and levels." });
+  if (o.method === "cl" && o.obs.length === 1 && worst > 0.02) flags.push({ lvl: "crit", text: "No clearance reproduces this level with the population Vd (level too high for the doses given, or the dose history is wrong). Check the history and sampling time, or use MAP." });
+  if (k <= 0.0015) flags.push({ lvl: "warn", text: "Fitted elimination is extremely slow (t½ over 19 days): suspect a timing or dose-history error, non-adherence the other way, or toxicity." });
+  return { ...par, fit: r, preds, worst, flags, method: o.method };
+}
+// SS-assumed predictor for a weekly schedule; obs t = hours after the Monday dose time.
+const ssPredictor = (sched, form, cfg) => (par) => (t) => weekConc(t, sched, par, setup(cfg).F[form], tinOf(form, cfg), kaOf(form, cfg));
+const historyPredictor = (events) => (par) => (t) => PK.one.superpose(t, events, { V: par.V, k: par.k });
+
+// ---------- Level checks ----------
+// Site: < 6 h excluded, oral < 8 h warned (spec §7). Literature (decisions Q6): exclude < 6 h oral, < 4 h IV.
+function samplingCheck(hoursAfter, form, cfg) {
+  const iv = form === "iv", site = setup(cfg).site;
+  if (!isNum(hoursAfter)) return null;
+  if (!site && iv && hoursAfter < 4) return { lvl: "crit", text: `Level drawn ${PK.round.fmt(hoursAfter, 1)} h after an IV dose, during distribution: excluded from fitting. Redraw at least 4–6 h after IV (ideally just before the next dose).` };
+  if (!site && iv) return hoursAfter < 6 ? { lvl: "info", text: `Level drawn ${PK.round.fmt(hoursAfter, 1)} h after an IV dose: usable (≥ 4 h), but a trough is preferred.` } : null;
+  if (hoursAfter < 6) return { lvl: "crit", text: `Level drawn ${PK.round.fmt(hoursAfter, 1)} h after a dose, during distribution: it is falsely high and should not be used for fitting. Redraw at least ${iv ? 6 : 8}–12 h after the dose (ideally just before the next dose).` };
+  if (!iv && hoursAfter < 8) return { lvl: "warn", text: `Level drawn ${PK.round.fmt(hoursAfter, 1)} h after an oral dose: distribution may be incomplete (site minimum 8 h; 12–24 h preferred).` };
+  if (!iv && hoursAfter < 12) return { lvl: "info", text: `Level drawn ${PK.round.fmt(hoursAfter, 1)} h after an oral dose: acceptable, but 12–24 h (trough) is preferred.` };
+  return null;
+}
+function levelFlags(cNg, tgt, label) {
+  if (!isNum(cNg)) return [];
+  if (cNg >= 2) return [{ lvl: "crit", text: `${label} ${cNg.toFixed(2)} ng/mL is in the toxic range: assess for toxicity (ECG, K⁺, Mg, renal function), hold doses, and consider digoxin immune fab if there are arrhythmias or K⁺ > 5 mmol/L.` }];
+  if (cNg >= tgt.hard) return [{ lvl: "crit", text: `${label} ${cNg.toFixed(2)} ng/mL is at or above ${tgt.hard} ng/mL, associated with higher mortality (DIG post hoc; ARISTOTLE). Reduce the dose.` }];
+  if (cNg >= tgt.warn || cNg > tgt.hi) return [{ lvl: "warn", text: `${label} ${cNg.toFixed(2)} ng/mL is above the target (${tgt.text || tgt.lo + "–" + tgt.hi + " ng/mL"}).` }];
+  return [];
+}
+function targetFor(set, ind, custom) {
+  if (set === "custom" && custom) return { aim: custom.aim, lo: custom.lo, hi: custom.hi, warn: custom.hi, hard: Math.max(custom.hi, 1.2), set, text: `${custom.lo}–${custom.hi} ng/mL` };
+  const t = DIG.TARGETS[set] || DIG.TARGETS.lit, v = ind === "af" ? t.af : t.hf;
+  return { ...v, set, text: v.text || `${v.lo}–${v.hi} ng/mL` };
+}
+// CALC-END
+
+// ======================= UI =======================
+const $ = (id) => document.getElementById(id);
+const esc = PKUI.esc;
+const f2 = (x, dp = 2) => PK.round.fmt(x, dp);
+const ng = (mgL, dp = 2) => (isNum(mgL) ? (mgL * NG).toFixed(dp) : "—");
+let activeTab = "initial", model = "literature", showWork = false, showOpts = false, currentNote = "", themeMode = "auto";
+const TABS = ["initial", "interp", "adjust"];
+
+// Local provenance tags (PK.sources has no digoxin entries; lib is shared and not edited here).
+const SRC = {
+  sheiner: { label: "Sheiner CL: (0.8·Wt + 1.0·CrCl) or CHF (0.33·Wt + 0.9·CrCl) mL/min", ref: "Winter BCP 5e ch. 3 Eq 3.3–3.4; decisions Q2", verify: false },
+  koup: { label: "Koup/Jusko CL: 1.303·CrCl + 40 (20 in moderate–severe HF); site 41", ref: "decisions Q2 (secondary reproductions of Bauer)", verify: true },
+  jusko: { label: "Jusko Vd: 226 + 298·CrCl/(29.1 + CrCl), × Wt/70 (Bauer; site: BSA/1.73)", ref: "decisions Q2 (scaling convention secondary)", verify: true },
+  paulson: { label: "Paulson-Welling Vd: (4.5 + 0.028·CrCl per 1.73 m²)·Wt, verified against both site workbooks (cached 587.057 L)", ref: "spec §13; workbook-checks/digoxin.md A5, D1", verify: false },
+  wbFit: { label: "Workbook MAP: normal priors CV 30 % on K and V; residual 10 % of observed; bounds K 0.1–10×, V 0.5–2×", ref: "spec §13 (KVD workbook F60, Solver state)", verify: false },
+  wbTin: { label: "Workbook: every dose a zero-order input (default 0.25 h)", ref: "spec §13 (KVD C16)", verify: false },
+  reuning: { label: "Reuning Vd: 3.8·Wt + 3.1·CrCl (Winter Eq 3.1; live server 3.12)", ref: "Winter BCP 5e ch. 3; spec §12; decisions Q2", verify: false },
+  F: { label: "F: tablet 0.7, solution 0.8, IV 1, capsule 0.95 (site 1.0)", ref: "lit D10–D13; spec §3.1", verify: false },
+  inter: { label: "Interaction CL multipliers (Lanoxin label §7.2), approved", ref: "decisions Q4; lit D14–D23", verify: false },
+  thyroid: { label: "Thyroid CL and Vd ±30 % (approximate), approved", ref: "decisions Q4", verify: true },
+  target: { label: "HF 0.5–0.9 (aim 0.7); AF < 1.2 (aim 0.9)", ref: "2023 ACC/AHA/ACCP/HRS AF (verbatim); ESC 2021 HF; decisions Q1", verify: false },
+  ka: { label: "Oral first-order absorption ka 1.6 h⁻¹, no lag (Zhou 2010)", ref: "decisions Q6", verify: true },
+  siteTarget: { label: "Site calculator: LD/MD for 1 ng/mL; trough goal HF 0.8–1.2, AF 1.5–2", ref: "spec §7", verify: true },
+  zero: { label: "Doses as zero-order inputs: IV 0.25 h, oral 1 h", ref: "spec §4 (live probe)", verify: false },
+  phi: { label: "Empirical site peak attenuation Φ(K)", ref: "spec §4 (unexplained)", verify: true },
+  map: { label: "MAP: log-normal priors CV 35 % on CL and V; residual 0.15 ng/mL + 10 %", ref: "decisions Q5 (Yukawa 1997, Choi 2014, Zhou 2010)", verify: true },
+  chow: { label: "Chow iterative CrCl for changing SCr", ref: "spec §3.4; crcl §4.4", verify: false },
+  ld: { label: "Loading dose 50/25/25 % q6h; label 10–15 mcg/kg lean (oral), 8–12 IV", ref: "lit D29", verify: false },
+};
+function badge(key) {
+  const s = SRC[key];
+  if (!s) return "";
+  const t = esc(`${s.label} (${s.ref})`);
+  return s.verify ? `<span class="src verify" title="${t}">verify</span>` : `<span class="src" title="${t}">src</span>`;
+}
+
+// ---- Inputs ----
+DIG.INTERACTIONS.forEach((d) => {
+  $("interChecks").insertAdjacentHTML("beforeend", `<label class="check"><input type="checkbox" data-inter="${d.id}"> ${esc(d.label)}</label>`);
+});
+const unitOf = (id) => document.querySelector(`button.ub[data-for="${id}"]`).textContent;
+function num(id) { const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; }
+function read() {
+  const scrU = unitOf("scr") === "mg/dL" ? "mgdl" : "umol";
+  const form = $("form").value;
+  const p = {
+    age: num("age"), sex: $("sex").value, ht: num("ht"), htUnit: unitOf("ht"), wt: num("wt"), wtUnit: unitOf("wt"),
+    scr: num("scr"), scrOld: num("scrOld"), scrHours: num("scrHours"), scrUnit: scrU, chf: $("chf").value,
+    ind: $("ind").value, form, thyroid: $("thyroid").value, kplus: num("kplus"), mg: num("mg"),
+    inter: [...document.querySelectorAll("[data-inter]")].filter((c) => c.checked).map((c) => c.dataset.inter),
+    otherMult: num("otherMult"), paraMal: $("paraMal").checked, targetSet: $("targetSet").value, custom: { aim: num("tAim"), lo: num("tLo"), hi: num("tHi") },
+    ldMode: $("ldMode").value, ldForm: $("ldForm").value === "same" ? form : $("ldForm").value, weekly: $("weekly").value === "yes",
+    hDose: num("hDose") / 1000, hPat: $("hPat").value, hDose2: num("hDose2") / 1000 || 0, hForm: $("hForm").value === "same" ? form : $("hForm").value,
+    hStart: hoursOf($("hStart").value), hLd: num("hLd") / 1000 || 0, hLdStart: hoursOf($("hLdStart").value),
+    levels: [1, 2, 3].map((i) => ({ t: hoursOf($(`l${i}t`).value), c: num(`l${i}c`) / NG })).filter((l) => isNum(l.t) && l.c > 0),
+    edits: parseEdits($("hEdits").value), fitMethod: $("fitMethod").value, ssMode: $("ssMode").value,
+  };
+  const cfg = { model, vdEq: $("vdEq").value, clEq: $("clEq").value, phi: $("phi").value, weightPolicy: $("wPolicy").value,
+    scrFloor: $("scrFloor").value ? parseFloat($("scrFloor").value) : null, wbTin: num("wbTin") };
+  const cv = { cl: num("cvCL"), v: num("cvV"), assay: num("cvA"), sdNg: num("sdNg") };
+  return { p, cfg, cv };
+}
+// "afhf" uses the stricter HF target.
+const indKey = (ind) => (ind === "af" ? "af" : "hf");
+
+// ---- Shared renderers ----
+function alertsHTML(alerts) {
+  const seen = new Set(), list = alerts.filter((a) => a && !seen.has(a.text) && seen.add(a.text));
+  const order = { crit: 0, warn: 1, info: 2 };
+  list.sort((a, b) => order[a.lvl] - order[b.lvl]);
+  return list.length ? `<section class="alerts">${list.map((a) => `<div class="alert ${a.lvl === "crit" ? "crit" : a.lvl === "info" ? "info" : ""}" role="${a.lvl === "crit" ? "alert" : "status"}">${esc(a.text)}</div>`).join("")}</section>` : "";
+}
+function pill(cNg, tgt) {
+  if (!isNum(cNg)) return "";
+  if (cNg >= tgt.hard) return `<span class="pill crit">Above ${tgt.hard}</span>`;
+  if (cNg > tgt.hi) return `<span class="pill warn">Above range</span>`;
+  if (cNg < tgt.lo) return `<span class="pill warn">Below range</span>`;
+  return `<span class="pill ok">In range</span>`;
+}
+function orderCard({ lines, sub, right, info }) {
+  return `<section class="card order">
+    <div class="top">
+      <div class="lines">${lines.map((l) => `<div class="oline"><span class="tag">${l.tag}</span><span class="rx">${l.text}</span></div>`).join("")}
+        ${sub ? `<div class="subl">${sub}</div>` : ""}</div>
+      ${right ? `<div class="right"><span class="lbl">${right.label}</span><span class="val">${right.value}</span><span>${right.pill || ""}</span></div>` : ""}
+    </div>
+    ${info && info.length ? `<div class="info">${info.map(([k, v]) => `<div><span class="lbl">${k}</span>${v}</div>`).join("")}</div>` : ""}
+    <div class="actions">
+      <button type="button" class="primary" data-act="copy">Copy order and note</button>
+      <button type="button" data-act="opts" aria-pressed="${showOpts}">Other regimens</button>
+      <button type="button" data-act="work" aria-pressed="${showWork}">Show working</button>
+      <span class="copied" id="copied"></span>
+    </div>
+  </section>`;
+}
+function workHTML(rows) { return `<section class="card"><h2>Working</h2><dl class="calc">${rows.map(([k, v]) => (k ? `<dt>${k}</dt><dd>${v}</dd>` : `<dd class="full">${v}</dd>`)).join("")}</dl></section>`; }
+function noteHTML(text) { return `<section class="card"><h2>Chart note</h2><textarea class="note" id="noteText" readonly aria-label="Chart note">${esc(text)}</textarea></section>`; }
+function optionsHTML(opts, form, tgt) {
+  return `<section class="card"><h2>Regimen options (${esc(DIG.FORM_LABEL[form])})</h2><div class="tablewrap"><table>
+    <thead><tr><th>Regimen</th><th>mcg/week</th><th>Avg</th><th>Peak</th><th>Trough</th><th></th></tr></thead><tbody>
+    ${opts.map((o, i) => `<tr class="${i === 0 ? "sel" : ""}"><td>${esc(o.text)}</td><td>${mcg(o.weekly)}</td><td>${ng(o.cavg)}</td><td>${ng(o.peak)}</td><td>${ng(o.trough)}</td><td>${pill(o.cavg * NG, tgt)}</td></tr>`).join("")}
+    </tbody></table></div><p class="hint">Levels in ng/mL at steady state. Peak is the model level at the end of the input (before distribution is complete it is not measurable). Target ${tgt.text}, aim ${tgt.aim} ng/mL (average).</p></section>`;
+}
+const modelName = (cfg) => ({ site: "site", workbook: "workbook", literature: "literature" })[setup(cfg).model];
+function modeLine(cfg, par) {
+  const s = setup(cfg);
+  return `<p class="modeline">Model: <b>${s.site ? "Site (pkineticdrugdosing.com parity, rounded chain)" : s.wb ? `Workbook (site Excel tools, unrounded; input ${f2(s.wbTin, 2)} h)` : "Literature"}</b> · Vd ${esc(s.vdEq)} ${badge(s.vdEq)} · CL ${esc(s.clEq)} ${badge(s.clEq)}${s.phi ? ` · Φ(K) ${f2(phiOf(par.k), 5)} ${badge("phi")}` : ""}</p>`;
+}
+function routeOf(form) { return form === "iv" ? "IV" : "PO"; }
+function commonFlags(p, pt, par, cfg) {
+  const a = [...pt.flags];
+  if (isNum(p.kplus) && p.kplus < 3.5) a.push({ lvl: "crit", text: `Hypokalaemia (K⁺ ${p.kplus} mmol/L) increases digoxin toxicity: correct K⁺ before dosing.` });
+  else if (isNum(p.kplus) && p.kplus > 5.5) a.push({ lvl: "warn", text: `K⁺ ${p.kplus} mmol/L: hyperkalaemia can be a sign of severe digoxin toxicity.` });
+  if (isNum(p.mg) && p.mg < 0.7) a.push({ lvl: "crit", text: `Hypomagnesaemia (Mg ${p.mg} mmol/L) increases digoxin toxicity: correct Mg.` });
+  if (!isNum(p.kplus) || !isNum(p.mg)) a.push({ lvl: "info", text: "Check K⁺, Mg and Ca: hypokalaemia, hypomagnesaemia and hypercalcaemia increase toxicity at any level." });
+  par.mult.notes.forEach((n) => a.push({ lvl: "info", text: n }));
+  if (par.mult.count > 1) a.push({ lvl: "warn", text: "More than one interacting drug: multipliers are multiplied, which may overstate the effect. The site suggests using only the strongest to stay conservative." });
+  if (p.thyroid !== "normal") a.push({ lvl: "info", text: "Thyroid factors (±30 %) are approximate; recheck levels as thyroid status normalises." });
+  if (p.form === "capsule") a.push({ lvl: "info", text: "Soft-gel capsules (Lanoxicaps) are no longer marketed in the US." });
+  if (p.chf === "unknown") a.push({ lvl: "info", text: "Heart failure status unknown: the CHF clearance equation is assumed (conservative, Winter). Answer Yes or No when known." });
+  if (setup(cfg).site && p.chf !== "yes") a.push({ lvl: "info", text: "Site calculator pre-selects CHF = Yes." });
+  if (setup(cfg).oralFirstOrder && p.form !== "iv") a.push({ lvl: "info", text: `Oral absorption modelled first-order, ka ${DIG.KA} h⁻¹, no lag.` });
+  if (setup(cfg).wb) a.push({ lvl: "info", text: `Workbook model: every dose is a ${f2(setup(cfg).wbTin, 2)} h zero-order input, no rounding; Vd is smaller than the web calculator's (Paulson vs Reuning).` });
+  return a;
+}
+function paramRows(pt, par, cfg, p) {
+  const s = setup(cfg);
+  return [
+    ["IBW (Devine)", `${f2(pt.ibw, 1)} kg`], ["Lean weight = min(IBW, ABW)", `${f2(pt.lbw, 1)} kg`],
+    ["BSA (DuBois)", `${f2(pt.bsa, 3)} m²`],
+    ...(pt.scrFloored ? [["SCr used (workbook floor)", `${f2(pt.scr, 2)} mg/dL (measured ${f2(pt.scrMeasured, 2)})`]] : []),
+    [`CrCl (${esc(pt.crclMethod)}, ${esc(pt.weightBasis)})`, `${f2(pt.crcl, 1)} mL/min ${pt.chow ? badge("chow") : ""}`],
+    ["CrCl per 1.73 m²", `${f2(pt.crclN, 1)} mL/min/1.73 m²`], ["Creatinine t½", `${f2(pt.crT, 1)} h`],
+    ["Multipliers", esc(par.mult.list.join("; ") || "none") + (par.mult.list.length ? ` ${badge("inter")}` : "")],
+    [`Vd (${esc(par.vdEq)})`, `${f2(par.V, 1)} L (${f2(par.V / pt.lbw, 2)} L/kg lean) ${badge(par.vdEq)}`],
+    [`CL (${esc(par.clEq)}${par.chf ? (par.chfAssumed ? ", CHF assumed" : ", CHF") : ""})`, `${f2(par.CL, s.site ? 1 : 3)} L/h ${badge(par.clEq)}`],
+    ["K", `${PK.round.fmt(par.k, s.site ? 4 : 5)} h⁻¹`], ["t½", `${f2(par.thalf, 1)} h (${f2(par.thalf / 24, 1)} days)`],
+    ["F", `${s.F[p.form]} ${badge("F")}`],
+  ];
+}
+
+// ---- Initial dosing ----
+function renderInitial(p, cfg) {
+  const s = setup(cfg), pt = patient(p, cfg), par = popParams(pt, p, cfg);
+  const tgt = targetFor(s.site && p.targetSet === "lit" ? "siteCalc" : p.targetSet, indKey(p.ind), p.custom);
+  const aim = tgt.aim / NG;
+  const doses = popDoses(par, p.form, aim, cfg);
+  const opts = regimenOptions({ par, form: p.form, target: tgt, cfg, weekly: p.weekly });
+  const best = opts[0];
+  const giveLD = p.ldMode === "yes" || (p.ldMode === "auto" && indKey(p.ind) === "af");
+  const ldDoses = popDoses(par, p.ldForm, aim, cfg);
+  const ld = loadingPlan(ldDoses.LD, p.ldForm);
+  const alerts = commonFlags(p, pt, par, cfg);
+  const perKg = (ld.total * 1000) / pt.lbw, ldMax = p.ldForm === "iv" ? 12 : 15;
+  if (giveLD && perKg > ldMax) alerts.push({ lvl: "warn", text: `Loading dose ${f2(perKg, 1)} mcg/kg lean weight exceeds the label's ${p.ldForm === "iv" ? "8–12" : "10–15"} mcg/kg.` });
+  if (giveLD && indKey(p.ind) === "hf") alerts.push({ lvl: "info", text: "Loading doses are generally unnecessary in chronic heart failure." });
+  alerts.push(...levelFlags(best.cavg * NG, tgt, "Predicted average level"));
+  const lines = [];
+  if (giveLD) {
+    const [a, b, c] = ld.parts;
+    lines.push({ tag: "Load", text: `Digoxin ${mcg(a)} mcg ${routeOf(p.ldForm)} now, then ${mcg(b)} mcg at 6 h and ${mcg(c)} mcg at 12 h (total ${mcg(ld.total)} mcg)` });
+  }
+  lines.push({ tag: "Maint", text: `Digoxin ${esc(best.text)} ${routeOf(p.form)}${giveLD ? ", starting 24 h after the first loading dose" : ""}` });
+  const unit = [...new Set(best.sched.filter((d) => d > 0))].map((d) => `${mcg(d)} mcg = ${unitsText(d, p.form)}`).join("; ");
+  const days5 = (5 * par.thalf) / 24;
+  const info = [
+    ["Population Vd / CL", `${f2(par.V, 0)} L / ${f2(par.CL, 2)} L/h`], ["t½", `${f2(par.thalf, 1)} h`],
+    ["Exact daily dose for aim", `${mcg(doses.MD)} mcg/day`], ["Exact loading dose", `${mcg(doses.LD)} mcg${p.ldForm !== p.form ? ` (${mcg(ldDoses.LD)} mcg ${routeOf(p.ldForm)})` : ""}`],
+    ["Predicted trough / peak", `${ng(best.trough)} / ${ng(best.peak)} ng/mL`], ["Target", `${tgt.text}, aim ${tgt.aim} ${badge(tgt.set === "lit" ? "target" : "siteTarget")}`],
+  ];
+  const note = [
+    `Digoxin initial dosing (${modelName(cfg)} model; ${par.vdEq} Vd, ${par.clEq} CL).`,
+    `Patient: ${p.sex} ${p.age} y, ABW ${f2(pt.abw, 1)} kg, lean wt ${f2(pt.lbw, 1)} kg, SCr ${f2(pt.scr, 2)} mg/dL, CrCl ${f2(pt.crcl, 1)} mL/min (${pt.crclMethod}). CHF ${p.chf}${p.chf === "unknown" ? " (CHF equation assumed)" : ""}. ${par.mult.list.join("; ")}`,
+    `Population Vd ${f2(par.V, 1)} L, CL ${f2(par.CL, 2)} L/h, K ${PK.round.fmt(par.k, 4)} h-1, t1/2 ${f2(par.thalf, 1)} h.`,
+    giveLD ? `Loading: ${mcg(ld.parts[0])} mcg ${routeOf(p.ldForm)} now, ${mcg(ld.parts[1])} mcg at 6 h, ${mcg(ld.parts[2])} mcg at 12 h (total ${mcg(ld.total)} mcg, ${f2(perKg, 1)} mcg/kg lean).` : "No loading dose.",
+    `Maintenance: ${best.text} ${routeOf(p.form)} (${unit}).`,
+    `Predicted steady state: average ${ng(best.cavg)}, trough ${ng(best.trough)}, peak ${ng(best.peak)} ng/mL; target ${tgt.lo}-${tgt.hi} (aim ${tgt.aim}).`,
+    `Check a level at least 6-8 h after a dose (ideally just before the next dose) in about ${f2(Math.min(days5, 7), 0)}-${f2(Math.max(days5, 7), 0)} days${days5 > 7 ? " (steady state ~" + f2(days5, 0) + " days)" : ""}; check K, Mg and SCr.`,
+  ].join("\n");
+  currentNote = note;
+  let html = modeLine(cfg, par) + alertsHTML(alerts) + orderCard({
+    lines, sub: esc(unit),
+    right: { label: "Predicted average", value: `${ng(best.cavg)} ng/mL`, pill: pill(best.cavg * NG, tgt) }, info,
+  });
+  if (s.site) html += siteOutputsHTML(pt, par, doses, best, p.form);
+  if (showOpts) html += optionsHTML(opts, p.form, tgt);
+  if (showWork) html += workHTML([...paramRows(pt, par, cfg, p), ["Loading dose", `${f2(aim * NG, 2)} ng/mL × ${f2(par.V, 1)} L ÷ F ${ldDoses.F} = ${mcg(ldDoses.LD)} mcg ${badge("ld")}`],
+    ["Daily dose", `${f2(aim * NG, 2)} × CL ${f2(par.k * par.V, 3)} × 24 ÷ F ${doses.F} = ${mcg(doses.MD)} mcg`],
+    ["Peak/trough model", `weekly steady-state superposition ${setup(cfg).oralFirstOrder && p.form !== "iv" ? `(oral ka ${DIG.KA} h⁻¹) ${badge("ka")}` : setup(cfg).wb ? `(zero-order ${f2(setup(cfg).wbTin, 2)} h input, all forms) ${badge("wbTin")}` : badge("zero")}`]]) + noteHTML(note);
+  return html;
+}
+function siteOutputsHTML(pt, par, doses, best, form) {
+  return `<section class="card"><h2>Site calculator fields</h2><dl class="calc">
+    <dt>Lean Body Weight / Dosing Weight</dt><dd>${pt.lbw} kg</dd><dt>CrCl</dt><dd>${pt.crcl} mL/min</dd><dt>Creatinine T½</dt><dd>${pt.crT} h</dd>
+    <dt>K</dt><dd>${par.k}</dd><dt>T½</dt><dd>${par.thalf} h</dd><dt>Vd</dt><dd>${par.V} L</dd><dt>CL</dt><dd>${par.CL} L/h</dd>
+    <dt>Loading dose (1 ng/mL)</dt><dd>${doses.LD} mg</dd><dt>Calculated daily dose</dt><dd>${doses.MD} mg</dd>
+    <dt>CmaxssExact / CminssExact for ${esc(best.text)}</dt><dd>${(best.peak * NG).toPrecision(9)} / ${(best.trough * NG).toPrecision(9)}</dd>
+    </dl><p class="hint">Site values use the target set for LD/MD (site calculator: 1 ng/mL). Peaks include Φ(K) ${f2(best.phi, 6)}.</p></section>`;
+}
+
+// ---- Level interpretation and fitting ----
+function levelAnalysis(p, cfg, cv) {
+  const s = setup(cfg), pt = patient(p, cfg), par = popParams(pt, p, cfg);
+  const tgt = targetFor(s.site && p.targetSet === "lit" ? "siteCalc" : p.targetSet, indKey(p.ind), p.custom);
+  const sched = schedule(p.hDose, +p.hPat, p.hDose2);
+  const alerts = commonFlags(p, pt, par, cfg);
+  if (!p.levels.length) return { error: "Enter at least one level with its date and time." };
+  if (!isNum(p.hStart)) return { error: "Enter when the current regimen started." };
+  const last = Math.max(...p.levels.map((l) => l.t));
+  const events = buildHistory({ start: p.hStart, sched, form: p.hForm, ld: p.hLd, ldStart: p.hLdStart, ldForm: p.ldForm, edits: p.edits }, last, cfg);
+  p.edits.filter((e) => e.bad).forEach((e) => alerts.push({ lvl: "warn", text: `Ignored dose line "${e.bad}" (use YYYY-MM-DD HH:MM mcg).` }));
+  const ssMode = p.ssMode === "auto" ? (s.site ? "ss" : "history") : p.ssMode;
+  const method = p.fitMethod === "auto" ? (s.site ? "cl" : "map") : p.fitMethod; // workbook auto: Bayes K + V (KVD button)
+  // Sampling checks per level (time since the latest dose start before it).
+  const usable = [];
+  for (const l of p.levels) {
+    const prev = events.filter((e) => e.t < l.t).pop();
+    const after = prev ? l.t - prev.t : NaN;
+    const chk = samplingCheck(after, prev ? prev.form : p.hForm, cfg);
+    if (chk) alerts.push(chk);
+    if (!prev) alerts.push({ lvl: "crit", text: "A level is dated before any recorded dose." });
+    if (!chk || chk.lvl !== "crit") usable.push({ ...l, after });
+  }
+  if (!usable.length) return { error: "No usable level: every level was drawn during distribution (oral < 6 h, IV < 4 h after a dose) or before any dose.", alerts, pt, par };
+  const elapsed = last - Math.min(...events.map((e) => e.t));
+  const ssReached = elapsed >= 5 * par.thalf;
+  let predict, obs;
+  if (ssMode === "ss") {
+    predict = ssPredictor(sched, p.hForm, cfg);
+    obs = usable.map((l) => ({ t: weekHour(l.t, p.hStart), c: l.c }));
+    if (!ssReached) alerts.push({ lvl: "warn", text: `Regimen running ${f2(elapsed / 24, 1)} days, under 5 population half-lives (${f2((5 * par.thalf) / 24, 1)} days): the steady-state assumption is not valid. Use the actual dose history.` });
+  } else {
+    predict = historyPredictor(events);
+    obs = usable.map((l) => ({ t: l.t, c: l.c }));
+  }
+  const fit = fitLevels({ obs, predict, par0: par, method, cv, cfg });
+  alerts.push(...fit.flags);
+  const popPred = obs.map((o) => predict(par)(o.t));
+  const ssNow = weekLevels(sched, fit, p.hForm, cfg);
+  const lastLevel = usable[usable.length - 1];
+  alerts.push(...levelFlags(lastLevel.c * NG, tgt, "Measured level"));
+  alerts.push(...levelFlags(ssNow.trough * NG, tgt, "Predicted steady-state trough on the current regimen"));
+  const ratio = fit.CL / par.CL;
+  if (ratio < 0.5 || ratio > 2) alerts.push({ lvl: "warn", text: `Fitted CL is ${f2(ratio, 2)} × the population value: check adherence, dose history, sampling time, interactions and renal function.` });
+  return { pt, par, tgt, sched, events, fit, obs, usable, popPred, ssNow, ssMode, method, elapsed, ssReached, alerts, last, predict };
+}
+function chartHTML(A) {
+  const W = 640, H = 220, m = { l: 40, r: 10, t: 10, b: 26 };
+  const t0 = Math.min(...A.events.map((e) => e.t), A.last - 72), t1 = A.last + 7 * 24;
+  const fut = A.events.length ? A.events : [];
+  const n = 240, ts = Array.from({ length: n + 1 }, (_, i) => t0 + ((t1 - t0) * i) / n);
+  // Future doses on the current schedule after the last level (for the projection only).
+  const proj = [...fut];
+  for (let t = A.events.length ? A.events[A.events.length - 1].t + 24 : A.last; t <= t1; t += 24) { const d = A.sched[dowOf(t)]; if (d > 0 && t > A.last) proj.push({ ...A.events[A.events.length - 1], t, dose: d }); }
+  const fitC = ts.map((t) => PK.one.superpose(t, proj, { V: A.fit.V, k: A.fit.k }) * NG);
+  const popC = ts.map((t) => PK.one.superpose(t, proj, { V: A.par.V, k: A.par.k }) * NG);
+  const yMax = Math.max(2, ...fitC, ...A.usable.map((l) => l.c * NG)) * 1.05;
+  const X = (t) => m.l + ((t - t0) / (t1 - t0)) * (W - m.l - m.r), Y = (c) => H - m.b - (c / yMax) * (H - m.t - m.b);
+  const path = (cs) => cs.map((c, i) => `${i ? "L" : "M"}${X(ts[i]).toFixed(1)},${Y(c).toFixed(1)}`).join("");
+  const ticks = [0, 0.5, 1, 1.5, 2, 2.5, 3].filter((v) => v <= yMax);
+  return `<section class="card"><h2>Concentration profile</h2>
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Predicted digoxin concentration over time with measured levels">
+      <rect x="${m.l}" y="${Y(A.tgt.hi)}" width="${W - m.l - m.r}" height="${Y(A.tgt.lo) - Y(A.tgt.hi)}" fill="var(--band)" />
+      ${ticks.map((v) => `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" /><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`).join("")}
+      <line x1="${X(A.last)}" x2="${X(A.last)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--muted)" stroke-dasharray="3 3" />
+      <path d="${path(popC)}" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="5 4" />
+      <path d="${path(fitC)}" fill="none" stroke="var(--accent)" stroke-width="2" />
+      ${A.usable.map((l) => `<circle cx="${X(l.t)}" cy="${Y(l.c * NG)}" r="4.5" fill="var(--crit)" />`).join("")}
+      <text x="${W - m.r}" y="${H - 6}" text-anchor="end">days relative to last level (dashed line); current schedule continued</text>
+      ${[...Array(Math.floor((t1 - t0) / 24) + 1).keys()].filter((d) => d % 2 === 0).map((d) => `<text x="${X(t0 + d * 24)}" y="${H - 6}" text-anchor="middle">${Math.round((t0 + d * 24 - A.last) / 24)}</text>`).join("")}
+    </svg>
+    <div class="legend"><span><i style="background:var(--accent)"></i>Fitted</span><span><i style="background:var(--muted)"></i>Population</span><span><i style="background:var(--crit);height:8px;width:8px;border-radius:50%"></i>Measured</span><span><i style="background:var(--band);height:8px"></i>Target</span></div></section>`;
+}
+const FIT_LABEL = { map: "MAP Bayesian (2 parameters)", mapK: "MAP Bayesian, K only (V fixed)", cl: "Least squares K/CL, V fixed", lsKV: "Least squares K and V" };
+function fitInfo(A, cfg) {
+  const s = setup(cfg);
+  return [
+    ["Fit", `${FIT_LABEL[A.method]}${s.wb ? " (workbook)" : ""} ${badge(s.wb ? "wbFit" : A.method === "map" || A.method === "mapK" ? "map" : "zero")}`],
+    ["History", A.ssMode === "ss" ? "Steady state assumed" : `Superposition over ${A.events.length} doses`],
+    ["Fitted CL / V", `${f2(A.fit.CL, s.site ? 4 : 2)} L/h / ${f2(A.fit.V, 0)} L`],
+    ["Fitted K / t½", `${PK.round.fmt(A.fit.k, 4)} h⁻¹ / ${f2(A.fit.thalf, 1)} h`],
+    ["Population CL / V", `${f2(A.par.CL, 2)} L/h / ${f2(A.par.V, 0)} L`],
+    ["Measured vs population", A.usable.map((l, i) => `${ng(l.c)} vs ${ng(A.popPred[i])}`).join("; ")],
+  ];
+}
+function renderInterp(p, cfg, cv) {
+  const A = levelAnalysis(p, cfg, cv);
+  if (A.error) { currentNote = ""; return (A.alerts ? alertsHTML(A.alerts) : "") + `<section class="card order"><p class="hint" style="font-size:.9rem">${esc(A.error)}</p></section>`; }
+  const l = A.usable[A.usable.length - 1];
+  const status = A.ssReached ? "at steady state" : `not yet at steady state (${f2(A.elapsed / 24, 1)} of ~${f2((5 * A.fit.thalf) / 24, 0)} days)`;
+  const lines = [
+    { tag: "Level", text: `${ng(l.c)} ng/mL, ${f2(l.after, 1)} h after the dose; ${status}` },
+    { tag: "SS", text: `On ${esc(describeSchedule(A.sched))}: trough ${ng(A.ssNow.trough)}, average ${ng(A.ssNow.cavg)} ng/mL` },
+  ];
+  const note = [
+    `Digoxin level interpretation (${modelName(cfg)} model).`,
+    `Regimen: ${describeSchedule(A.sched)} ${routeOf(p.hForm)}. Level ${ng(l.c)} ng/mL drawn ${f2(l.after, 1)} h post dose (${status}).`,
+    `Population prediction ${ng(A.popPred[A.popPred.length - 1])} ng/mL. Fitted (${FIT_LABEL[A.method]}): CL ${f2(A.fit.CL, 2)} L/h, V ${f2(A.fit.V, 0)} L, K ${PK.round.fmt(A.fit.k, 4)} h-1, t1/2 ${f2(A.fit.thalf, 1)} h.`,
+    `Predicted steady state on current regimen: trough ${ng(A.ssNow.trough)}, average ${ng(A.ssNow.cavg)}, peak ${ng(A.ssNow.peak)} ng/mL. Target ${A.tgt.lo}-${A.tgt.hi} ng/mL.`,
+  ].join("\n");
+  currentNote = note;
+  let html = modeLine(cfg, A.fit) + alertsHTML(A.alerts) + orderCard({ lines, right: { label: "SS trough, current regimen", value: `${ng(A.ssNow.trough)} ng/mL`, pill: pill(A.ssNow.trough * NG, A.tgt) }, info: fitInfo(A, cfg) });
+  html += chartHTML(A);
+  if (showOpts) html += optionsHTML(regimenOptions({ par: A.fit, form: p.hForm, target: A.tgt, cfg, weekly: p.weekly }), p.hForm, A.tgt);
+  if (showWork) html += workHTML([...paramRows(A.pt, A.par, cfg, p), ...A.fit.preds.map((x, i) => [`Level ${i + 1}: observed / fitted`, `${ng(x.obs, 3)} / ${ng(x.pred, 3)} ng/mL`]),
+    ["Objective", `${PK.round.fmt(A.fit.fit.objective, 4)} (${A.fit.fit.method}, ${A.fit.fit.iterations} iterations)`]]) + noteHTML(note);
+  return html;
+}
+function renderAdjust(p, cfg, cv) {
+  const A = levelAnalysis(p, cfg, cv);
+  if (A.error) { currentNote = ""; return (A.alerts ? alertsHTML(A.alerts) : "") + `<section class="card order"><p class="hint" style="font-size:.9rem">${esc(A.error)}</p></section>`; }
+  const form = p.form, s = setup(cfg);
+  const opts = regimenOptions({ par: A.fit, form, target: A.tgt, cfg, weekly: p.weekly });
+  const best = opts[0];
+  const alerts = [...A.alerts];
+  // Hold advice: level now (fitted, at the last level time) above aim → days to fall to aim with no doses.
+  const cNow = A.predict(A.fit)(A.ssMode === "ss" ? A.obs[A.obs.length - 1].t : A.last);
+  let hold = 0;
+  if (cNow * NG > A.tgt.hi) hold = Math.max(0, Math.floor(PK.one.timeToFall(cNow, A.tgt.aim / NG, A.fit.k) / 24));
+  const md = popDoses(A.fit, form, A.tgt.aim / NG, cfg);
+  const prop = A.ssReached ? (A.sched.reduce((a, b) => a + b, 0) / 7) * (A.tgt.aim / (A.usable[A.usable.length - 1].c * NG)) : NaN;
+  alerts.push(...levelFlags(best.cavg * NG, A.tgt, "Predicted average on the new regimen"));
+  if (A.fit.thalf > 96) alerts.push({ lvl: "info", text: `Fitted t½ ${f2(A.fit.thalf / 24, 1)} days: the new steady state takes about ${f2((5 * A.fit.thalf) / 24, 0)} days.` });
+  const lines = [];
+  if (hold) lines.push({ tag: "Hold", text: `Hold digoxin for ${hold} day${hold > 1 ? "s" : ""} (predicted fall from ${ng(cNow)} to ${A.tgt.aim} ng/mL)` });
+  lines.push({ tag: "New", text: `Digoxin ${esc(best.text)} ${routeOf(form)}${hold ? " after the hold" : ""}` });
+  const unit = [...new Set(best.sched.filter((d) => d > 0))].map((d) => `${mcg(d)} mcg = ${unitsText(d, form)}`).join("; ");
+  const days5 = (5 * A.fit.thalf) / 24;
+  const info = [
+    ["Fitted CL / t½", `${f2(A.fit.CL, s.site ? 4 : 2)} L/h / ${f2(A.fit.thalf, 1)} h`],
+    ["Exact daily dose for aim", `${mcg(md.MD)} mcg/day ${s.site ? `(site: ${md.MD} mg)` : ""}`],
+    ["Proportional check (SS only)", isNum(prop) ? `${mcg(prop)} mcg/day` : "not at steady state"],
+    ["Predicted trough / peak", `${ng(best.trough)} / ${ng(best.peak)} ng/mL`],
+    ["Target", `${A.tgt.text}, aim ${A.tgt.aim} ${badge(A.tgt.set === "lit" ? "target" : "siteTarget")}`],
+    ["Recheck", `level in ${f2(Math.min(days5, 7), 0)}–${f2(Math.max(days5, 7), 0)} days, ≥6–8 h post dose`],
+  ];
+  const note = [
+    `Digoxin dose adjustment (${modelName(cfg)} model).`,
+    `Current: ${describeSchedule(A.sched)} ${routeOf(p.hForm)}; level ${ng(A.usable[A.usable.length - 1].c)} ng/mL.`,
+    `Fitted (${FIT_LABEL[A.method]}): CL ${f2(A.fit.CL, 2)} L/h, V ${f2(A.fit.V, 0)} L, t1/2 ${f2(A.fit.thalf, 1)} h.`,
+    hold ? `Hold ${hold} day(s), then:` : "New regimen:",
+    `${best.text} ${routeOf(form)} (${unit}). Predicted SS average ${ng(best.cavg)}, trough ${ng(best.trough)} ng/mL (target ${A.tgt.lo}-${A.tgt.hi}).`,
+    `Recheck level in ${f2(Math.min(days5, 7), 0)}-${f2(Math.max(days5, 7), 0)} days, at least 6-8 h post dose; check K, Mg, SCr.`,
+  ].join("\n");
+  currentNote = note;
+  let html = modeLine(cfg, A.fit) + alertsHTML(alerts) + orderCard({ lines, sub: esc(unit), right: { label: "Predicted average", value: `${ng(best.cavg)} ng/mL`, pill: pill(best.cavg * NG, A.tgt) }, info });
+  if (showOpts) html += optionsHTML(opts, form, A.tgt);
+  if (showWork) html += workHTML([...paramRows(A.pt, A.par, cfg, p), ...fitInfo(A, cfg)]) + noteHTML(note);
+  return html;
+}
+
+// ---- Strip, render, events ----
+function renderStrip(p, cfg) {
+  const chip = (k, v) => `<span class="chip">${k} <b>${esc(v)}</b></span>`;
+  const s = setup(cfg);
+  $("strip").innerHTML = [chip("", `${p.sex} ${p.age} y`), chip("Wt", `${p.wt} ${p.wtUnit}`), chip("SCr", `${p.scr} ${unitOf("scr")}`), chip("CHF", p.chf),
+    chip("Form", DIG.FORM_LABEL[p.form]), chip("Model", modelName(cfg))].join("");
+}
+function render() {
+  const { p, cfg, cv } = read();
+  document.querySelectorAll(".customT").forEach((el) => (el.hidden = p.targetSet !== "custom"));
+  $("panel-initial").hidden = activeTab !== "initial";
+  $("panel-level").hidden = activeTab === "initial";
+  renderStrip(p, cfg);
+  if (!(p.wt > 0) || !(p.ht > 0) || !(p.scr > 0) || !(p.age > 0)) { $("result").innerHTML = `<section class="card order"><p class="hint" style="font-size:.9rem">Enter age, height, weight and SCr.</p></section>`; return; }
+  try {
+    $("result").innerHTML = activeTab === "initial" ? renderInitial(p, cfg) : activeTab === "interp" ? renderInterp(p, cfg, cv) : renderAdjust(p, cfg, cv);
+  } catch (e) {
+    console.error(e);
+    $("result").innerHTML = `<section class="card order"><p class="hint" style="font-size:.9rem">Something in the inputs can't be calculated. Check for blank or zero values.</p></section>`;
+  }
+}
+function setTab(tab) {
+  if (!TABS.includes(tab)) tab = "initial";
+  activeTab = tab;
+  TABS.forEach((t) => $(`tab-${t}`).setAttribute("aria-selected", String(t === tab)));
+  save(); render();
+}
+document.querySelector("nav.seg").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) setTab(b.dataset.tab); });
+document.querySelector("nav.seg").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  const i = TABS.indexOf(activeTab) + (e.key === "ArrowRight" ? 1 : -1), t = TABS[(i + TABS.length) % TABS.length];
+  setTab(t); $(`tab-${t}`).focus();
+});
+const modelSeg = PKUI.segmented($("modelSeg"), (v) => { model = v; save(); render(); });
+function setUnit(id, unit, convert) {
+  const b = document.querySelector(`button.ub[data-for="${id}"]`), from = b.textContent;
+  if (from === unit) return;
+  const f = PKUI.CONVERT[`${from}>${unit}`];
+  const ids = [id, ...(b.dataset.pair ? [b.dataset.pair] : [])];
+  if (convert && f) ids.forEach((x) => { const v = parseFloat($(x).value); if (isFinite(v)) $(x).value = +f(v).toFixed(unit === "µmol/L" ? 0 : 2); });
+  b.textContent = unit;
+  document.querySelectorAll(`button.ub[data-mirror="${id}"]`).forEach((m) => (m.textContent = unit));
+}
+document.addEventListener("click", (e) => {
+  const ub = e.target.closest("button.ub[data-for]");
+  if (ub) { const u = ub.dataset.units.split(","); setUnit(ub.dataset.for, u[(u.indexOf(ub.textContent) + 1) % u.length], true); save(); render(); return; }
+  const act = e.target.closest("button[data-act]");
+  if (!act) return;
+  if (act.dataset.act === "opts") { showOpts = !showOpts; save(); render(); }
+  else if (act.dataset.act === "work") { showWork = !showWork; save(); render(); }
+  else if (act.dataset.act === "copy") {
+    const done = () => { const m = $("copied"); if (m) { m.textContent = "Copied"; setTimeout(() => (m.textContent = ""), 1800); } };
+    const fallback = () => { showWork = true; render(); const t = $("noteText"); if (t) { t.focus(); t.select(); } const m = $("copied"); if (m) m.textContent = "Press Ctrl+C to copy"; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(currentNote).then(done, fallback); else fallback();
+  }
+});
+$("themeBtn").addEventListener("click", () => {
+  themeMode = { auto: "light", light: "dark", dark: "auto" }[themeMode];
+  applyTheme(); save();
+});
+function applyTheme() {
+  if (themeMode === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = themeMode;
+  $("themeBtn").textContent = `Theme: ${themeMode}`;
+}
+
+const KEY = "pk-suite-digoxin-v1";
+const fields = () => [...document.querySelectorAll("input, select, textarea")].filter((el) => el.id);
+function save() {
+  try {
+    const s = { _tab: activeTab, _model: model, _opts: showOpts, _work: showWork, _theme: themeMode, _units: {}, _inter: [] };
+    fields().forEach((el) => (s[el.id] = el.type === "checkbox" ? el.checked : el.value));
+    document.querySelectorAll("button.ub[data-for]").forEach((b) => (s._units[b.dataset.for] = b.textContent));
+    s._inter = [...document.querySelectorAll("[data-inter]")].filter((c) => c.checked).map((c) => c.dataset.inter);
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch (e) {}
+}
+// Default dates: regimen started 10 days ago at 09:00; level today at 08:00 (24 h after yesterday's dose would be 09:00).
+function isoLocal(d) { const z = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; }
+(function defaults() {
+  const today = new Date(); today.setHours(9, 0, 0, 0);
+  const start = new Date(today.getTime() - 10 * 86400e3), lvl = new Date(today.getTime() - 60 * 60e3);
+  $("hStart").value = isoLocal(start); $("hLdStart").value = isoLocal(new Date(start.getTime() - 24 * 3600e3)); $("l1t").value = isoLocal(lvl);
+})();
+try {
+  const s = JSON.parse(localStorage.getItem(KEY) || "null");
+  if (s) {
+    fields().forEach((el) => { if (el.id in s) { if (el.type === "checkbox") el.checked = s[el.id]; else el.value = s[el.id]; } });
+    Object.entries(s._units || {}).forEach(([id, u]) => setUnit(id, u, false));
+    (s._inter || []).forEach((id) => { const c = document.querySelector(`[data-inter="${id}"]`); if (c) c.checked = true; });
+    model = ["site", "workbook"].includes(s._model) ? s._model : "literature"; showOpts = !!s._opts; showWork = !!s._work; themeMode = s._theme || "auto"; activeTab = s._tab || "initial";
+  }
+} catch (e) {}
+modelSeg.set(model); applyTheme();
+document.addEventListener("input", () => { save(); render(); });
+document.addEventListener("change", () => { save(); render(); });
+setTab(activeTab);
+</script>
+</body>
+</html>

@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renal and Hepatic Function</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+  .credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+  .credit a { color: var(--accent); }
+  .hdr-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .themebtn { font: 500 .78rem var(--font-body); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  .setrow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+  .setrow > span { font-size: .8rem; color: var(--muted); }
+  .bigval { font: 500 2rem var(--font-data); line-height: 1.1; }
+  .bigval small { font-size: .9rem; color: var(--muted); }
+  fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  fieldset:disabled label { opacity: .55; }
+  .note { font-size: .8rem; color: var(--muted); margin: 6px 0 0; }
+  td.l { text-align: left; white-space: normal; font-family: var(--font-body); }
+  .pts { font: 600 .9rem var(--font-data); }
+  ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .86rem; }
+  .embed header, .embed .credit { display: none; }
+  .embed.onetab nav.tabs { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Renal &amp; Hepatic Function</h1>
+    <div class="hdr-right">
+      <button type="button" class="themebtn" id="themeBtn" aria-label="Colour theme">Theme: auto</button>
+    </div>
+  </header>
+  <p class="credit">Cockcroft-Gault and hepatic score logic follow the calculators of Marshall Pierce, PharmD, at <a href="https://pkineticdrugdosing.com/index.html" target="_blank" rel="noopener">pkineticdrugdosing.com</a>, with literature corrections. Part of the PK Suite.</p>
+
+  <nav class="seg tabs" role="tablist" aria-label="Tool">
+    <button type="button" role="tab" id="tab-crcl" data-tab="crcl" aria-selected="true" aria-controls="panel-crcl">Creatinine clearance</button>
+    <button type="button" role="tab" id="tab-cp" data-tab="childpugh" aria-selected="false" aria-controls="panel-childpugh">Child-Pugh</button>
+  </nav>
+
+  <!-- ===================== CrCl ===================== -->
+  <div id="panel-crcl" role="tabpanel" aria-labelledby="tab-crcl" class="wrap" style="max-width:none">
+    <section class="card">
+      <h2>Patient</h2>
+      <div class="fields">
+        <label>Age <span class="ig"><input id="age" type="number" min="0" max="120" step="any" value="65"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+        <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
+        <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button class="ub" id="htU"></button></span></label>
+        <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
+        <label>SCr (most recent) <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.2"><button class="ub" id="scrU"></button></span></label>
+        <label>Earlier SCr (optional) <span class="ig"><input id="scr0" type="number" min="0" step="any" placeholder="for changing function"><button class="ub" id="scr0U"></button></span></label>
+        <label>Hours between the two SCr <span class="ig"><input id="hrs" type="number" min="0" step="any" placeholder="e.g. 48"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Amputation (IBW reduction)
+          <select id="ampSel">
+            <option value="0">None</option>
+            <option value="foot">Foot (1.5%)</option>
+            <option value="belowKnee">Below knee (5.9%)</option>
+            <option value="aboveKnee">Above knee (8%)</option>
+            <option value="entireLowerLimb">Entire lower limb (16%)</option>
+            <option value="belowElbow">Below elbow (2.3%)</option>
+            <option value="aboveElbow">Above elbow (3.3%)</option>
+            <option value="entireUpperLimb">Entire upper limb (5%)</option>
+            <option value="custom">Custom %</option>
+          </select>
+        </label>
+        <label>Amputation % (total) <span class="ig"><input id="ampPct" type="number" min="0" max="60" step="any" value="0"><button type="button" class="ub" tabindex="-1" disabled>%</button></span></label>
+        <label class="check" style="align-self:end"><input type="checkbox" id="sci"> Spinal cord injury</label>
+        <label class="check" style="align-self:end" id="sciCorrRow" hidden><input type="checkbox" id="sciCorr"> Apply CG × 0.8 (SCI) <span id="sciBadge"></span></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Model and policies</h2>
+      <div class="setrow">
+        <span>Model</span>
+        <div class="seg" id="modelSeg" role="group" aria-label="Model">
+          <button data-value="literature" aria-pressed="true" title="Literature defaults (lit/aminoglycosides-renal.md)">Literature</button>
+          <button data-value="site" aria-pressed="false" title="Reproduces the pkineticdrugdosing.com CrCl calculator">Site</button>
+        </div>
+      </div>
+      <fieldset id="policyFs" style="margin-top:10px">
+        <div class="fields">
+          <label>Weight basis for the result
+            <select id="basis">
+              <option value="auto" selected>Policy: AdjBW if obese, else min(IBW, TBW)</option>
+              <option value="minIbwTbw">min(IBW, TBW)</option>
+              <option value="ibw">IBW</option>
+              <option value="adjbw">Adjusted BW</option>
+              <option value="tbw">Actual (TBW)</option>
+            </select>
+          </label>
+          <label>Obesity threshold (for AdjBW)
+            <select id="obese">
+              <option value="1.2" selected>TBW &gt; 1.2 × IBW (default)</option>
+              <option value="1.3">TBW &gt; 1.3 × IBW</option>
+              <option value="bmi30">BMI ≥ 30</option>
+            </select>
+          </label>
+          <label>SCr floor
+            <select id="floor">
+              <option value="off" selected>Off (default)</option>
+              <option value="0.7">Round up to 0.7 mg/dL</option>
+              <option value="0.8">Round up to 0.8 mg/dL</option>
+            </select>
+          </label>
+        </div>
+        <p class="note" id="floorNote">Evidence conflicts: Winter 2012 found rounding SCr up (to 0.8 or 1.0) did not improve CG accuracy and actual SCr was better; Smythe 1994 found rounding to 1.0 underestimated CrCl in the elderly; Reichley 1995 found a 0.8 mg/dL minimum improved gentamicin K prediction; Dooley 2004 found ~0.68 helped only when CrCl ≤ 100. No floor is applied in spinal cord injury (the site's 0.5 rule was dropped). <span id="floorBadge"></span></p>
+      </fieldset>
+      <div class="fields" style="margin-top:10px">
+        <label>Changing-function method (two SCr)
+          <select id="nss">
+            <option value="chow" selected>Chow-Schweizer iterative (default)</option>
+            <option value="ashp">Jelliffe / ASHP (scaled to BSA)</option>
+            <option value="winter">Winter mass balance</option>
+          </select>
+        </label>
+        <label>Pediatric equation (age &lt; 18)
+          <select id="ped">
+            <option value="u25" selected>CKiD U25 (default)</option>
+            <option value="bedside">Bedside Schwartz 0.413</option>
+            <option value="original">Original Schwartz (Jaffe SCr only)</option>
+          </select>
+        </label>
+      </div>
+      <p class="note" id="siteNote" hidden>Site model: min(IBW, TBW), no SCr floor, no obesity adjustment, no amputation correction, CrCl rounded to 0.01 mL/min, exactly as the site's calculator.</p>
+    </section>
+
+    <div class="alerts" id="crclAlerts" aria-live="polite"></div>
+
+    <section class="card order" id="crclResult" aria-live="polite"></section>
+
+    <div class="two">
+      <section class="card">
+        <h2>Body size</h2>
+        <dl class="calc" id="bodyDl"></dl>
+      </section>
+      <section class="card">
+        <h2>Cockcroft-Gault by weight basis</h2>
+        <div class="tablewrap"><table id="cgTable"></table></div>
+        <p class="note">Highlighted row = the basis the active policy selects. CG was derived with actual weight in a largely non-obese cohort; IBW / AdjBW substitution is later practice. <span id="cgBadge"></span></p>
+      </section>
+    </div>
+
+    <section class="card" id="nssCard" hidden>
+      <h2>Changing renal function (two SCr values)</h2>
+      <div class="tablewrap"><table id="nssTable"></table></div>
+      <p class="note">Kinetic eGFR (Chen 2013) is a cross-check only, anchored to CG at the earlier SCr. Assumes the change began at or before the earlier SCr, and is not due to tissue breakdown or fluid shifts. If SCr is still rising, these underestimate the loss of function. SCr values are not floored here.</p>
+    </section>
+
+    <section class="card" id="pedCard" hidden>
+      <h2>Pediatric (age &lt; 18)</h2>
+            <div class="tablewrap"><table id="pedTable"></table></div>
+      <p class="note">CKiD U25 (Pierce 2021; NIDDK-preferred) uses an age- and sex-dependent K with height in metres, ages 1–25. Bedside Schwartz 0.413 × height(cm)/SCr is for ages 1–16 with enzymatic SCr. Original Schwartz k values (0.45 infant, 0.55 child and adolescent female, 0.7 adolescent male) are valid only for Jaffe SCr. Values are per 1.73 m²; the dosing value is de-indexed (× BSA/1.73). Cockcroft-Gault is not valid under 18.</p>
+    </section>
+
+    <details class="card">
+      <summary>Methods and sources</summary>
+      <div class="body">
+        <p><b>IBW</b> (Devine) = 50 kg (M) or 45.5 kg (F) + 2.3 kg per inch over 60 in, reduced by amputation %. <b>AdjBW</b> = IBW + 0.4·(TBW − IBW) (Schwartz 1978; Traynor 1995). <b>FFM</b> = Janmahasatian 9270·TBW/(6680 + 216·BMI) M, 9270·TBW/(8780 + 244·BMI) F. <b>BSA</b> DuBois.</p>
+        <p><b>Cockcroft-Gault</b>: <code>(140 − age)·Wt / (72·SCr)</code>, ×0.85 female. <b>Literature weight rule</b> (Winter 2012, Leader 1994): TBW if TBW &lt; IBW; IBW if TBW ≤ 1.2·IBW; AdjBW if TBW &gt; 1.2·IBW. At BMI ≥ 40 the reported value stays on AdjBW and CG with Janmahasatian LBW is shown as a comparison row (Demirovic 2009, Park 2012; Winter 2012 and Bouquegneau 2016 do not favour it). <b>Spinal cord injury</b>: no SCr floor; CG overestimates; optional CG × 0.8 (Chikkalingaiah 2010, PMID 20087164).</p>
+        <p><b>Chow-Schweizer</b> (1985): solves <code>S2 = S1·e^(−KT) + R/(K·Vd)·(1 − e^(−KT))</code>, S in mg/L, Vd 0.6 L/kg, R = (28 − 0.2·age)·Wt/24 mg/h (×0.85 F); CrCl = K·Vd·1000/60. The site prints this equation without the 1/(K·Vd) term. <b>Jelliffe / ASHP</b>: as printed on the site, interval in days, result per 1.73 m² (and 0.86 female). <b>Winter</b> mass balance, dimensionally corrected. <b>Chen kinetic eGFR</b> (2013, PMID 23704286): <code>SCr1·CG(SCr1)/mean SCr · (1 − 24·ΔSCr/(Δt·max ΔSCr/day))</code>, max ΔSCr/day = production/Vd. Kinetic methods have low accuracy (Desgrouas 2021, Pelletier 2020); get drug levels.</p>
+        <p><b>Pediatric</b>: CKiD U25 K (M) 39.0·1.008^(age−12) under 12, 39.0·1.045^(age−12) 12–17, 50.8 from 18; (F) 36.1·1.008^(age−12), 36.1·1.023^(age−12), 41.4; nearest integer age; reconstructed from Pierce 2021 text (PMID 33301749), supplement table not yet checked.</p>
+        <p><b>Normalized</b> CrCl = CrCl × 1.73 / BSA. Drug models in this suite (except vancomycin K) take the un-normalized mL/min value.</p>
+        <p>Low muscle mass (cirrhosis, malnutrition, amputation, paralysis, frailty) makes SCr-based estimates overestimate function. Trimethoprim, cimetidine and similar drugs raise SCr without changing GFR. Prefer measured drug levels over predictions.</p>
+        <p>Linking here: other tools can open this page with query parameters, e.g. <code>renal-hepatic.html?age=65&amp;sex=M&amp;ht_in=70&amp;wt_kg=80&amp;scr=1.2</code> (also <code>ht_cm</code>, <code>wt_lb</code>, <code>scr_umol</code>, <code>scr0</code>, <code>hrs</code>, <code>model=site</code>, <code>tab=childpugh</code>, <code>embed</code>). No data leaves the page.</p>
+        <p>Sources: specs/crcl.md; DECISIONS.md and decisions/renal-body.md (approved renal decisions); lit/aminoglycosides-renal.md rows R1–R10 (Cockcroft &amp; Gault 1976, PMID 1244564; Winter 2012, PMID 22576791; Leader 1994, PMID 7985687; Demirovic 2009, PMID 19299371; Chow &amp; Schweizer 1985, PMID 4006730; Reichley 1995, PMID 8570436; Smythe 1994, PMID 8160670).</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- ===================== Child-Pugh ===================== -->
+  <div id="panel-childpugh" role="tabpanel" aria-labelledby="tab-cp" class="wrap" style="max-width:none" hidden>
+    <div class="alerts"><div class="alert info" role="status">Use an INR drawn <b>before</b> anticoagulation. Argatroban, warfarin and DOACs raise INR independently of liver function, so score argatroban patients on the pre-argatroban INR.</div></div>
+
+    <section class="card">
+      <h2>Labs and clinical findings</h2>
+      <div class="fields">
+        <label>Total bilirubin <span class="ig"><input id="bili" type="number" min="0" step="any" value="1"><button class="ub" id="biliU"></button></span></label>
+        <label class="check" style="align-self:end"><input type="checkbox" id="chol"> Cholestatic disease (PBC / PSC) cutoffs</label>
+        <label>Albumin <span class="ig"><input id="alb" type="number" min="0" step="any" value="3.8"><button class="ub" id="albU"></button></span></label>
+        <label>Coagulation measure
+          <select id="coagMode"><option value="inr" selected>INR</option><option value="pt">PT, seconds over control</option></select>
+        </label>
+        <label><span id="coagLbl">INR</span> <span class="ig"><input id="coag" type="number" min="0" step="any" value="1.1"><button type="button" class="ub" tabindex="-1" disabled id="coagUnit">ratio</button></span></label>
+        <label>Ascites
+          <select id="ascites">
+            <option value="1">None</option>
+            <option value="2">Mild (diuretic-responsive)</option>
+            <option value="3">Moderate to severe (refractory)</option>
+          </select>
+        </label>
+        <label>Hepatic encephalopathy (West Haven)
+          <select id="enceph">
+            <option value="1">None</option>
+            <option value="2">Grade 1–2</option>
+            <option value="3">Grade 3–4</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <div class="alerts" id="cpAlerts" aria-live="polite"></div>
+    <section class="card order" id="cpResult" aria-live="polite"></section>
+
+    <div class="two">
+      <section class="card">
+        <h2>Points and boundary conventions</h2>
+        <div class="tablewrap"><table id="cpTable"></table></div>
+        <p class="note">Boundaries are non-overlapping: a value exactly on a printed edge (bilirubin 2.0 and 3.0, albumin 3.5 and 2.8, INR 1.7 and 2.3, PT 4 and 6 s; cholestatic bilirubin 4 and 10) scores the <b>middle</b> band (2 points). µmol/L bilirubin is converted ÷ 17.1 and g/L albumin ÷ 10 before applying the mg/dL and g/dL cutoffs.</p>
+      </section>
+      <section class="card">
+        <h2>Suite drugs and the Child-Pugh class</h2>
+        <ul class="plain" id="cpDrugs"></ul>
+      </section>
+    </div>
+
+    <details class="card">
+      <summary>Methods and sources</summary>
+      <div class="body">
+        <p>Child-Pugh (Pugh 1973, PMID 4541913): five criteria, 1–3 points each; total 5–15. Class A 5–6, B 7–9, C 10–15. The site's page uses fixed radio categories with overlapping labels and shows the class only as a legend; this page takes numeric labs and computes the class.</p>
+        <p>INR cutoffs (&lt; 1.7 / 1.7–2.3 / &gt; 2.3) are a later convention, not in Pugh 1973, which used PT seconds over control (&lt; 4 / 4–6 / &gt; 6). Use one, not both. Cholestatic bilirubin cutoffs (&lt; 4 / 4–10 / &gt; 10 mg/dL) come from the PBC modification; applying them to PSC is a convention.</p>
+        <p>Not validated for acute liver failure. FDA hepatic-impairment guidance (2003) uses Child-Pugh A/B/C for study design and labeling.</p>
+        <p>Sources: specs/hepatic-score.md; lit/acyclovir-infusions-hepatic.md rows H1–H11 (argatroban label, Fresenius rev 3/2025; theophylline and phenytoin labels).</p>
+      </div>
+    </details>
+  </div>
+
+  <footer>Educational and clinical decision-support use by trained clinicians only. Estimates of renal and hepatic function are imprecise, especially with unstable renal function, extremes of body size or low muscle mass; confirm with measured levels and clinical judgement before dosing. Not a substitute for product labeling or institutional protocols. PK Suite <span id="ver"></span>.</footer>
+</div>
+
+<script src="lib/pkcore.js"></script>
+<script src="lib/pk-ui.js"></script>
+<script>
+// CALC-START
+// Pure calculations for renal-hepatic.html. Uses PK.body and PK.renal for all body-size and CrCl math (no re-implementation).
+// Inputs are in internal units: height in inches, weight kg, SCr mg/dL, hours, bilirubin mg/dL, albumin g/dL.
+
+const isFin = (x) => typeof x === "number" && isFinite(x);
+// Display rounding: the site rounds CrCl to 0.01 (Math.round(x*100)/100); the literature model shows 1 decimal.
+const crclDp = (model) => (model === "site" ? 2 : 1);
+const roundDisplay = (x, model) => (isFin(x) ? (model === "site" ? Math.round(x * 100) / 100 : PK.round.roundTo(x, 0.1)) : NaN);
+
+// Suite input limits (crcl.md §2 [SUITE]).
+const LIMITS = { age: [18, 120], heightIn: [48, 96], tbw: [20, 350], scr: [0.1, 20] };
+
+// ---- Items not (yet) in pkcore (approved decisions, decisions/renal-body.md). Kept here, small and tested. ----
+const SCI_CG_FACTOR = 0.8;        // Chikkalingaiah 2010 (PMID 20087164): CG × 0.8 in chronic SCI
+const BEDSIDE_SCHWARTZ_K = 0.413; // Schwartz 2009 (PMID 19158356), height cm, enzymatic SCr
+// CKiD U25 creatinine K (Pierce 2021, PMID 33301749), height in METRES, SCr mg/dL → mL/min/1.73 m².
+// Reconstructed from the paper text (supplement K table not read): K for the nearest integer age.
+function u25K(age, sex) {
+  const a = Math.round(age);
+  if (sex === "F") return a >= 18 ? 41.4 : a < 12 ? 36.1 * Math.pow(1.008, a - 12) : 36.1 * Math.pow(1.023, a - 12);
+  return a >= 18 ? 50.8 : a < 12 ? 39.0 * Math.pow(1.008, a - 12) : 39.0 * Math.pow(1.045, a - 12);
+}
+// Chen 2013 kinetic eGFR (PMID 23704286): KeGFR = SSPCr·eGFR_ss/meanPCr · (1 − 24·ΔPCr/(Δt_h · maxΔPCr/day)).
+// Anchored to CG: SSPCr = earlier SCr, eGFR_ss = CG at that SCr (mL/min). maxΔPCr/day from the same creatinine
+// production and Vd as Chow (production mg/day ÷ Vd L ÷ 10 → mg/dL/day), so it stays on the CG scale.
+function kineticEGFR({ scr1, scr2, hours, crclSS, prodMgH, vdL }) {
+  const maxRisePerDay = (prodMgH * 24) / vdL / 10;
+  const mean = (scr1 + scr2) / 2;
+  const kegfr = ((scr1 * crclSS) / mean) * (1 - (24 * (scr2 - scr1)) / (hours * maxRisePerDay));
+  return { kegfr, maxRisePerDay, crclSS, mean };
+}
+
+// Cockcroft-Gault under every weight basis, the policy-selected value, normalized CrCl,
+// non-steady-state methods (two SCr) and pediatric equations (< 18 y).
+// i = { age, sex 'M'|'F', heightIn, tbw, scr, scrPrev?, hours?, sci?, amputationPct?, model 'literature'|'site',
+//       sciCorrection?, pedMethod 'u25'|'bedside'|'original', obesityRule '1.2'|'1.3'|'bmi30', scrFloor null|0.7|0.8, basis 'auto'|'minIbwTbw'|'ibw'|'adjbw'|'tbw', nssMethod 'chow'|'ashp'|'winter' }
+function crclCalc(i) {
+  const model = i.model === "site" ? "site" : "literature";
+  const site = model === "site";
+  const flags = [];
+  for (const k of ["age", "heightIn", "tbw", "scr"]) if (!isFin(i[k]) || i[k] <= 0) return { error: `Enter ${{ age: "age", heightIn: "height", tbw: "weight", scr: "SCr" }[k]}.`, flags };
+  const sex = i.sex === "F" ? "F" : "M";
+  const heightCm = PK.body.inToCm(i.heightIn);
+  const amp = site ? 0 : isFin(i.amputationPct) && i.amputationPct > 0 ? i.amputationPct : 0;
+  const ibw = PK.body.ibw(sex, i.heightIn, amp);
+  const bmi = PK.body.bmi(i.tbw, heightCm);
+  const ffm = PK.body.ffm(sex, i.tbw, bmi);
+  const bsa = PK.body.bsa(i.tbw, heightCm);
+  const adjbw = PK.body.adjustedBW(ibw, i.tbw);
+
+  // Policies (explicit; site mode forces the site calculator's behaviour).
+  // SCI (decisions/renal-body.md 2b): no SCr floor at all; warning plus optional CG × 0.8 (Chikkalingaiah 2010).
+  const sci = !site && !!i.sci;
+  const floorChoice = site ? null : isFin(i.scrFloor) ? i.scrFloor : null;
+  const floor = sci ? null : floorChoice;
+  const sciFactor = sci && i.sciCorrection ? SCI_CG_FACTOR : 1;
+  const obesityRule = site ? "none" : i.obesityRule || "1.2";
+  // BMI rule is expressed through PK's ratio threshold: ratio 1 (any TBW > IBW) when BMI ≥ 30, else never.
+  const obesityRatio = obesityRule === "bmi30" ? (bmi >= 30 ? 1 : 1e9) : obesityRule === "none" ? 1e9 : Number(obesityRule);
+  const basisChoice = site ? "minIbwTbw" : i.basis || "auto";
+
+  const common = { age: i.age, sex, scr: i.scr, tbw: i.tbw, heightIn: i.heightIn, amputationPct: amp, scrFloor: floor, obesityRatio };
+  const cg = (extra) => PK.renal.cockcroftGault({ ...common, ...extra });
+  const rows = [
+    { key: "tbw", label: "Actual (TBW)", r: cg({ weightPolicy: "tbw" }) },
+    { key: "ibw", label: "IBW", r: cg({ weightPolicy: "ibw" }) },
+    { key: "adjbw", label: "Adjusted BW", r: cg({ weight: adjbw }) },
+    { key: "minIbwTbw", label: "min(IBW, TBW)", r: cg({ weightPolicy: "minIbwTbw" }) },
+  ];
+  // BMI ≥ 40: CG with Janmahasatian LBW as a labelled comparison row; never selected by the policy (decision 4b).
+  if (!site && bmi >= 40) rows.push({ key: "lbw", label: "Janmahasatian LBW (comparison)", r: cg({ weight: ffm }), info: true });
+
+  let selKey, selR;
+  if (basisChoice === "auto") {
+    selR = cg({ weightPolicy: "adjIfObese" });
+    selKey = selR.weightBasis === "AdjBW" ? "adjbw" : "minIbwTbw";
+  } else {
+    selKey = basisChoice;
+    selR = rows.find((r) => r.key === selKey).r;
+  }
+  rows.forEach((r) => { r.selected = r.key === selKey; r.weight = r.r.weight; r.crclUncorrected = r.r.crcl; r.crcl = r.r.crcl * sciFactor; r.display = roundDisplay(r.crcl, model); });
+  const obese = !site && cg({ weightPolicy: "adjIfObese" }).obese;
+
+  // PK flags from the selected CG, minus PK's generic obesity text (replaced with the rule actually used).
+  for (const f of selR.flags) if (f.code !== "obese" && f.code !== "age<18") flags.push(f);
+  if (obese && basisChoice === "auto") flags.push({ code: "obese", lvl: "info", text: `Obese by the selected rule (${obesityRule === "bmi30" ? "BMI ≥ 30" : `TBW > ${obesityRule} × IBW`}): adjusted body weight used.` });
+  if (site && (i.amputationPct > 0 || i.sci || isFin(i.scrFloor))) flags.push({ code: "siteIgnores", lvl: "info", text: "Site model ignores amputation, spinal cord injury and the SCr floor (the site calculator has none)." });
+  if (i.age < 18) flags.push({ code: "age<18", lvl: "crit", text: `Cockcroft-Gault is for adults (18 years and older). ${site ? "Schwartz" : "Pediatric (CKiD U25 by default)"} estimate shown.` });
+  if (sci) flags.push({ code: "sci", lvl: "crit", text: `Spinal cord injury: Cockcroft-Gault overestimates GFR (up to about 2-fold); no SCr floor is applied. ${sciFactor !== 1 ? "CG × 0.8 correction applied." : "Optional CG × 0.8 correction available."} Get a measured CrCl, cystatin C or drug levels.` });
+  if (sci && floorChoice !== null) flags.push({ code: "sciNoFloor", lvl: "info", text: `SCr floor ${floorChoice} mg/dL not applied in spinal cord injury.` });
+  if (i.age > LIMITS.age[1]) flags.push({ code: "ageRange", lvl: "crit", text: "Age above 120 y: check entry." });
+  if (i.age >= 140) flags.push({ code: "age140", lvl: "crit", text: "Age ≥ 140 gives CrCl ≤ 0 with Cockcroft-Gault." });
+  if (i.heightIn < LIMITS.heightIn[0] || i.heightIn > LIMITS.heightIn[1]) flags.push({ code: "heightRange", lvl: "warn", text: "Height outside 48–96 in (122–244 cm): check entry; Devine IBW is unreliable." });
+  if (i.tbw < LIMITS.tbw[0] || i.tbw > LIMITS.tbw[1]) flags.push({ code: "weightRange", lvl: "warn", text: "Weight outside 20–350 kg: check entry." });
+  if (i.scr < LIMITS.scr[0] || i.scr > LIMITS.scr[1]) flags.push({ code: "scrRange", lvl: "warn", text: "SCr outside 0.1–20 mg/dL (9–1768 µmol/L): check units." });
+  if (i.scr < 0.7 && i.age >= 65 && floor === null) flags.push({ code: "lowScrElderly", lvl: "warn", text: "SCr < 0.7 mg/dL at age ≥ 65: low muscle mass may make CrCl an overestimate. A floor is optional (evidence conflicts); consider measured levels." });
+  const cgSel = selR.crcl * sciFactor;
+  if (!site && bmi >= 40) {
+    const lbwRow = rows.find((r) => r.key === "lbw");
+    const diff = Math.abs(lbwRow.crcl - cgSel) / cgSel;
+    flags.push({ code: "bmi40", lvl: "info", text: "BMI ≥ 40: the reported CrCl stays on the policy weight (adjusted BW when obese). CG with Janmahasatian LBW is shown as a comparison (unbiased in Demirovic 2009 / Park 2012; Winter 2012 favours AdjBW)." });
+    if (diff > 0.2) flags.push({ code: "bmi40Diff", lvl: "warn", text: `CG with LBW differs from the reported value by ${Math.round(diff * 100)}%: renal function is uncertain at this body size; use drug levels.` });
+  }
+  if (ibw <= 0) flags.push({ code: "ibwNeg", lvl: "crit", text: "IBW ≤ 0 at this height: Devine IBW is not usable." });
+
+  const out = {
+    model, sex, heightIn: i.heightIn, heightCm, tbw: i.tbw, ibw, adjbw, ffm, bmi, bsa, obese,
+    scrUsed: selR.scrUsed, scrFloor: floor, scrFloored: selR.scrFloored,
+    rows, selectedBasis: selKey, weight: selR.weight, weightBasis: selR.weightBasis,
+    crclCG: cgSel, crclCGUncorrected: selR.crcl, sci, sciFactor, method: "cockcroftGault", crcl: cgSel,
+    normalized: PK.renal.normalizeTo173(cgSel, bsa), flags,
+  };
+
+  // Non-steady state: scrPrev (earlier) → scr (most recent) over `hours`.
+  if (isFin(i.scrPrev) && i.scrPrev > 0 && isFin(i.hours)) {
+    if (!(i.hours > 0)) flags.push({ code: "badInterval", lvl: "crit", text: "Hours between SCr values must be > 0." });
+    else {
+      const args = { age: i.age, sex, weight: selR.weight, scr1: i.scrPrev, scr2: i.scr, hours: i.hours };
+      const chow = PK.renal.chowNonSteadyState(args);
+      const ashp = PK.renal.jelliffeASHP({ age: i.age, sex, scr1: i.scrPrev, scr2: i.scr, days: i.hours / 24 });
+      const ashpScaled = (ashp * bsa) / 1.73;
+      const winter = PK.renal.winterMassBalance(args);
+      // Chen 2013 kinetic eGFR cross-check, anchored to CG at the earlier SCr (same weight, unfloored) so units match.
+      const cgBaseline = PK.renal.cgRaw(i.age, selR.weight, i.scrPrev, sex);
+      const ke = site ? null : kineticEGFR({ scr1: i.scrPrev, scr2: i.scr, hours: i.hours, crclSS: cgBaseline, prodMgH: chow.prodMgH, vdL: chow.vd });
+      out.nss = { chow, crclChow: chow.crcl, kCreat: chow.k, prodMgH: chow.prodMgH, vd: chow.vd, ashp, ashpScaled, winter, weight: selR.weight, kegfr: ke };
+      for (const f of chow.flags) flags.push(f);
+      if (!site) {
+        flags.push({ code: "unstable", lvl: "crit", text: "Renal function unstable: non-steady-state estimates have low accuracy (within 30% in under half of patients in shock). Get drug levels and, if possible, a measured CrCl." });
+        if (i.scr < i.scrPrev) flags.push({ code: "falling", lvl: "warn", text: "SCr is falling (recovery): kinetic estimates tend to underestimate clearance (Jain 2024); doses based on them may be too low." });
+        if (ke && isFin(ke.kegfr) && ke.kegfr < 0) flags.push({ code: "kegfrNeg", lvl: "warn", text: "Kinetic eGFR is negative: SCr rising faster than the assumed maximum; treat GFR as < 10 mL/min." });
+      }
+      const method = i.nssMethod || "chow";
+      const v = method === "ashp" ? ashpScaled : method === "winter" ? winter : chow.crcl;
+      if (isFin(v)) { out.crcl = v; out.method = method; }
+      else flags.push({ code: "nssFallback", lvl: "warn", text: "Selected changing-function method could not be computed; steady-state CG shown." });
+      if (isFin(v) && v < 0) flags.push({ code: "nssNeg", lvl: "crit", text: "Changing-function estimate is negative: SCr rising faster than production allows (anuria?). Treat CrCl as < 10 mL/min." });
+      if (i.hours < 12) flags.push({ code: "shortInterval", lvl: "warn", text: "SCr values < 12 h apart: assay noise dominates the change." });
+      out.normalized = PK.renal.normalizeTo173(out.crcl, bsa);
+    }
+  }
+
+  // Pediatric (< 18 y). Literature: CKiD U25 (default), bedside Schwartz 0.413, or original Schwartz (Jaffe SCr only).
+  // Site model keeps the original Schwartz k exactly as before. All are mL/min/1.73 m²; absolute = × BSA / 1.73.
+  if (i.age < 18) {
+    const de = (per173) => (per173 * bsa) / 1.73;
+    const kOrig = PK.renal.schwartzK(i.age, sex);
+    const kU25 = u25K(i.age, sex);
+    const kinds = {
+      u25: { k: kU25, per173: (kU25 * (heightCm / 100)) / i.scr },
+      bedside: { k: BEDSIDE_SCHWARTZ_K, per173: PK.renal.schwartz(BEDSIDE_SCHWARTZ_K, heightCm, i.scr) },
+      original: { k: kOrig, per173: PK.renal.schwartz(kOrig, heightCm, i.scr) },
+    };
+    for (const v of Object.values(kinds)) v.absolute = de(v.per173);
+    const ped = site ? "original" : ["u25", "bedside", "original"].includes(i.pedMethod) ? i.pedMethod : "u25";
+    out.pediatric = { method: ped, ...kinds };
+    out.schwartz = kinds[ped]; // backwards-compatible alias for the selected pediatric estimate
+    out.crcl = kinds[ped].absolute; out.method = ped === "original" ? "schwartz" : ped; out.normalized = kinds[ped].per173;
+    if (!site && i.age < 1) flags.push({ code: "infant", lvl: "crit", text: "Under 1 year: CKiD U25 and bedside Schwartz are validated from age 1; no validated SCr equation here. Use levels." });
+    if (!site && ped === "original") flags.push({ code: "jaffe", lvl: "warn", text: "Original Schwartz k values apply only to Jaffe SCr; with enzymatic/IDMS SCr they overestimate GFR." });
+  }
+  out.display = roundDisplay(out.crcl, model);
+  return out;
+}
+
+// ---------- Child-Pugh ----------
+// Non-overlapping conventions (lit H1–H4): values ON a printed boundary score the middle band.
+const CP_RULES = {
+  bili: { cut: [2, 3], unit: "mg/dL", text: "< 2 → 1; 2.0–3.0 → 2; > 3 → 3" },
+  biliChol: { cut: [4, 10], unit: "mg/dL", text: "< 4 → 1; 4.0–10.0 → 2; > 10 → 3" },
+  inr: { cut: [1.7, 2.3], unit: "", text: "< 1.7 → 1; 1.7–2.3 → 2; > 2.3 → 3" },
+  pt: { cut: [4, 6], unit: "s", text: "< 4 → 1; 4–6 → 2; > 6 → 3" },
+  alb: { cut: [2.8, 3.5], unit: "g/dL", text: "> 3.5 → 1; 2.8–3.5 → 2; < 2.8 → 3" },
+};
+const higherWorse = (x, [a, b]) => (x < a ? 1 : x <= b ? 2 : 3);
+const cpPoints = {
+  bili: (mgdl, cholestatic) => higherWorse(mgdl, (cholestatic ? CP_RULES.biliChol : CP_RULES.bili).cut),
+  alb: (gdl) => (gdl > CP_RULES.alb.cut[1] ? 1 : gdl >= CP_RULES.alb.cut[0] ? 2 : 3),
+  inr: (x) => higherWorse(x, CP_RULES.inr.cut),
+  pt: (s) => higherWorse(s, CP_RULES.pt.cut),
+};
+// Unit conversions at the UI edge, rounded to 1e-6 so boundary values survive float error (34.2 µmol/L → 2.000000).
+const biliToMgdl = (x, unit) => (unit === "µmol/L" ? +(x / 17.1).toFixed(6) : x);
+const albToGdl = (x, unit) => (unit === "g/L" ? +(x / 10).toFixed(6) : x);
+const cpClass = (score) => (score <= 6 ? "A" : score <= 9 ? "B" : "C");
+// Sum of five 1–3 point criteria (the site's categorical form).
+function childPughFromPoints({ bili, alb, coag, ascites, enceph }) {
+  const score = bili + alb + coag + ascites + enceph;
+  return { score, cls: cpClass(score) };
+}
+// Numeric form. i = { bili mg/dL, cholestatic, alb g/dL, coagMode 'inr'|'pt', coag, ascites 1–3, enceph 1–3 }
+function childPugh(i) {
+  const missing = [];
+  const pts = {};
+  if (isFin(i.bili) && i.bili >= 0) pts.bili = cpPoints.bili(i.bili, !!i.cholestatic); else missing.push("bilirubin");
+  if (isFin(i.alb) && i.alb > 0) pts.alb = cpPoints.alb(i.alb); else missing.push("albumin");
+  const mode = i.coagMode === "pt" ? "pt" : "inr";
+  if (isFin(i.coag) && i.coag >= 0) pts.coag = cpPoints[mode](i.coag); else missing.push(mode === "pt" ? "PT" : "INR");
+  pts.ascites = [1, 2, 3].includes(+i.ascites) ? +i.ascites : 1;
+  pts.enceph = [1, 2, 3].includes(+i.enceph) ? +i.enceph : 1;
+  const flags = [];
+  if (isFin(i.alb) && (i.alb < 1 || i.alb > 6)) flags.push({ code: "albRange", lvl: "warn", text: "Albumin outside 1–6 g/dL (10–60 g/L): check units." });
+  if (isFin(i.bili) && i.bili > 50) flags.push({ code: "biliRange", lvl: "warn", text: "Bilirubin > 50 mg/dL (855 µmol/L): check units." });
+  if (mode === "inr" && isFin(i.coag) && (i.coag < 0.8 || i.coag > 10)) flags.push({ code: "inrRange", lvl: "warn", text: "INR outside 0.8–10: check entry." });
+  if (missing.length) return { complete: false, missing, points: pts, score: NaN, cls: "", coagMode: mode, flags };
+  const r = childPughFromPoints(pts);
+  return { complete: true, missing, points: pts, score: r.score, cls: r.cls, coagMode: mode, flags,
+    argatrobanReduce: r.score >= 7 };
+}
+// CALC-END
+
+// ===================== UI =====================
+const $ = (id) => document.getElementById(id);
+const { esc, num } = PKUI;
+$("ver").textContent = `v${PK.version}`;
+
+// Local provenance tags for items not in PK.sources (rendered like PKUI.badge).
+const LSRC = {
+  childPugh: { label: "Child-Pugh, classes A 5–6 / B 7–9 / C 10–15 (Pugh 1973)", ref: "hepatic-score §3; lit H1, H3, H5–H7", verify: false },
+  inrCut: { label: "INR cutoffs 1.7 / 2.3 are a later convention, not Pugh 1973", ref: "lit H4", verify: true },
+  ptCut: { label: "PT seconds over control 4 / 6 (Pugh 1973)", ref: "lit H4", verify: false },
+  cholestatic: { label: "Cholestatic bilirubin 4 / 10 mg/dL (PBC); PSC use is convention", ref: "lit H2", verify: true },
+  ascitesLabels: { label: "Modern ascites labels; site 'Moderate' mapped to moderate–severe", ref: "lit H5; hepatic-score §7", verify: false },
+  argatroban: { label: "Argatroban label: moderate/severe hepatic impairment (Child-Pugh > 6) start 0.5 mcg/kg/min", ref: "lit H8, L2 (Fresenius rev 3/2025)", verify: false },
+  theophylline: { label: "Theophylline label: CL ↓ ≥ 50% in hepatic insufficiency, no Child-Pugh mapping", ref: "lit H9", verify: true },
+  phenytoin: { label: "Phenytoin label: monitor unbound level in hepatic disease, no Child-Pugh rule", ref: "lit H10", verify: true },
+  ffmMorbid: { label: "Comparison only: CG with Janmahasatian LBW at BMI ≥ 40 (Demirovic 2009, Park 2012); AdjBW stays the reported value", ref: "decisions/renal-body.md Q4; lit R5", verify: true },
+  sciFactor: { label: "CG × 0.8 in chronic spinal cord injury (Chikkalingaiah 2010, PMID 20087164)", ref: "decisions/renal-body.md 2b", verify: true },
+  u25: { label: "CKiD U25 creatinine, age/sex K (Pierce 2021, PMID 33301749); K formula reconstructed from text", ref: "decisions/renal-body.md Q3", verify: true },
+  bedside: { label: "Bedside Schwartz 0.413 (Schwartz 2009, PMID 19158356)", ref: "decisions/renal-body.md Q3", verify: false },
+  schwartzJaffe: { label: "Original Schwartz k, Jaffe SCr only", ref: "core-equations §2.15; decisions/renal-body.md Q3", verify: false },
+  kegfr: { label: "Chen 2013 kinetic eGFR, anchored to CG (cross-check; no validation in the source paper)", ref: "decisions/renal-body.md Q5; PMID 23704286", verify: true },
+  siteCalc: { label: "Site calculator: min(IBW, TBW), no floor, 0.01 rounding", ref: "crcl §4.1", verify: false },
+};
+const badge = (k) => {
+  if (PK.sources[k]) return PKUI.badge(k);
+  const s = LSRC[k];
+  if (!s) return `<span class="src verify" title="Unknown source">verify</span>`;
+  const t = esc(`${s.label} (${s.ref})`);
+  return s.verify ? `<span class="src verify" title="${t}">verify</span>` : `<span class="src" title="${t}">src</span>`;
+};
+
+// ---------- Tabs ----------
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function showTab(name) {
+  tabs.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  $("panel-crcl").hidden = name !== "crcl";
+  $("panel-childpugh").hidden = name !== "childpugh";
+}
+tabs.forEach((b) => b.addEventListener("click", () => { showTab(b.dataset.tab); history.replaceState(null, "", `#${b.dataset.tab}`); }));
+tabs.forEach((b, idx) => b.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  const n = tabs[(idx + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+  n.focus(); n.click();
+}));
+
+// ---------- Theme ----------
+const THEMES = ["auto", "light", "dark"];
+let theme = "auto";
+try { theme = localStorage.getItem("pk-theme") || "auto"; } catch (e) {}
+function applyTheme() {
+  if (theme === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", theme);
+  $("themeBtn").textContent = `Theme: ${theme}`;
+}
+$("themeBtn").addEventListener("click", () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; try { localStorage.setItem("pk-theme", theme); } catch (e) {} applyTheme(); });
+applyTheme();
+
+// ---------- CrCl UI ----------
+const htT = PKUI.unitToggle($("ht"), $("htU"), ["in", "cm"], { dp: 1, onChange: () => calcCrcl() });
+const wtT = PKUI.unitToggle($("wt"), $("wtU"), ["kg", "lb"], { dp: 1, onChange: () => calcCrcl() });
+// Weight in kg via PK.body.lbToKg (exact × 0.45359237) rather than the toggle's display conversion.
+const weightKg = () => (wtT.unit() === "lb" ? PK.body.lbToKg(parseFloat($("wt").value)) : parseFloat($("wt").value));
+const scrUnits = ["mg/dL", "µmol/L"];
+let scrT, scr0T;
+const syncScr = (src) => (u) => { // keep both SCr fields in the same unit
+  const other = src === "scr" ? scr0T : scrT;
+  if (other && other.unit() !== u) $(src === "scr" ? "scr0U" : "scrU").click();
+  calcCrcl();
+};
+scrT = PKUI.unitToggle($("scr"), $("scrU"), scrUnits, { dp: 2, onChange: syncScr("scr") });
+scr0T = PKUI.unitToggle($("scr0"), $("scr0U"), scrUnits, { dp: 2, onChange: syncScr("scr0") });
+let model = "literature";
+const modelSeg = PKUI.segmented($("modelSeg"), (v) => { model = v; calcCrcl(); });
+
+$("ampSel").addEventListener("change", () => {
+  const v = $("ampSel").value;
+  if (v === "0") $("ampPct").value = 0;
+  else if (v !== "custom") $("ampPct").value = PK.renal.AMPUTATION_PCT[v];
+  calcCrcl();
+});
+$("ampPct").addEventListener("input", () => { $("ampSel").value = "custom"; });
+$("floorBadge").innerHTML = badge("scrFloor");
+$("cgBadge").innerHTML = badge("cockcroftGault");
+$("sciBadge").innerHTML = badge("sciFactor");
+
+const fnum = (id) => { const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; };
+const BASIS_NAME = { tbw: "actual body weight", ibw: "IBW", adjbw: "adjusted BW", minIbwTbw: "min(IBW, TBW)", lbw: "Janmahasatian LBW" };
+const METHOD_NAME = { cockcroftGault: "Cockcroft-Gault", chow: "Chow-Schweizer (changing function)", ashp: "Jelliffe / ASHP, scaled to BSA (changing function)", winter: "Winter mass balance (changing function)", schwartz: "Original Schwartz (Jaffe SCr), de-indexed", u25: "CKiD U25 (pediatric), de-indexed", bedside: "Bedside Schwartz 0.413 (pediatric), de-indexed" };
+const METHOD_SRC = { cockcroftGault: "cockcroftGault", chow: "chow", ashp: "ashp", winter: "winter", schwartz: "schwartzJaffe", u25: "u25", bedside: "bedside" };
+
+function readCrcl() {
+  const floorV = $("floor").value;
+  return {
+    age: fnum("age"), sex: $("sex").value, heightIn: htT.getValue(), tbw: weightKg(),
+    scr: scrT.getValue(), scrPrev: $("scr0").value === "" ? NaN : scr0T.getValue(), hours: $("hrs").value === "" ? NaN : fnum("hrs"),
+    sci: $("sci").checked, sciCorrection: $("sciCorr").checked, pedMethod: $("ped").value, amputationPct: fnum("ampPct") || 0, model,
+    obesityRule: $("obese").value, scrFloor: floorV === "off" ? null : +floorV, basis: $("basis").value, nssMethod: $("nss").value,
+  };
+}
+
+function calcCrcl() {
+  const inp = readCrcl();
+  const site = model === "site";
+  $("policyFs").disabled = site; $("siteNote").hidden = !site;
+  $("ampSel").disabled = site; $("ampPct").disabled = site; $("sci").disabled = site; $("ped").disabled = site;
+  $("sciCorrRow").hidden = site || !$("sci").checked;
+  const r = crclCalc(inp);
+  if (r.error) {
+    PKUI.renderBanners($("crclAlerts"), [{ lvl: "info", text: r.error }]);
+    $("crclResult").innerHTML = `<p class="hint">${esc(r.error)}</p>`;
+    $("bodyDl").innerHTML = ""; $("cgTable").innerHTML = ""; $("nssCard").hidden = true; $("pedCard").hidden = true;
+    return;
+  }
+  PKUI.renderBanners($("crclAlerts"), r.flags.filter((f) => f.code !== "nssUnfloored"));
+  const dp = crclDp(model);
+  const scrNote = r.scrFloored ? ` (SCr ${num(inp.scr, 2)} → ${r.scrUsed} mg/dL floor)` : "";
+  const unitLbl = "mL/min";
+  const weightLine = r.pediatric ? `Height-based; ${num(r.schwartz.per173, 1)} mL/min/1.73 m², × BSA/1.73` :
+    `Weight ${num(r.weight, 1)} kg (${BASIS_NAME[r.selectedBasis]})${scrNote}`;
+  $("crclResult").innerHTML = `
+    <div class="top">
+      <div class="lines">
+        <div class="oline"><span class="tag">CrCl</span><span class="bigval">${num(r.display, dp)} <small>${unitLbl}</small></span></div>
+        <div class="subl">${esc(METHOD_NAME[r.method])} ${badge(METHOD_SRC[r.method])}</div>
+        <div class="subl">${esc(weightLine)}</div>
+      </div>
+      <div class="right">
+        <span class="pill ${site ? "warn" : "ok"}">Model: ${site ? "site" : "literature"}</span>
+        ${site ? badge("siteCalc") : ""}
+        <span class="lbl">Normalized</span><span class="val">${num(r.normalized, 1)}</span><span class="lbl">mL/min/1.73 m²</span>
+      </div>
+    </div>
+    <div class="info">
+      <div><span class="lbl">Steady-state CG (selected basis)</span>${num(roundDisplay(r.crclCG, model), dp)} mL/min</div>
+      <div><span class="lbl">Obesity rule</span>${site ? "none (site)" : esc($("obese").selectedOptions[0].textContent)}</div>
+      <div><span class="lbl">SCr floor</span>${r.scrFloor === null ? (r.sci ? "off (SCI)" : "off") : `${r.scrFloor} mg/dL`}${r.sciFactor !== 1 ? " · CG × 0.8 (SCI)" : ""}</div>
+      <div><span class="lbl">Rounding</span>${site ? "0.01 mL/min (site)" : "0.1 mL/min; unrounded value passed to drug tools"}</div>
+    </div>`;
+
+  $("bodyDl").innerHTML = [
+    ["IBW (Devine)" + (inp.amputationPct && !site ? `, −${inp.amputationPct}%` : ""), `${num(r.ibw, 1)} kg`, "devine"],
+    ["Adjusted BW (0.4)", `${num(r.adjbw, 1)} kg`, "adjbw"],
+    ["Fat-free mass (Janmahasatian)", `${num(r.ffm, 1)} kg`, "janmahasatian"],
+    ["BMI", `${num(r.bmi, 1)} kg/m²`, null],
+    ["BSA (DuBois)", `${num(r.bsa, 2)} m²`, "dubois"],
+    ["TBW / IBW", `${num(r.tbw / r.ibw, 2)}`, "obesityThreshold"],
+  ].map(([k, v, s]) => `<dt>${esc(k)} ${s ? badge(s) : ""}</dt><dd>${v}</dd>`).join("");
+
+  $("cgTable").innerHTML = `<thead><tr><th>Basis</th><th>Weight kg</th><th>CrCl mL/min</th></tr></thead><tbody>` +
+    r.rows.map((row) => `<tr class="${row.selected ? "sel" : ""}"><td>${esc(row.label)}${row.selected ? " ◂" : ""}${row.info ? " " + badge("ffmMorbid") : ""}</td><td>${num(row.weight, 1)}</td><td>${num(row.display, dp)}</td></tr>`).join("") + `</tbody>`;
+
+  $("nssCard").hidden = !r.nss;
+  if (r.nss) {
+    const n = r.nss, m = r.method;
+    $("nssTable").innerHTML = `<thead><tr><th>Method</th><th>CrCl mL/min</th><th>Detail</th></tr></thead><tbody>
+      <tr class="${m === "chow" ? "sel" : ""}"><td>Chow-Schweizer ${badge("chow")}</td><td>${num(n.crclChow, dp)}</td><td class="l">K ${num(n.kCreat, 4)} h⁻¹ · Vd ${num(n.vd, 1)} L · production ${num(n.prodMgH, 1)} mg/h${n.chow.converged ? "" : " · unable to fit"}</td></tr>
+      <tr class="${m === "ashp" ? "sel" : ""}"><td>Jelliffe / ASHP ${badge("ashp")}</td><td>${num(n.ashpScaled, dp)}</td><td class="l">${num(n.ashp, dp)} mL/min/1.73 m² as printed; × BSA/1.73</td></tr>
+      <tr class="${m === "winter" ? "sel" : ""}"><td>Winter mass balance ${badge("winter")}</td><td>${num(n.winter, dp)}</td><td class="l">Dimensionally corrected</td></tr>
+      ${n.kegfr ? `<tr><td>Chen kinetic eGFR ${badge("kegfr")}</td><td>${num(n.kegfr.kegfr, dp)}</td><td class="l">Cross-check; anchor CG ${num(n.kegfr.crclSS, 1)} at earlier SCr; max rise ${num(n.kegfr.maxRisePerDay, 2)} mg/dL/day</td></tr>` : ""}
+      <tr><td>CG at latest SCr</td><td>${num(roundDisplay(r.crclCG, model), dp)}</td><td class="l">Steady-state reference</td></tr></tbody>`;
+  }
+  $("pedCard").hidden = !r.pediatric;
+  if (r.pediatric) {
+    const P = r.pediatric;
+    const prow = (key, label, src) => `<tr class="${P.method === key ? "sel" : ""}"><td>${label} ${badge(src)}</td><td>${num(P[key].k, 3)}</td><td>${num(P[key].per173, 1)}</td><td>${num(P[key].absolute, dp)}</td></tr>`;
+    $("pedTable").innerHTML = `<thead><tr><th>Equation</th><th>K</th><th>mL/min/1.73 m²</th><th>mL/min</th></tr></thead><tbody>
+      ${prow("u25", "CKiD U25", "u25")}${prow("bedside", "Bedside Schwartz", "bedside")}${prow("original", "Original Schwartz (Jaffe SCr)", "schwartzJaffe")}</tbody>`;
+  }
+}
+
+// ---------- Child-Pugh UI ----------
+function factorToggle(input, button, units, factors, dp, onChange) { // factors: value in unit × factor = base unit (units[0])
+  let i = 0;
+  const paint = () => { button.textContent = units[i]; button.setAttribute("aria-label", `Units: ${units[i]}. Click to change.`); };
+  button.type = "button";
+  button.addEventListener("click", () => {
+    const v = parseFloat(input.value), j = (i + 1) % units.length;
+    if (isFinite(v)) input.value = +((v * factors[i]) / factors[j]).toFixed(dp[j]);
+    i = j; paint(); onChange();
+  });
+  paint();
+  return { unit: () => units[i] };
+}
+const biliT = factorToggle($("bili"), $("biliU"), ["mg/dL", "µmol/L"], [1, 1 / 17.1], [2, 0], () => calcCP());
+const albT = factorToggle($("alb"), $("albU"), ["g/dL", "g/L"], [1, 0.1], [1, 0], () => calcCP());
+
+$("coagMode").addEventListener("change", () => {
+  const pt = $("coagMode").value === "pt";
+  $("coagLbl").textContent = pt ? "PT prolonged over control" : "INR";
+  $("coagUnit").textContent = pt ? "s" : "ratio";
+  $("coag").value = pt ? 2 : 1.1;
+  calcCP();
+});
+
+function calcCP() {
+  const biliRaw = fnum("bili"), albRaw = fnum("alb");
+  const inp = {
+    bili: biliToMgdl(biliRaw, biliT.unit()), cholestatic: $("chol").checked, alb: albToGdl(albRaw, albT.unit()),
+    coagMode: $("coagMode").value, coag: fnum("coag"), ascites: +$("ascites").value, enceph: +$("enceph").value,
+  };
+  const r = childPugh(inp);
+  PKUI.renderBanners($("cpAlerts"), r.flags);
+  const coagRule = r.coagMode === "pt" ? CP_RULES.pt : CP_RULES.inr;
+  const biliRule = inp.cholestatic ? CP_RULES.biliChol : CP_RULES.bili;
+  const p = r.points;
+  const cell = (x) => (x ? `<span class="pts">${x}</span>` : "—");
+  $("cpTable").innerHTML = `<thead><tr><th>Criterion</th><th>Value</th><th>Points</th><th>Rule</th></tr></thead><tbody>
+    <tr><td>Bilirubin ${inp.cholestatic ? badge("cholestatic") : ""}</td><td>${num(inp.bili, 2)} mg/dL</td><td>${cell(p.bili)}</td><td class="l">${biliRule.text} mg/dL</td></tr>
+    <tr><td>Albumin</td><td>${num(inp.alb, 1)} g/dL</td><td>${cell(p.alb)}</td><td class="l">${CP_RULES.alb.text} g/dL</td></tr>
+    <tr><td>${r.coagMode === "pt" ? "PT over control " + badge("ptCut") : "INR " + badge("inrCut")}</td><td>${num(inp.coag, r.coagMode === "pt" ? 1 : 2)}${r.coagMode === "pt" ? " s" : ""}</td><td>${cell(p.coag)}</td><td class="l">${coagRule.text}${r.coagMode === "pt" ? " s" : ""}</td></tr>
+    <tr><td>Ascites ${badge("ascitesLabels")}</td><td>${esc($("ascites").selectedOptions[0].textContent)}</td><td>${cell(p.ascites)}</td><td class="l">none 1; mild 2; moderate–severe 3</td></tr>
+    <tr><td>Encephalopathy</td><td>${esc($("enceph").selectedOptions[0].textContent)}</td><td>${cell(p.enceph)}</td><td class="l">none 1; grade 1–2 → 2; grade 3–4 → 3</td></tr></tbody>`;
+
+  const pill = r.cls === "A" ? "ok" : r.cls === "B" ? "warn" : "crit";
+  $("cpResult").innerHTML = r.complete ? `
+    <div class="top">
+      <div class="lines">
+        <div class="oline"><span class="tag">Score</span><span class="bigval">${r.score} <small>of 15</small></span></div>
+        <div class="subl">Child-Pugh ${badge("childPugh")} · bands A 5–6, B 7–9, C 10–15</div>
+      </div>
+      <div class="right"><span class="lbl">Class</span><span class="val">${r.cls}</span><span class="pill ${pill}">${{ A: "well compensated", B: "significant compromise", C: "decompensated" }[r.cls]}</span></div>
+    </div>` : `<p class="hint">Enter ${esc(r.missing.join(", "))} to score.</p>`;
+
+  const arg = !r.complete ? "Score incomplete." : r.argatrobanReduce
+    ? `<b>Class ${r.cls} (score ${r.score} &gt; 6): start argatroban at 0.5 mcg/kg/min</b> (standard 2) at the usual 1 mg/mL concentration; titrate by aPTT (1.5–3× baseline, ≤ 100 s).`
+    : `Class A (score ≤ 6): usual argatroban start 2 mcg/kg/min.`;
+  $("cpDrugs").innerHTML = `
+    <li><b>Argatroban</b> ${badge("argatroban")} — the only suite drug that uses the class. ${arg} No renal adjustment.</li>
+    <li><b>Theophylline</b> ${badge("theophylline")} — <b>not</b> auto-adjusted by Child-Pugh. Use the theophylline tool's "hepatic insufficiency" flag (clearance reduced ≥ 50%) and monitor levels.</li>
+    <li><b>Phenytoin</b> ${badge("phenytoin")} — <b>not</b> auto-adjusted. In hepatic disease or low albumin, use unbound (free) levels; see the <a href="../phenytoin-calculator.html">phenytoin calculator</a>.</li>`;
+}
+
+// ---------- Prefill from the query string (links from other tools) ----------
+(function prefill() {
+  const q = new URLSearchParams(location.search);
+  const set = (id, v) => { if (v !== null && v !== "" && isFinite(+v)) $(id).value = v; };
+  set("age", q.get("age"));
+  if (q.get("sex") === "F" || q.get("sex") === "M") $("sex").value = q.get("sex");
+  if (q.has("ht_cm")) { $("htU").click(); set("ht", q.get("ht_cm")); } else set("ht", q.get("ht_in"));
+  if (q.has("wt_lb")) { $("wtU").click(); set("wt", q.get("wt_lb")); } else set("wt", q.get("wt_kg"));
+  if (q.has("scr_umol")) { $("scrU").click(); set("scr", q.get("scr_umol")); } else set("scr", q.get("scr"));
+  set("scr0", q.get("scr0")); set("hrs", q.get("hrs"));
+  if (q.get("model") === "site") { model = "site"; modelSeg.set("site"); }
+  const tab = q.get("tab") || location.hash.slice(1);
+  if (tab === "childpugh" || tab === "crcl") showTab(tab);
+  if (q.has("embed")) {
+    document.documentElement.classList.add("embed");
+    if (q.has("tab")) document.documentElement.classList.add("onetab");
+  }
+})();
+
+for (const id of ["age", "sex", "ht", "wt", "scr", "scr0", "hrs", "ampPct", "sci", "sciCorr", "ped", "basis", "obese", "floor", "nss"])
+  $(id).addEventListener(["sex", "sci", "sciCorr", "ped", "basis", "obese", "floor", "nss"].includes(id) ? "change" : "input", calcCrcl);
+for (const id of ["bili", "chol", "alb", "coag", "ascites", "enceph"])
+  $(id).addEventListener(["chol", "ascites", "enceph"].includes(id) ? "change" : "input", calcCP);
+calcCrcl();
+calcCP();
+</script>
+</body>
+</html>

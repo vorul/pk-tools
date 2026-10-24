@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PK Dosing Suite</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+/* Launcher: one list of tools grouped by kind. Each row says what the tool answers, not what it is. */
+.group { display: grid; gap: 8px; }
+.group h2 { font-family: var(--font-display); font-weight: 600; font-size: .76rem; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 8px 0 0; }
+.tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+a.tool { display: grid; gap: 4px; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+a.tool:hover, a.tool:focus-visible { border-color: var(--accent); outline: none; }
+a.tool b { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+a.tool span { font-size: .86rem; color: var(--muted); }
+a.tool small { font: .72rem var(--font-data); color: var(--accent); }
+.lede { margin: 0; color: var(--muted); font-size: .92rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>PK Dosing Suite</h1>
+  </header>
+  <p class="lede">Clinical pharmacokinetic calculators rebuilt from Marshall Pierce's pkineticdrugdosing.com, cross-checked against current literature and labels. Each tool has a <b>Literature</b> model (default) and a <b>Site</b> model that reproduces the original calculators.</p>
+
+  <section class="group">
+    <h2>Antimicrobials</h2>
+    <div class="tools">
+      <a class="tool" href="vancomycin.html"><b>Vancomycin: AUC dosing</b><span>Initial regimen, two-level AUC, and Bayesian fit over a dose history (1- or 2-compartment).</span><small>vancomycin.html</small></a>
+      <a class="tool" href="vancomycin-hd.html"><b>Vancomycin: charts and hemodialysis</b><span>Trough-based dosing charts and the high-flux HD protocol with pre-HD level planning.</span><small>vancomycin-hd.html</small></a>
+      <a class="tool" href="aminoglycosides.html"><b>Aminoglycosides</b><span>Gentamicin, tobramycin, amikacin: extended-interval, traditional, and two-level / Bayesian.</span><small>aminoglycosides.html</small></a>
+      <a class="tool" href="acyclovir.html"><b>Acyclovir IV</b><span>Dose by indication, dosing weight, renal and dialysis adjustment, and infusion volume.</span><small>acyclovir.html</small></a>
+    </div>
+  </section>
+
+  <section class="group">
+    <h2>Narrow-range drugs</h2>
+    <div class="tools">
+      <a class="tool" href="phenytoin.html"><b>Phenytoin</b><span>Michaelis-Menten dosing, albumin and renal binding correction, one- and two-level and Bayesian methods.</span><small>phenytoin.html</small></a>
+      <a class="tool" href="phenobarbital.html"><b>Phenobarbital</b><span>Age-band loading and maintenance, steady-state and non-steady-state level fitting.</span><small>phenobarbital.html</small></a>
+      <a class="tool" href="digoxin.html"><b>Digoxin</b><span>Loading and maintenance, level interpretation over a weekly schedule, interactions.</span><small>digoxin.html</small></a>
+      <a class="tool" href="lithium.html"><b>Lithium</b><span>Initial dose for a 12-hour level, steady-state and non-steady-state adjustment.</span><small>lithium.html</small></a>
+      <a class="tool" href="theophylline.html"><b>Theophylline / aminophylline</b><span>Loading, infusion and oral regimens, level fitting, clearance modifiers.</span><small>theophylline.html</small></a>
+    </div>
+  </section>
+
+  <section class="group">
+    <h2>Patient function and infusions</h2>
+    <div class="tools">
+      <a class="tool" href="renal-hepatic.html"><b>Renal and hepatic function</b><span>Creatinine clearance under every weight basis, unstable SCr methods, Child-Pugh score.</span><small>renal-hepatic.html</small></a>
+      <a class="tool" href="infusion-rate.html"><b>Adult infusion rates</b><span>Dose to mL/h and back, titration tables, hard and soft limits for standard drips.</span><small>infusion-rate.html</small></a>
+    </div>
+  </section>
+
+  <footer>For education and to check hand calculations. Not a substitute for clinical judgement, institutional protocols or a pharmacist's review. Items marked <span class="src verify">verify</span> on each page await clinician sign-off.</footer>
+</div>
+</body>
+</html>

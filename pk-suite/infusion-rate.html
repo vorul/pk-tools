@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adult Infusion Rate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+.credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+.credit a { color: var(--accent); }
+.model { display: flex; align-items: center; gap: 8px; }
+.model small { font-size: .74rem; color: var(--muted); }
+.big { font: 500 2rem var(--font-data); color: var(--ink); line-height: 1.1; }
+.big small { font-size: .9rem; color: var(--muted); }
+.order .right .val.stop { color: var(--crit); font-size: 1.1rem; }
+.dosebtn { font: 500 .76rem var(--font-body); color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+td.over, tr.over td { color: var(--crit); }
+td.soft { color: var(--warn); }
+tr.sel td { background: var(--accent-soft); }
+.lib td { white-space: normal; text-align: left; font-family: var(--font-body); font-size: .8rem; vertical-align: top; min-width: 7em; }
+.lib th { text-align: left; }
+.lib td.mono { font-family: var(--font-data); }
+.notes { margin: 0; padding-left: 18px; font-size: .84rem; display: grid; gap: 3px; }
+.mutedbox { font-size: .8rem; color: var(--muted); }
+.grid th, .grid td { padding: 3px 5px; font-size: .76rem; }
+.grid th:first-child, .grid td:first-child { position: sticky; left: 0; background: var(--surface); }
+.disc { text-decoration: line-through; }
+#chartPrintHead { display: none; }
+@media print {
+  body { background: #fff; color: #000; padding: 0; }
+  body.printing .wrap > * { display: none !important; }
+  body.printing .wrap > #chartCard { display: block !important; border: 0; }
+  body.printing #chartCard .actions { display: none !important; }
+  body.printing #chartPrintHead { display: block; font-size: 10pt; margin-bottom: 6px; }
+  .grid th, .grid td { font-size: 8pt; padding: 1px 3px; color: #000; }
+  @page { size: landscape; margin: 10mm; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Adult Infusion Rate</h1>
+    <div class="model">
+      <small>Model</small>
+      <div class="seg" id="modelSeg" role="group" aria-label="Drug library model">
+        <button data-value="literature" aria-pressed="true" title="Current labels and ASHP Standardize 4 Safety (lit/acyclovir-infusions-hepatic.md)">Literature</button>
+        <button data-value="site" aria-pressed="false" title="Reproduces the pkineticdrugdosing.com calculator exactly">Site</button>
+      </div>
+    </div>
+  </header>
+  <p class="credit">Site model reproduces the Adult Infusion Rate Calculator and drip-rate charts by Marshall Pierce, PharmD, at <a href="https://pkineticdrugdosing.com/documents/adult-standard-drip-rate-charts.htm" target="_blank" rel="noopener">pkineticdrugdosing.com</a>. Literature model follows current labels and the ASHP Standardize 4 Safety adult continuous-infusion standards.</p>
+
+  <div class="strip" id="strip" aria-label="Order summary"></div>
+
+  <section class="card">
+    <h2>Drug and patient</h2>
+    <div class="fields">
+      <label class="wide">Drug <select id="drug"></select></label>
+      <label class="wide">Concentration <select id="conc"></select></label>
+      <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" value="70" inputmode="decimal"><button type="button" class="ub" id="wtUnit">kg</button></span></label>
+      <label>Direction
+        <span class="seg" id="dirSeg" role="group" aria-label="Direction">
+          <button data-value="dose" aria-pressed="true">Dose → mL/h</button>
+          <button data-value="rate" aria-pressed="false">mL/h → dose</button>
+        </span>
+      </label>
+      <label id="doseRow">Ordered dose <span class="ig"><input id="dose" type="number" min="0" step="any" inputmode="decimal"><button type="button" class="ub" id="doseUnit" tabindex="-1" disabled>unit</button></span></label>
+      <label id="rateRow" hidden>Pump rate <span class="ig"><input id="rate" type="number" min="0" step="any" inputmode="decimal"><button type="button" class="ub" tabindex="-1" disabled>mL/h</button></span></label>
+      <label id="crclRow" hidden>CrCl <span class="ig"><input id="crcl" type="number" min="0" step="any" placeholder="mL/min"><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
+      <label id="dialRow" hidden>Dialysis
+        <select id="dialysis"><option value="none">Not on dialysis</option><option value="hd">Hemodialysis (dialysis-dependent)</option><option value="pd">Peritoneal / other dialysis</option></select>
+      </label>
+      <label id="scrRow" hidden>SCr (if no CrCl) <span class="ig"><input id="scr" type="number" min="0" step="any" placeholder="mg/dL"><button type="button" class="ub" tabindex="-1" disabled>mg/dL</button></span></label>
+      <label id="instRow" hidden>Hard max <span class="src verify" title="No label maximum: institutional value pending P&amp;T sign-off. Changes last for this session only.">Institutional — P&amp;T</span> <span class="ig"><input id="instMax" type="number" min="0" step="any"><button type="button" class="ub" id="instUnit" tabindex="-1" disabled>unit</button></span></label>
+      <label id="cpRow" hidden>Child-Pugh score <span class="ig"><input id="childPugh" type="number" min="5" max="15" step="1" placeholder="5–15"><button type="button" class="ub" tabindex="-1" disabled>pts</button></span></label>
+    </div>
+    <p class="hint" id="renalHint" hidden></p>
+  </section>
+
+  <section class="card order" id="result" aria-live="polite"></section>
+  <div class="alerts" id="alerts"></div>
+
+  <section class="card" id="argaCard" hidden>
+    <h2>Argatroban titration from aPTT <span id="argaBadge"></span></h2>
+    <div class="fields">
+      <label id="argaTrackRow">Track
+        <select id="argaTrack"><option value="auto">Auto (Child-Pugh ≥ 7 → reduced)</option><option value="standard">Standard (start 2)</option><option value="reduced">Critically ill / hepatic (start 0.5)</option></select>
+      </label>
+      <label id="argaBaseRow">Baseline aPTT <span class="ig"><input id="apttBase" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>s</button></span></label>
+      <label id="argaRateRow">Current rate <span class="ig"><input id="argaRate" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>mL/h</button></span></label>
+      <label>aPTT <span class="ig"><input id="aptt" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>s</button></span></label>
+    </div>
+    <p id="argaOut" class="hint"></p>
+  </section>
+
+  <section class="card" id="procCard" hidden>
+    <h2>Procainamide loading infusion <span id="procBadge"></span></h2>
+    <div class="fields">
+      <label>Loading dose <span class="ig"><input id="procMg" type="number" min="0" step="any" placeholder="17 mg/kg"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+      <label>Loading rate <span class="ig"><input id="procRate" type="number" min="0" step="any" value="20"><button type="button" class="ub" tabindex="-1" disabled>mg/min</button></span></label>
+    </div>
+    <p id="procOut" class="hint"></p>
+    <div class="alerts" id="procAlerts"></div>
+  </section>
+
+  <div class="two">
+    <section class="card">
+      <h2>Titration table for this patient</h2>
+      <p class="hint" id="tblHint"></p>
+      <div class="tablewrap"><table id="tbl"></table></div>
+    </section>
+    <section class="card">
+      <h2>Drug information</h2>
+      <dl class="calc" id="info"></dl>
+      <ul class="notes" id="notes"></ul>
+    </section>
+  </div>
+
+  <section class="card" id="chartCard">
+    <h2>Weight × dose chart</h2>
+    <div id="chartPrintHead"></div>
+    <div class="actions">
+      <button type="button" id="chartBtn">Show chart</button>
+      <button type="button" id="printBtn" class="primary" hidden>Print chart</button>
+      <span class="hint" id="chartHint"></span>
+    </div>
+    <div class="tablewrap" id="chartWrap" hidden><table class="grid" id="chart"></table></div>
+  </section>
+
+  <details class="card">
+    <summary>Drug library (<span id="libCount"></span>)</summary>
+    <div class="tablewrap" style="margin-top:10px"><table class="lib" id="lib"></table></div>
+  </details>
+
+  <details class="card">
+    <summary>Methods and rounding</summary>
+    <div class="body">
+      <p>Rate (mL/h) = dose ÷ concentration, with ×weight for per-kg units and ×60 for per-minute units. Concentration is in the dose's mass unit per mL (mcg/mL, mg/mL or units/mL). Reverse: dose = rate × concentration (÷60 for per-minute, ÷weight for per-kg).</p>
+      <p><b>Display rounding.</b> Rates below 5 mL/h show to 0.1 mL/h, otherwise to the whole mL/h; the 5 mL/h cut is decided on the unrounded rate. <b>Literature model:</b> ties round half-up (4.25 → 4.3, 22.5 → 23). <b>Site model:</b> ties round half-to-even exactly as the site's VBScript <code>Round</code> does on the raw double (4.25 → 4.2, 22.5 → 22, 37.5 → 38), and the titration rows are generated by the same stepped loop (<code>dose += step</code>), which reproduces all 732 live-server rows. The printable chart in the site model reproduces the PDF charts instead (half-up, with propofol, bivalirudin and eptifibatide always to 0.1 mL/h).</p>
+      <p><b>Loading volumes.</b> Literature: to 0.1 mL (half-up). Site: same rule as rates (server).</p>
+      <p><b>Weight.</b> Literature: lb → kg with <code>PK.body.lbToKg</code> (× 0.45359237 exactly; rounded for display only). Site: ÷ 2.2 and rounded to 0.1 kg, which is what the site echoes back (100 lb → 45.5 kg).</p>
+      <p><b>Limits.</b> A dose above the maximum is a hard stop: no rate is offered. A dose outside the usual range is a soft warning. Renal and hepatic rules give a recommended dose; ordering above it is a warning, and eptifibatide in a dialysis-dependent patient is a hard stop. Literature hard maxima come from the product labels where a label states one (dopamine 50, dobutamine 40, esmolol 300, epinephrine 2 mcg/kg/min; milrinone 0.75 mcg/kg/min; nicardipine and diltiazem 15 mg/h; vasopressin 0.1 units/min; amiodarone 1 mg/min continuous). Where no label maximum exists the limit is <span class="src verify">Institutional — P&amp;T</span> and can be changed on this page for the session (heparin 35 units/kg/h and 2,500 units/h, insulin 30 units/h, nitroglycerin 400 mcg/min, norepinephrine 3 mcg/kg/min, propofol 80 mcg/kg/min). Sources: decisions/acyclovir-infusions.md Q6–Q10.</p>
+      <p><b>Argatroban (literature).</b> Novastan EU SmPC two-track table: standard track starts at 2 mcg/kg/min (aPTT &lt; 1.5 × baseline → +0.5; next aPTT in 2 h); critically ill or hepatic track (Child-Pugh ≥ 7) starts at 0.5 (+0.1; next aPTT in 4 h). aPTT &gt; 3 × baseline or &gt; 100 s: stop until back in range, then resume at half the previous dose. Target 1.5–3 × baseline, ≤ 100 s; maximum 10 mcg/kg/min (US label). The site model keeps the site's fixed 40–83 s table.</p>
+      <p><b>Procainamide load (literature).</b> 17 mg/kg on actual weight capped at 100 kg (institutional) is the hard stop; above 1 g is a soft alert (label maximum advisable dose); loading rate default 20 mg/min, hard maximum 50 mg/min.</p>
+      <p><b>Eptifibatide weight cap.</b> Literature: above 121 kg the label's fixed maximum is used (bolus 22.6 mg = 11.3 mL; 15 mg/h = 20 mL/h at 2 mcg/kg/min, 7.5 mg/h = 10 mL/h at 1). Site: weight is capped at 121 kg in the formula (bolus 11 mL, 19 and 10 mL/h).</p>
+      <p>Badges: <span class="src">src</span> shows the source on hover; <span class="src verify">verify</span> marks values recalled but not verified against a primary source ([R]), institutional proposals needing P&amp;T sign-off, or site PDF values never checked against the live calculator.</p>
+    </div>
+  </details>
+
+  <footer>Educational and decision-support use only, by trained clinicians. Not a substitute for the product label, your institution's infusion standards, smart-pump drug library or an independent double check. Verify concentration, units and patient weight before programming any pump. No data entered here is stored or sent anywhere.</footer>
+</div>
+
+<script src="lib/pkcore.js"></script>
+<script src="lib/pk-ui.js"></script>
+<script>
+// CALC-START
+// Pure math and drug library for the adult infusion-rate calculator. No DOM. Needs globalThis.PK (lib/pkcore.js).
+// Sources: specs/infusion-rate.md (site model, §4 formulas, §11 live-server verification) and
+// lit/acyclovir-infusions-hepatic.md §1b/§2 (literature model, ASHP Standardize 4 Safety, Sept 2026).
+const isNum = (x) => typeof x === "number" && isFinite(x);
+const UNITS = {
+  "mcg/kg/min": { wt: true, min: true, mass: "mcg" },
+  "mcg/min": { wt: false, min: true, mass: "mcg" },
+  "mg/min": { wt: false, min: true, mass: "mg" },
+  "mg/h": { wt: false, min: false, mass: "mg" },
+  "mg/kg/h": { wt: true, min: false, mass: "mg" },
+  "units/h": { wt: false, min: false, mass: "units" },
+  "units/kg/h": { wt: true, min: false, mass: "units" },
+  "units/min": { wt: false, min: true, mass: "units" },
+};
+const isWeightBased = (unit) => UNITS[unit].wt;
+
+// infusion-rate.md §4. Operation order matches the server so site-mode ties reproduce exactly.
+function rateFromDose(dose, unit, conc, wtKg) {
+  switch (unit) {
+    case "mcg/kg/min": return dose * wtKg * 60 / conc;
+    case "mcg/min": case "mg/min": case "units/min": return dose * 60 / conc;
+    case "mg/h": case "units/h": return dose / conc;
+    case "mg/kg/h": case "units/kg/h": return dose * wtKg / conc;
+  }
+  return NaN;
+}
+function doseFromRate(rate, unit, conc, wtKg) {
+  switch (unit) {
+    case "mcg/kg/min": return rate * conc / (60 * wtKg);
+    case "mcg/min": case "mg/min": case "units/min": return rate * conc / 60;
+    case "mg/h": case "units/h": return rate * conc;
+    case "mg/kg/h": case "units/kg/h": return rate * conc / wtKg;
+  }
+  return NaN;
+}
+
+// ---- Rounding ----
+// Site parity: VBScript Round = round-half-to-even on the raw double (infusion-rate.md §4 addendum).
+// Not in PK.round (only needed to reproduce the server), so it lives here.
+function vbRound(x, dp) {
+  const m = Math.pow(10, dp), y = x * m, r = Math.floor(y), f = y - r;
+  return (f > 0.5 ? r + 1 : f < 0.5 ? r : (r % 2 ? r + 1 : r)) / m;
+}
+// Half-up on the decimal value: clean float noise to 12 significant digits, then PK.round.roundTo.
+const clean = (x) => +x.toPrecision(12);
+function halfUp(x, dp) {
+  const m = Math.pow(10, dp);
+  return PK.round.roundTo(clean(x * m), 1) / m;
+}
+// rule: 'half-up' (literature), 'half-even' (site server), 'pdf' (site PDF charts: half-up, optional always-1-dp)
+function displayRate(raw, rule, dp1) {
+  if (!isNum(raw)) return NaN;
+  if (rule === "half-even") return raw < 5 ? vbRound(raw, 1) : vbRound(raw, 0);
+  const v = clean(raw);
+  if (rule === "pdf" && dp1) return halfUp(v, 1);
+  return v < 5 ? halfUp(v, 1) : halfUp(v, 0);
+}
+// Reverse-direction dose display (infusion-rate.md §6 suggestion).
+function doseDp(x, unit) {
+  if (unit === "mcg/kg/min") return Math.abs(x) < 0.1 ? 3 : 2;
+  if (unit === "units/h") return 0;
+  if (unit === "units/kg/h") return 1;
+  if (unit === "units/min") return 3;
+  return 2;
+}
+const displayDose = (x, unit) => (isNum(x) ? halfUp(x, doseDp(x, unit)) : NaN);
+const fmtNum = (x) => (isNum(x) ? String(+x.toPrecision(10)) : "—");
+
+// ---- Weight ----
+const SITE_LB_PER_KG = 2.2; // live-server CONFIRMED (§2); site echoes kg to 0.1 (100 lb → 45.5)
+function toKg(w, unit, model) {
+  if (!isNum(w)) return NaN;
+  if (unit !== "lb") return w;
+  return model === "site" ? vbRound(w / SITE_LB_PER_KG, 1) : PK.body.lbToKg(w);
+}
+function fromKg(kg, unit, model) {
+  if (!isNum(kg) || unit !== "lb") return kg;
+  return model === "site" ? kg * SITE_LB_PER_KG : PK.body.kgToLb(kg);
+}
+
+// ---- Sequences ----
+const seq = (a, b, s) => { const o = []; for (let i = 0; a + i * s <= b + 1e-9; i++) o.push(+(a + i * s).toFixed(6)); return o; };
+// Server loop: dose += step in doubles (float accumulation matters at fenoldopam .5 ties, §4 addendum).
+function serverLoop(a, b, s) { const o = []; for (let d = a; d <= b + 1e-9; d += s) o.push(d); return o; }
+const W = (a, b, s) => seq(a, b, s).map((kg) => ({ kg, label: String(kg) }));
+const LIT_WEIGHTS = W(40, 150, 5);
+
+// ---- Provenance ----
+// Tags follow lit/acyclovir-infusions-hepatic.md: [V] verified, [V2] secondary, [R] recalled; "inst." = P&T proposal.
+const needsVerify = (tag) => /\[R\]|inst\.|PDF only|sign-off/.test(tag || "");
+
+// =====================================================================
+// LIBRARY. Fields:
+//  id, name, unit, concs[{id, label, conc (dose mass unit per mL), opt (site option value)}],
+//  usual [lo, hi] | null, usualText, max | null (hard stop), maxText, wtRange [lo, hi] (chart weights; outside → warning),
+//  cap (eptifibatide weight cap), load [{perKg, mass, srcConc, from, over, text, fixedMg}],
+//  renal / hepatic rule keys, rows (titration doses), pdf {doses, weights, dp1, loadDp1} (site printable chart),
+//  notes[], prov {conc, range, max, ...}, status ('discontinued'), noCalc
+// =====================================================================
+const LIT = [
+  { id: "amiodarone", name: "Amiodarone", unit: "mg/min",
+    concs: [{ id: "1.8", label: "1.8 mg/mL (360 mg/200 mL premix; 450 mg/250 mL; 900 mg/500 mL)", conc: 1.8 }],
+    usual: [0.5, 1], usualText: "1 mg/min × 6 h, then 0.5 mg/min", max: 1, maxText: "1 mg/min continuous (label: do not exceed the recommended rate)",
+    load: [{ text: "Initial and breakthrough bolus 150 mg over 10 min (15 mg/min) as a separate bolus, never via the continuous-rate field" }],
+    rows: [0.25, 0.5, 0.75, 1],
+    notes: ["Use a glass or non-PVC (polyolefin) container, or a commercial premix, for infusions over 2 h.", "Concentrations above 2 mg/mL need a central line (not a standard concentration).", "In-line filter statement: verify against the product label."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label (Nexterone, Baxter) [V]", max: "label (Nexterone) [V]" } },
+  { id: "argatroban", name: "Argatroban", unit: "mcg/kg/min",
+    concs: [{ id: "1000", label: "1 mg/mL = 1000 mcg/mL (250 mg/250 mL; 50 mg/50 mL undiluted)", conc: 1000 }],
+    usual: [0.5, 10], usualText: "Standard track start 2; critically ill / hepatic track (Child-Pugh ≥ 7) start 0.5. Titrate to aPTT 1.5–3 × baseline, not above 100 s", max: 10, maxText: "10 mcg/kg/min",
+    hepatic: "argatroban", aptt: "novastan", wtRange: [40, 170],
+    rows: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10],
+    notes: ["No renal dose adjustment (label). The site's \"CrCl < 60: consider 1\" is institutional and not used here.", "One concentration only: hepatic impairment is handled by a lower start dose, not a 0.5 mg/mL bag.", "Argatroban raises the INR: score Child-Pugh before starting.", "Titration: Novastan EU SmPC two-track table (standard +0.5, next aPTT 2 h; critically ill / hepatic +0.1, next aPTT 4 h; > 3 × baseline or > 100 s: stop, resume at half). ASH 2018: start 0.5–1.2 in liver dysfunction, heart failure, anasarca or after cardiac surgery.", "PCI regimen (350 mcg/kg bolus + 25 mcg/kg/min, ACT 300–450 s) is not modelled here."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label (Fresenius 3/2025) [V]", max: "label [V]", hepatic: "label §2, §12.3 [V]", aptt: "Novastan EU SmPC two-track table (MPA 2023) [V]; US label targets [V]" } },
+  { id: "bivalirudin", name: "Bivalirudin", unit: "mg/kg/h",
+    concs: [{ id: "5", label: "5 mg/mL (250 mg/50 mL; 500 mg/100 mL)", conc: 5 }],
+    usual: [0.25, 1.75], usualText: "1.75 (CrCl ≥ 30); 1 (CrCl < 30); 0.25 (hemodialysis)", max: 1.75, maxText: "1.75 mg/kg/h",
+    renal: "bivalirudin-label", wtRange: [40, 170],
+    load: [{ perKg: 0.75, mass: "mg", srcConc: 5, from: "from the infusion bag", over: "IV bolus" }],
+    rows: [0.25, 1, 1.75],
+    notes: ["Check ACT 5 min after the bolus; give 0.3 mg/kg more if needed.", "STEMI: 1.75 mg/kg/h may continue up to 4 h after PCI.", "No bolus reduction in renal impairment.", "If the load plus 1 h of infusion exceeds 50 mL (weight > 100 kg), use the 500 mg/100 mL bag."],
+    prov: { conc: "label (Fresenius 4/2025) [V]", range: "label [V]", max: "label [V]", renal: "label [V]" } },
+  { id: "diltiazem", name: "Diltiazem", unit: "mg/h",
+    concs: [{ id: "1", label: "1 mg/mL (125 mg/125 mL)", conc: 1 }],
+    usual: [5, 15], usualText: "10 mg/h (some need 5), up to 15", max: 15, maxText: "15 mg/h (label maximum)",
+    load: [{ perKg: 0.25, mass: "mg", over: "over 2 min" }],
+    rows: [2.5, 5, 7.5, 10, 12.5, 15],
+    notes: ["Infusions longer than 24 h have not been studied (label): reassess at 24 h."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label [V]", max: "label [V]" } },
+  { id: "dobutamine", name: "Dobutamine", unit: "mcg/kg/min",
+    concs: [{ id: "2000", label: "2000 mcg/mL (500 mg/250 mL)", conc: 2000 }, { id: "4000", label: "4000 mcg/mL (1000 mg/250 mL)", conc: 4000 }],
+    usual: [2, 20], usualText: "2–20", max: 40, maxText: "40 mcg/kg/min",
+    rows: [2, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 40],
+    notes: ["Label: usual 2.5–15; on rare occasions up to 40 mcg/kg/min."], prov: { conc: "S4S Sept 2026 [V]", range: "label [V]", max: "label [V]" } },
+  { id: "dopamine", name: "Dopamine", unit: "mcg/kg/min",
+    concs: [{ id: "1600", label: "1600 mcg/mL (400 mg/250 mL)", conc: 1600 }, { id: "3200", label: "3200 mcg/mL (800 mg/250 mL)", conc: 3200 }],
+    usual: [2, 20], usualText: "2–20", max: 50, maxText: "50 mcg/kg/min (label: do not exceed)",
+    rows: [2, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 40, 50],
+    notes: ["Above 20 mcg/kg/min consider norepinephrine."], prov: { conc: "S4S Sept 2026 [V]", range: "label [R]", max: "label (Hospira) [V]" } },
+  { id: "epinephrine", name: "Epinephrine", unit: "mcg/kg/min",
+    concs: [{ id: "20", label: "20 mcg/mL (5 mg/250 mL)", conc: 20 }, { id: "40", label: "40 mcg/mL (10 mg/250 mL)", conc: 40 }],
+    usual: [0.01, 0.5], usualText: "0.01–0.5 (septic shock label 0.05–2, titrate by 0.05–0.2)", max: 2, maxText: "2 mcg/kg/min",
+    rows: [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.75, 1, 1.5, 2],
+    notes: ["S4S weight-based vasopressor dosing. The site's legacy entry is 8 mcg/mL in mcg/min."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label (Adrenalin, septic shock) [V]", max: "label [V]" } },
+  { id: "esmolol", name: "Esmolol", unit: "mcg/kg/min",
+    concs: [{ id: "10000", label: "10 mg/mL = 10,000 mcg/mL (2.5 g/250 mL)", conc: 10000 }, { id: "20000", label: "20 mg/mL = 20,000 mcg/mL", conc: 20000 }],
+    usual: [50, 200], usualText: "50–200", max: 300, maxText: "300 mcg/kg/min (label: 200 tachycardia, 300 hypertension)",
+    load: [{ perKg: 0.5, mass: "mg", srcConc: 10, from: "from a 10 mg/mL vial", over: "over 1 min (500 mcg/kg)" }],
+    rows: seq(50, 300, 25),
+    notes: ["Above 200 mcg/kg/min only for hypertension (label)."], prov: { conc: "S4S Sept 2026 [V]", range: "label (Brevibloc) [V]", max: "label (Brevibloc) [V]" } },
+  { id: "heparin-kg", name: "Heparin (units/kg/h)", unit: "units/kg/h",
+    concs: [{ id: "100", label: "100 units/mL (25,000 units/250 mL)", conc: 100 }],
+    usual: [12, 25], usualText: "Per protocol, e.g. start 18 (VTE) or 12 (ACS); alert above 25", max: 35, maxText: "35 units/kg/h and 2,500 units/h absolute (institutional)", wtRange: [40, 150],
+    inst: true, limits: [{ per: "h", above: 2500, hard: true, text: "exceeds the institutional absolute maximum of 2,500 units/h" }],
+    load: [{ text: "Bolus per nomogram (e.g. 80 units/kg VTE; 60 units/kg, max 4000, ACS)", verify: true }],
+    rows: seq(5, 35, 1),
+    notes: ["Use one dosing unit per protocol (S4S). This entry is weight-based; units/h is a separate entry.", "No adult maximum in the label (20,000–40,000 units/24 h fixed)."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "protocol [R]; Raschke 1993 VTE start 18", max: "inst. (P&T)" } },
+  { id: "heparin-h", name: "Heparin (units/h)", unit: "units/h",
+    concs: [{ id: "100", label: "100 units/mL (25,000 units/250 mL)", conc: 100 }],
+    usual: [500, 2000], usualText: "Per protocol (ACS max 1000 units/h initially); alert above 2,000", max: 2500, maxText: "2,500 units/h (institutional)", inst: true,
+    rows: seq(100, 2500, 100),
+    notes: ["Non-weight-based entry, kept distinct from units/kg/h (S4S note 6)."], prov: { conc: "S4S Sept 2026 [V]", range: "protocol [R]", max: "inst. (P&T)" } },
+  { id: "insulin-h", name: "Insulin regular (units/h)", unit: "units/h",
+    concs: [{ id: "1", label: "1 unit/mL (100 units/100 mL)", conc: 1 }],
+    usual: [0.5, 20], usualText: "0.5–20 units/h", max: 30, maxText: "30 units/h (institutional; no label maximum)", inst: true,
+    rows: [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 25, 30],
+    notes: ["The site's \"5–100 units/h\" range is wrong and is not used."], prov: { conc: "S4S Sept 2026 [V]", range: "inst. (P&T)", max: "inst. (P&T)" } },
+  { id: "insulin-kg", name: "Insulin regular (DKA, units/kg/h)", unit: "units/kg/h",
+    concs: [{ id: "1", label: "1 unit/mL (100 units/100 mL)", conc: 1 }],
+    usual: [0.05, 0.14], usualText: "DKA 0.1 units/kg/h; HHS 0.05; reduce to 0.05 when glucose < 250 mg/dL", max: null, maxText: "per protocol",
+    rows: [0.02, 0.05, 0.075, 0.1, 0.12, 0.14],
+    notes: ["ADA/EASD 2024 hyperglycaemic-crises consensus."], prov: { conc: "S4S Sept 2026 [V]", range: "ADA/EASD 2024 [V2]", max: "protocol (sign-off)" } },
+  { id: "eptifibatide", name: "Eptifibatide", unit: "mcg/kg/min",
+    concs: [{ id: "750", label: "0.75 mg/mL = 750 mcg/mL (75 mg/100 mL)", conc: 750 }],
+    usual: [1, 2], usualText: "2 (CrCl ≥ 50, Cockcroft-Gault); 1 (CrCl < 50)", max: 2, maxText: "2 mcg/kg/min",
+    renal: "eptifibatide-label", cap: { kg: 121, mode: "label", infusionKg: 125, loadMg: 22.6 }, wtRange: [40, 121],
+    load: [{ perKg: 0.18, mass: "mg", srcConc: 2, from: "from a 2 mg/mL vial", over: "IV bolus (180 mcg/kg); PCI: repeat 10 min after the first" }],
+    rows: [1, 2],
+    notes: ["Dialysis-dependent patients: contraindicated (hard stop).", "Above 121 kg use the label's fixed maximum: bolus 22.6 mg, infusion 15 mg/h (2) or 7.5 mg/h (1).", "Incompatible with furosemide."],
+    prov: { conc: "label (Baxter 5/2024) [V]", range: "label [V]", max: "label [V]", renal: "label [V]", cap: "label [V]" } },
+  { id: "isoproterenol", name: "Isoproterenol", unit: "mcg/min",
+    concs: [{ id: "4", label: "4 mcg/mL (1 mg/250 mL)", conc: 4 }],
+    usual: [1, 10], usualText: "1–10 (heart block 2–20; shock 0.5–5)", max: 20, maxText: "20 mcg/min",
+    rows: [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20],
+    notes: ["The site's 8 mcg/mL concentration is not the S4S standard.", "Label: rates over 30 mcg/min have been used; 20 mcg/min is an institutional ceiling."], prov: { conc: "S4S Sept 2026 [V]", range: "label [V2]", max: "inst. (P&T)" } },
+  { id: "labetalol", name: "Labetalol", unit: "mg/min",
+    concs: [{ id: "1", label: "1 mg/mL (S4S)", conc: 1 }, { id: "5", label: "5 mg/mL (fluid restriction)", conc: 5 }],
+    usual: [0.5, 2], usualText: "Label 2 mg/min; 0.5–2 usual", max: 8, maxText: "8 mg/min (AHA/ASA stroke regimen 2–8 mg/min)",
+    rows: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5, 6, 7, 8],
+    notes: ["Dosed in mg/min at 1 or 5 mg/mL (S4S). A mg/h protocol would need a separately named entry.", "Track the cumulative dose: alert at 300 mg (label: a total dose of up to 300 mg may be required)."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label (Hospira) [V]", max: "AHA/ASA stroke 2–8 mg/min [R]", unit: "S4S mg/min [V]" } },
+  { id: "lidocaine", name: "Lidocaine", unit: "mg/min",
+    concs: [{ id: "8", label: "8 mg/mL (2 g/250 mL)", conc: 8 }],
+    usual: [1, 4], usualText: "1–4 mg/min after bolus", max: 4, maxText: "4 mg/min",
+    hepatic: "lidocaine", rows: [1, 1.5, 2, 2.5, 3, 3.5, 4],
+    notes: ["Reduce the rate by about 50% after 24 h.", "Use a lower rate in hepatic impairment.", "Continuous ECG monitoring."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label premix [V2]", max: "label [V2]" } },
+  { id: "milrinone", name: "Milrinone", unit: "mcg/kg/min",
+    concs: [{ id: "200", label: "200 mcg/mL (20 mg/100 mL premix)", conc: 200 }],
+    usual: [0.375, 0.75], usualText: "0.375–0.75; renal table below CrCl 50", max: 0.75, maxText: "0.75 mcg/kg/min; ≤ 1.13 mg/kg/day",
+    renal: "milrinone", wtRange: [40, 150],
+    load: [{ perKg: 0.05, mass: "mg", srcConc: 0.2, from: "from the bag", over: "over 10 min (50 mcg/kg), optional" }],
+    rows: [0.2, 0.23, 0.28, 0.33, 0.375, 0.38, 0.43, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75],
+    notes: ["Renal table (CrCl mL/min/1.73 m² → max rate): 50 → 0.43, 40 → 0.38, 30 → 0.33, 20 → 0.28, 10 → 0.23, 5 → 0.2. Steps down to the next table row.", "Many ICUs omit the bolus."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label [V]", max: "label (Hospira) [V]", renal: "label Table [V2]" } },
+  { id: "nicardipine", name: "Nicardipine", unit: "mg/h",
+    concs: [{ id: "0.1", label: "0.1 mg/mL (20 mg/200 mL premix)", conc: 0.1 }, { id: "0.2", label: "0.2 mg/mL (40 mg/200 mL premix)", conc: 0.2 }, { id: "0.5", label: "0.5 mg/mL (central line / fluid restriction)", conc: 0.5 }],
+    usual: [5, 15], usualText: "Start 5 mg/h; increase by 2.5 mg/h every 5–15 min", max: 15, maxText: "15 mg/h (label maximum)",
+    rows: [2.5, 5, 7.5, 10, 12.5, 15],
+    notes: [], prov: { conc: "S4S Sept 2026 [V]", range: "label [R]", max: "label (Cardene IV premix) [V]" } },
+  { id: "nitroglycerin", name: "Nitroglycerin", unit: "mcg/min",
+    concs: [{ id: "200", label: "200 mcg/mL (50 mg/250 mL premix)", conc: 200 }, { id: "400", label: "400 mcg/mL (fluid restriction)", conc: 400 }],
+    usual: [5, 200], usualText: "Start 5; titrate by 5 q3–5 min to 20, then by 10–20", max: 400, maxText: "400 mcg/min (institutional; no label maximum)", inst: true,
+    rows: [5, 10, 15, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 250, 300, 350, 400],
+    notes: ["Label: no maximum; some patients need much higher rates."], prov: { conc: "S4S Sept 2026 [V]", range: "label [V]", max: "inst. (P&T)" } },
+  { id: "nitroprusside", name: "Nitroprusside", unit: "mcg/kg/min",
+    concs: [{ id: "200", label: "200 mcg/mL (premix)", conc: 200 }, { id: "500", label: "500 mcg/mL (fluid restriction)", conc: 500 }],
+    usual: [0.3, 3], usualText: "Start 0.3; titrate to effect", max: 10, maxText: "10 mcg/kg/min (shortest possible time)",
+    renal: "nitroprusside",
+    rows: [0.3, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10],
+    notes: ["Cyanide buffering is exceeded in under 1 h at the maximum rate: monitor for cyanide and thiocyanate toxicity.", "eGFR < 30: keep the mean rate below 3. Anuric: 1 mcg/kg/min."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "Nipride RTU label [V2]", max: "label [V2]", renal: "label [V2]" } },
+  { id: "norepinephrine", name: "Norepinephrine", unit: "mcg/kg/min",
+    concs: [{ id: "16", label: "16 mcg/mL (4 mg/250 mL)", conc: 16 }, { id: "32", label: "32 mcg/mL (8 mg/250 mL)", conc: 32 }, { id: "64", label: "64 mcg/mL (central line / fluid restriction)", conc: 64 }],
+    usual: [0.01, 1], usualText: "0.01–1", max: 3, maxText: "3 mcg/kg/min (institutional; no label maximum)", inst: true,
+    rows: [0.01, 0.02, 0.03, 0.05, 0.08, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.8, 1, 1.5, 2, 2.5, 3],
+    notes: ["S4S weight-based vasopressor dosing. The site's legacy entry is mcg/min with max 20."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "[R]", max: "inst. (P&T)" } },
+  { id: "phenylephrine", name: "Phenylephrine", unit: "mcg/kg/min",
+    concs: [{ id: "80", label: "80 mcg/mL (20 mg/250 mL)", conc: 80 }, { id: "400", label: "400 mcg/mL (central line)", conc: 400 }],
+    usual: [0.5, 6], usualText: "Anaesthesia 0.5–1.4; vasodilatory shock 0.5–6 (shock range not found in current labels)", max: 6, maxText: "6 mcg/kg/min (provisional; unresolved, verify)",
+    limits: [{ per: "min", above: 200, hard: false, text: "is above 200 mcg/min: current labels (anaesthesia) say not to exceed 200 mcg/min; the shock maximum is unresolved — verify" }],
+    rows: [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 4, 5, 6],
+    notes: ["Current 10 mg/mL and RTU labels are anaesthesia-only: 10–35 mcg/min or 0.5–1.4 mcg/kg/min, not to exceed 200 mcg/min (about 2.9 mcg/kg/min at 70 kg).", "Shock maximum unresolved: 6 mcg/kg/min is kept as a provisional ceiling pending sign-off."], prov: { conc: "S4S Sept 2026 [V]", range: "label [V] / shock [R]", max: "unresolved (sign-off)", note200: "labels [V]" } },
+  { id: "procainamide", name: "Procainamide", unit: "mg/min",
+    concs: [{ id: "8", label: "8 mg/mL (4 g/500 mL)", conc: 8 }, { id: "4", label: "4 mg/mL (1 g/250 mL, label)", conc: 4 }],
+    usual: [1, 4], usualText: "1–4 mg/min (label maintenance 2–6)", max: 6, maxText: "6 mg/min",
+    procLoad: { perKg: 17, capKg: 100, softMg: 1000, defaultRate: 20, maxRate: 50 },
+    load: [{ text: "Loading infusion: 17 mg/kg (weight capped at 100 kg) is the hard stop; alert above 1 g (label); 20 mg/min default, hard max 50 mg/min. Stop if hypotension, QRS widens > 50% or the arrhythmia is suppressed." }],
+    rows: [1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6],
+    notes: ["The site's label says 4 g per 250 mL; the bag is 4 g per 500 mL (8 mg/mL)."], prov: { conc: "label [V2]; not in S4S", range: "ACLS 2025 [V2] / label [V]", max: "label (Hospira 02/2026) [V]", load: "ACLS 17 mg/kg [V2]; label 1 g, ≤ 50 mg/min [V]; 100 kg cap inst. (P&T)" } },
+  { id: "propofol", name: "Propofol", unit: "mcg/kg/min",
+    concs: [{ id: "10000", label: "10 mg/mL = 10,000 mcg/mL (undiluted)", conc: 10000 }],
+    usual: [5, 50], usualText: "ICU sedation 5–50", max: 80, maxText: "80 mcg/kg/min (institutional; label 4 mg/kg/h = 66.7)", wtRange: [40, 170], inst: true,
+    limits: [{ per: "dose", above: 66.7, hard: false, text: "is above the label's 4 mg/kg/h (66.7 mcg/kg/min): not to be exceeded unless the benefits outweigh the risks" }],
+    rows: seq(5, 80, 5),
+    notes: ["Contraindicated with hypersensitivity to propofol or its components; egg and soy allergy per product label (wording varies).", "Sulfite warning applies only to metabisulfite-containing generics.", "Propofol infusion syndrome risk with prolonged high doses (> 4 mg/kg/h)."],
+    prov: { conc: "S4S Sept 2026 [V]", range: "label (Diprivan) [V]", max: "inst. (P&T)", allergy: "label [V2]" } },
+  { id: "vasopressin", name: "Vasopressin", unit: "units/min",
+    concs: [{ id: "0.2", label: "0.2 units/mL (20 units/100 mL)", conc: 0.2 }, { id: "0.4", label: "0.4 units/mL (40 units/100 mL)", conc: 0.4 }, { id: "1", label: "1 unit/mL (fluid restriction)", conc: 1 }],
+    usual: [0.01, 0.07], usualText: "Septic shock 0.01–0.07 (usually 0.03–0.04); post-cardiotomy 0.03–0.1", max: 0.1, maxText: "0.1 units/min (label)",
+    rows: [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
+    notes: ["Label: limited data above 0.1 (post-cardiotomy) and 0.07 units/min (septic shock)."], prov: { conc: "S4S Sept 2026 [V]", range: "label (Vasostrict) [V]", max: "label (Vasostrict) [V]" } },
+];
+
+// Site model: the 26 calculator options (live server, §11) plus PDF-only argatroban and abciximab.
+const S = (a, b, s) => ({ a, b, s });
+const SITE = [
+  { id: "amiodarone", name: "Amiodarone", unit: "mg/min",
+    concs: [{ id: "450", opt: "Amiodarone450mgper250ml", label: "450 mg per 250 mL (glass bottle) = 1.8 mg/mL", conc: 1.8 }, { id: "900", opt: "Amiodarone900mgper500ml", label: "900 mg per 500 mL (glass) = 1.8 mg/mL", conc: 1.8 }],
+    usual: [0.5, 1], usualText: "0.5–1 mg/min", max: null, maxText: "(blank)",
+    load: [{ text: "Initial 150 mg in 100 mL D5W over 10 min (PDF only; not shown by the calculator)" }],
+    rows: S(0.25, 1, 0.25), pdf: { doses: [0.25, 0.5, 0.75, 1] },
+    notes: ["0.22 micron in-line filter."], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "argatroban", name: "Argatroban (PDF chart only)", unit: "mcg/kg/min",
+    concs: [{ id: "1000", label: "250 mg/250 mL = 1000 mcg/mL (normal hepatic function)", conc: 1000 }, { id: "500", label: "250 mg/500 mL = 500 mcg/mL (hepatic disease score > 6)", conc: 500 }],
+    usual: [0.5, 10], usualText: "Start 2 (CrCl < 60: consider 1); hepatic score > 6: 500 mcg/mL bag, start 0.5", max: 10, maxText: "10 mcg/kg/min",
+    hepatic: "argatroban-site", renal: "argatroban-site", aptt: true, wtRange: [40, 170],
+    rows: [0.1, 0.2, 0.3, 0.4, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], pdf: { doses: [0.1, 0.2, 0.3, 0.4, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], weights: W(40, 170, 5) },
+    notes: ["Not in the site's calculator dropdown: values come from the PDF charts.", "aPTT goal 40–83 s. Avoid if LFT ≥ 3 × ULN."], prov: { all: "site PDF only, never checked against the calculator" } },
+  { id: "bivalirudin", name: "Bivalirudin (Angiomax)", unit: "mg/kg/h",
+    concs: [{ id: "250", opt: "Bivalirudin250mgper50ml", label: "250 mg per 50 mL = 5 mg/mL", conc: 5 }, { id: "500", opt: "Bivalirudin500mgper100ml", label: "500 mg per 100 mL = 5 mg/mL", conc: 5 }],
+    usual: [0.175, 1.75], usualText: "1.75 (CrCl > 59); 1.4 (30–59); 0.7 (10–29); 0.175 (dialysis, off dialysis)", max: null, maxText: "(blank)",
+    renal: "bivalirudin-site", wtRange: [40, 170],
+    load: [{ perKg: 0.75, mass: "mg", srcConc: 5, from: "from infusion bag", over: "" }],
+    rows: { bands: [[">59", 1.75], ["30-59", 1.4], ["10-29", 0.7], ["Dialysis patient off dialysis", 0.175]] },
+    pdf: { doses: [1.75, 1.4, 0.7, 0.175], weights: W(40, 170, 5), dp1: true, loadDp1: true },
+    notes: ["ACT goal > 300 s if CrCl < 60.", "Manufacturer's older PCI regimen (not the current label)."], prov: { all: "site calculator (live 2026-10-23)", weights: "PDF chart weights assumed 40–170 kg (sign-off)" } },
+  { id: "diltiazem", name: "Diltiazem", unit: "mg/h",
+    concs: [{ id: "125", opt: "Diltiazem125mgper125ml", label: "125 mg per 125 mL = 1 mg/mL", conc: 1 }],
+    usual: [5, 15], usualText: "5–15 mg/h", max: 20, maxText: "20 mg/h",
+    load: [{ perKg: 0.25, mass: "mg", over: "over 2 min (PDF only)" }],
+    rows: S(1, 20, 1), pdf: { doses: seq(1, 15, 1) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "dobutamine", name: "Dobutamine", unit: "mcg/kg/min",
+    concs: [{ id: "500", opt: "Dobutamine500mgper250ml", label: "500 mg per 250 mL = 2000 mcg/mL", conc: 2000 }, { id: "1000", opt: "Dobutamine1000mgper250ml", label: "1000 mg per 250 mL = 4000 mcg/mL", conc: 4000 }],
+    usual: [2, 20], usualText: "2–20", max: 40, maxText: "40 mcg/kg/min", wtRange: [40, 135],
+    rows: S(2, 40, 2), pdf: { doses: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 20, 30], weights: W(40, 135, 5) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "dopamine", name: "Dopamine", unit: "mcg/kg/min",
+    concs: [{ id: "800", opt: "Dopamine800mgper250ml", label: "800 mg per 250 mL = 3200 mcg/mL", conc: 3200 }],
+    usual: [1, 20], usualText: "1–20 (if > 20 consider norepinephrine)", max: 50, maxText: "50 mcg/kg/min", wtRange: [40, 120],
+    rows: S(5, 50, 2.5), pdf: { doses: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 20, 30], weights: W(40, 120, 5) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "epinephrine", name: "Epinephrine", unit: "mcg/min",
+    concs: [{ id: "2", opt: "Epinephrine2mgper250ml", label: "2 mg per 250 mL = 8 mcg/mL", conc: 8 }],
+    usual: [1, 10], usualText: "1–10 mcg/min", max: null, maxText: "(blank)",
+    rows: S(0.5, 10, 0.5), pdf: { doses: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10] }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "esmolol", name: "Esmolol", unit: "mcg/kg/min",
+    concs: [{ id: "2.5", opt: "Esmolol2.5gmper250ml", label: "2.5 g per 250 mL = 10,000 mcg/mL", conc: 10000 }],
+    usual: [50, 200], usualText: "50–200", max: 300, maxText: "200 (SVT), 300 (perioperative)", wtRange: [40, 135],
+    load: [{ perKg: 0.5, mass: "mg", srcConc: 10, from: "10 mg/mL vial", over: "over 1 min" }],
+    rows: S(50, 200, 25), pdf: { doses: seq(50, 200, 25), weights: W(40, 135, 5), loadDp1: true }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "fenoldopam", name: "Fenoldopam", unit: "mcg/kg/min",
+    concs: [{ id: "10", opt: "Fenoldopam10mgper250ml", label: "10 mg per 250 mL = 40 mcg/mL", conc: 40 }],
+    usual: [0.1, 1.6], usualText: "0.1–1.6", max: 1.7, maxText: "1.7 mcg/kg/min", wtRange: [40, 120],
+    rows: S(0.1, 1.7, 0.05), pdf: { doses: [0.03, 0.05, 0.08, 0.1, 0.13, 0.15, 0.18, 0.2, 0.23, 0.25, 0.28, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 1], weights: W(40, 120, 5) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "heparin-h", name: "Heparin (units/h)", unit: "units/h",
+    concs: [{ id: "25000", opt: "Heparin25000per250mlUnits/Hour", label: "25,000 units per 250 mL = 100 units/mL", conc: 100 }],
+    usual: null, usualText: "\"12–18 units/kg/hour\" (as shown)", max: null, maxText: "(blank)",
+    rows: S(100, 2000, 100), pdf: { doses: seq(300, 2000, 100) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "heparin-kg", name: "Heparin (units/kg/h)", unit: "units/kg/h",
+    concs: [{ id: "25000", opt: "Heparin25000per250mlUnits/kg/hour", label: "25,000 units per 250 mL = 100 units/mL", conc: 100 }],
+    usual: [12, 18], usualText: "12–18 units/kg/h", max: null, maxText: "(blank)", wtRange: [40, 135],
+    rows: S(5, 25, 1), pdf: { doses: seq(5, 25, 1), weights: W(40, 135, 5) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "insulin", name: "Insulin", unit: "units/h",
+    concs: [{ id: "100", opt: "Insulin100Unitsper100ml", label: "100 units per 100 mL = 1 unit/mL", conc: 1 }],
+    usual: null, usualText: "0.1 unit/kg/h for ketoacidosis (as shown)", max: null, maxText: "(blank)",
+    rows: S(1, 100, 1), pdf: { doses: [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75] }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "eptifibatide", name: "Eptifibatide (Integrilin)", unit: "mcg/kg/min",
+    concs: [{ id: "75", opt: "Integrilin75mgper100ml", label: "75 mg per 100 mL = 750 mcg/mL", conc: 750 }],
+    usual: [1, 2], usualText: "2 (CrCl ≥ 50 or SCr ≤ 2); 1 (CrCl < 50 or SCr > 2); ≥ 12 h for PCI", max: 2, maxText: "2 mcg/kg/min",
+    renal: "eptifibatide-site", cap: { kg: 121, mode: "server", infusionKg: 125, loadMg: 22.6 }, wtRange: [40, 121],
+    load: [{ perKg: 0.18, mass: "mg", srcConc: 2, from: "from 2 mg/mL vial", over: "PCI: repeat 10 min after the first" }],
+    rows: S(1, 2, 1), pdf: { doses: [1, 2], weights: [...W(40, 120, 5), { kg: 121, label: "121" }, { kg: 122, label: ">121" }], dp1: true, loadDp1: true },
+    notes: ["Contraindicated in dialysis dependency.", "Incompatible with furosemide."], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "isoproterenol", name: "Isoproterenol", unit: "mcg/min",
+    concs: [{ id: "2", opt: "Isoproterenol2mgper250ml", label: "2 mg per 250 mL = 8 mcg/mL", conc: 8 }],
+    usual: [0.5, 20], usualText: "0.5–5 shock; 2–10 torsades / transplant / beta-blocker; 2–20 bradycardia", max: 30, maxText: "20, or 30 (shock)",
+    rows: S(0.5, 30, 0.5), pdf: { doses: [...seq(0.5, 14.5, 0.5), ...seq(15, 28, 1)] }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "labetalol", name: "Labetalol", unit: "mg/min",
+    concs: [{ id: "500", opt: "Labetalol500mgper250ml", label: "500 mg per 250 mL = 2 mg/mL", conc: 2 }],
+    usual: [0.5, 2], usualText: "0.5–2, start 2", max: 8, maxText: "8 mg/min",
+    rows: S(0.25, 8, 0.25), pdf: { doses: seq(0.25, 3.5, 0.25) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "lidocaine", name: "Lidocaine", unit: "mg/min",
+    concs: [{ id: "2", opt: "Lidocaine2gmper250ml", label: "2 g per 250 mL = 8 mg/mL", conc: 8 }],
+    usual: [1, 4], usualText: "1–4 mg/min", max: null, maxText: "(blank; PDF: 4)",
+    rows: S(0.5, 4, 0.25), pdf: { doses: seq(0.5, 4, 0.5) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "milrinone", name: "Milrinone", unit: "mcg/kg/min",
+    concs: [{ id: "20", opt: "Milrinone20mgper100ml", label: "20 mg per 100 mL = 200 mcg/mL", conc: 200 }],
+    usual: [0.375, 0.75], usualText: "0.375–0.75; renal table", max: 0.75, maxText: "0.75 mcg/kg/min",
+    renal: "milrinone", wtRange: [40, 136],
+    load: [{ perKg: 0.05, mass: "mg", srcConc: 0.2, from: "from bag", over: "over 10 min" }],
+    rows: S(0.2, 0.75, 0.05), pdf: { doses: [0.375, ...seq(0.4, 0.75, 0.05)], weights: [...W(40, 130, 5), { kg: 136, label: "136" }], loadDp1: true }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "nesiritide", name: "Nesiritide (Natrecor)", unit: "mcg/kg/min", status: "discontinued",
+    concs: [{ id: "1.5", opt: "Natrecor1.5mgper250ml", label: "1.5 mg per 250 mL = 6 mcg/mL", conc: 6 }],
+    usual: [0.01, 0.03], usualText: "0.01; ≥ 3 h before increase by 0.005", max: 0.03, maxText: "0.03 mcg/kg/min", wtRange: [40, 135],
+    load: [{ perKg: 0.002, mass: "mg", srcConc: 0.006, from: "from bag", over: "over 1 min (2 mcg/kg)" }],
+    rows: S(0.005, 0.03, 0.005), pdf: { doses: seq(0.005, 0.03, 0.005), weights: W(40, 135, 5) },
+    notes: ["Not marketed in the US: shown for site parity only, not orderable."], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "nitroglycerin", name: "Nitroglycerin", unit: "mcg/min",
+    concs: [{ id: "50", opt: "Nitroglycerine50mgper250ml", label: "50 mg per 250 mL = 200 mcg/mL", conc: 200 }],
+    usual: [5, 200], usualText: "Start 5 mcg/min, titrate", max: null, maxText: "\"No fixed optimal dose\"",
+    rows: S(5, 200, 5), pdf: { doses: [...seq(1, 10, 1), 15, 20, ...seq(30, 200, 10)] }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "nitroprusside", name: "Nitroprusside", unit: "mcg/kg/min",
+    concs: [{ id: "100", opt: "Nitroprusside100mgper250ml", label: "100 mg per 250 mL = 400 mcg/mL", conc: 400 }],
+    usual: [0.15, 3], usualText: "0.15–3", max: 10, maxText: "10 mcg/kg/min for ≤ 10 min", wtRange: [40, 135],
+    rows: S(0.25, 10, 0.25), pdf: { doses: [0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5], weights: W(40, 135, 5) }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "norepinephrine", name: "Norepinephrine", unit: "mcg/min",
+    concs: [{ id: "8", opt: "Norepinephrine8mgper250ml", label: "8 mg per 250 mL = 32 mcg/mL", conc: 32 }],
+    usual: [1, 30], usualText: "1–30 mcg/min", max: 30, maxText: "30 mcg/min",
+    rows: S(1, 30, 1), pdf: { doses: [...seq(2, 16, 1), 18, 20] }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "phenylephrine", name: "Phenylephrine", unit: "mcg/min",
+    concs: [{ id: "10", opt: "Phenylephrine10mgper250ml", label: "10 mg per 250 mL = 40 mcg/mL", conc: 40 }],
+    usual: [40, 180], usualText: "Initial 100–180, then 40–60", max: null, maxText: "(blank)",
+    rows: S(5, 180, 5), pdf: { doses: [...seq(1, 10, 1), ...seq(40, 180, 10)] }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "procainamide", name: "Procainamide", unit: "mg/min",
+    concs: [{ id: "4", opt: "Procainamide4gmper500ml", label: "4 g per 500 mL = 8 mg/mL (site label says \"per 250 ml\")", conc: 8 }],
+    usual: [1, 4], usualText: "1–4 mg/min", max: 6, maxText: "6 mg/min",
+    load: [{ perKg: 17, mass: "mg", over: "max 1–1.5 g at 20–30 mg/min (PDF only)" }],
+    rows: S(1, 6, 0.25), pdf: { doses: [...seq(1, 2, 0.1), 2.5, 3, 3.5, 4] }, notes: [], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "propofol", name: "Propofol", unit: "mcg/kg/min",
+    concs: [{ id: "10", opt: "Propofol10mgperml", label: "10 mg per mL = 10,000 mcg/mL", conc: 10000 }],
+    usual: [5, 50], usualText: "5–50", max: null, maxText: "(blank)", wtRange: [40, 170],
+    rows: S(5, 50, 5), pdf: { doses: seq(5, 50, 5), weights: W(40, 170, 5), dp1: true },
+    notes: ["Contraindication as printed by the site: sulfite allergy."], prov: { all: "site calculator (live 2026-10-23)" } },
+  { id: "abciximab", name: "Abciximab (ReoPro)", unit: "mcg/kg/min", status: "discontinued", noCalc: true,
+    concs: [{ id: "var", label: "12-h bag: vial (2 mg/mL) added to 250 mL", conc: NaN }],
+    usual: null, usualText: "0.125 mcg/kg/min", max: null, maxText: "10 mcg/min", rows: [],
+    notes: ["Discontinued worldwide (2018–2019): not orderable. The PDF bag recipe is kept only as a historical reference."], prov: { all: "site PDF only (sign-off)" } },
+];
+const LIB = { literature: LIT, site: SITE };
+
+function getDrug(model, id) { return LIB[model].find((d) => d.id === id); }
+function getConc(drug, concId) { return drug.concs.find((c) => c.id === concId) || drug.concs[0]; }
+// Site option value (e.g. "Integrilin75mgper100ml") → { drug, conc }.
+function findOption(opt) {
+  for (const d of SITE) for (const c of d.concs) if (c.opt === opt) return { drug: d, conc: c };
+  return null;
+}
+const drugCount = (model) => ({ entries: LIB[model].length, orderable: LIB[model].filter((d) => d.status !== "discontinued").length });
+
+// ---- Weight cap (eptifibatide) ----
+// mode 'server': formula weight = min(wt, cap) (site calculator). 'label': wt > cap → label's fixed >121 kg row.
+// 'pdf': wt ≥ cap → fixed row (site chart convention). Fixed row = 15 mg/h at 2 mcg/kg/min ≡ 125 kg; bolus 22.6 mg.
+function capWeight(drug, wtKg, mode) {
+  const c = drug.cap;
+  if (!c || !isNum(wtKg)) return { infusionKg: wtKg, capped: false, fixedLoadMg: null };
+  const m = mode || c.mode;
+  if (m === "server") return wtKg > c.kg ? { infusionKg: c.kg, loadKg: c.kg, capped: true, fixedLoadMg: null } : { infusionKg: wtKg, capped: false, fixedLoadMg: null };
+  const over = m === "pdf" ? wtKg >= c.kg : wtKg > c.kg;
+  return over ? { infusionKg: c.infusionKg, capped: true, fixedLoadMg: c.loadMg } : { infusionKg: wtKg, capped: false, fixedLoadMg: null };
+}
+
+// ---- Titration dose rows ----
+function doseRows(drug, model) {
+  const r = drug.rows;
+  if (Array.isArray(r)) return r.map((d) => ({ dose: d }));
+  if (r && r.bands) return r.bands.map(([band, d]) => ({ dose: d, band }));
+  if (r && isNum(r.a)) return (model === "site" ? serverLoop(r.a, r.b, r.s) : seq(r.a, r.b, r.s)).map((d) => ({ dose: d }));
+  return [];
+}
+const ruleFor = (model) => (model === "site" ? "half-even" : "half-up");
+
+function titration(drug, conc, wtKg, model, maxDose = drug.max) {
+  const unit = drug.unit, wb = isWeightBased(unit);
+  if (drug.noCalc || (wb && !(wtKg > 0))) return [];
+  const cw = capWeight(drug, wtKg);
+  const rule = ruleFor(model);
+  return doseRows(drug, model).map((row) => {
+    const raw = rateFromDose(row.dose, unit, conc.conc, cw.infusionKg);
+    const limitOver = (drug.limits || []).some((L) => L.hard && L.per === "h" && clean(raw * conc.conc) > L.above + 1e-9);
+    return { ...row, raw, rate: displayRate(raw, rule), over: (isNum(maxDose) && row.dose > maxDose + 1e-9) || limitOver,
+      outside: !!drug.usual && (row.dose < drug.usual[0] - 1e-9 || row.dose > drug.usual[1] + 1e-9) };
+  });
+}
+
+// ---- Loading doses ----
+// Returns [{ text, mass, massUnit, ml, mlDisplay, from, over, verify }]. Site: rate display rule (server). Literature: mL to 0.1, half-up.
+function loading(drug, wtKg, model, opts = {}) {
+  const out = [];
+  for (const L of drug.load || []) {
+    if (!isNum(L.perKg)) { out.push({ text: L.text, verify: !!L.verify }); continue; }
+    if (!(wtKg > 0)) { out.push({ text: `${fmtNum(L.perKg * (L.mass === "mg" ? 1 : 1))} ${L.mass}/kg ${L.over || ""}: enter weight`, verify: !!L.verify }); continue; }
+    const perKg = isNum(opts.perKg) ? opts.perKg : L.perKg;
+    const cw = capWeight(drug, wtKg, opts.capMode);
+    let mass;
+    if (cw.fixedLoadMg != null) mass = cw.fixedLoadMg;
+    else if (drug.cap && cw.capped) mass = perKg * cw.loadKg;
+    else mass = perKg * wtKg;
+    let ml = NaN, mlDisplay = NaN;
+    if (isNum(L.srcConc)) {
+      // Site parity order: perKg(mass/kg in source units) × wt / conc. Expressed in the source's own units.
+      const kg = cw.fixedLoadMg != null ? null : drug.cap && cw.capped ? cw.loadKg : wtKg;
+      ml = kg == null ? mass / L.srcConc : siteLoadMl(drug, perKg, kg, L);
+      const rule = opts.rule || (model === "site" ? "half-even" : "lit");
+      mlDisplay = rule === "lit" ? halfUp(ml, 1) : displayRate(ml, rule, rule === "pdf" && drug.pdf && drug.pdf.loadDp1);
+    }
+    out.push({ perKg, mass, massUnit: L.mass, ml, mlDisplay, from: L.from || "", over: L.over || "", verify: !!L.verify });
+  }
+  return out;
+}
+// Volumes in the units the server uses (mg/kg ÷ mg/mL; mcg/kg ÷ mcg/mL), so ties reproduce exactly.
+function siteLoadMl(drug, perKgMg, kg, L) {
+  if (drug.unit === "mcg/kg/min") { const perKgMcg = clean(perKgMg * 1000), srcMcg = clean(L.srcConc * 1000); return perKgMcg * kg / srcMcg; }
+  return perKgMg * kg / L.srcConc;
+}
+
+// ---- Renal / hepatic recommendations ----
+// ctx: { crcl, dialysis: 'none'|'hd'|'pd', scr, childPugh }. Returns { dose, kind: 'set'|'max'|'start', text, lvl, hardStop, source } | null.
+const MILRINONE_RENAL = [[50, 0.43], [40, 0.38], [30, 0.33], [20, 0.28], [10, 0.23], [5, 0.2]];
+function recommend(drug, ctx = {}) {
+  const crcl = ctx.crcl, dial = ctx.dialysis && ctx.dialysis !== "none", hasCrcl = isNum(crcl);
+  switch (drug.renal) {
+    case "bivalirudin-label":
+      if (ctx.dialysis === "hd") return { dose: 0.25, kind: "set", text: "Hemodialysis: 0.25 mg/kg/h (label).", lvl: "info" };
+      if (!hasCrcl) return { dose: 1.75, kind: "set", text: "Enter CrCl: 1.75 if ≥ 30, 1 mg/kg/h if < 30, 0.25 on hemodialysis.", lvl: "info" };
+      return crcl < 30 ? { dose: 1, kind: "set", text: "CrCl < 30: 1 mg/kg/h (label).", lvl: "info" } : { dose: 1.75, kind: "set", text: "CrCl ≥ 30: no adjustment, 1.75 mg/kg/h.", lvl: "info" };
+    case "bivalirudin-site":
+      if (dial) return { dose: 0.175, kind: "set", text: "Dialysis patient off dialysis: 0.175 mg/kg/h (site).", lvl: "info" };
+      if (!hasCrcl) return { dose: 1.75, kind: "set", text: "Enter CrCl: > 59 → 1.75; 30–59 → 1.4; 10–29 → 0.7; dialysis → 0.175.", lvl: "info" };
+      if (crcl >= 60) return { dose: 1.75, kind: "set", text: "CrCl > 59: 1.75 mg/kg/h.", lvl: "info" };
+      if (crcl >= 30) return { dose: 1.4, kind: "set", text: "CrCl 30–59: 1.4 mg/kg/h (site; label: no adjustment).", lvl: "info" };
+      if (crcl >= 10) return { dose: 0.7, kind: "set", text: "CrCl 10–29: 0.7 mg/kg/h (site; label: 1 mg/kg/h).", lvl: "info" };
+      return { dose: null, kind: "set", text: "CrCl < 10 and not on dialysis: the site gives no dose band.", lvl: "warn" };
+    case "eptifibatide-label":
+      if (dial) return { dose: null, kind: "set", text: "Dialysis-dependent: eptifibatide is contraindicated (label).", lvl: "crit", hardStop: true };
+      if (!hasCrcl) return { dose: 2, kind: "set", text: "Enter Cockcroft-Gault CrCl: 2 if ≥ 50, 1 mcg/kg/min if < 50.", lvl: "info" };
+      return crcl < 50 ? { dose: 1, kind: "set", text: "CrCl < 50: 1 mcg/kg/min (label). Bolus unchanged.", lvl: "info" } : { dose: 2, kind: "set", text: "CrCl ≥ 50: 2 mcg/kg/min.", lvl: "info" };
+    case "eptifibatide-site":
+      if (dial) return { dose: null, kind: "set", text: "Dependency on renal dialysis is a contraindication.", lvl: "crit", hardStop: true };
+      if (hasCrcl) return crcl < 50 ? { dose: 1, kind: "set", text: "CrCl < 50: 1 mcg/kg/min.", lvl: "info" } : { dose: 2, kind: "set", text: "CrCl ≥ 50: 2 mcg/kg/min.", lvl: "info" };
+      if (isNum(ctx.scr)) return ctx.scr > 2 ? { dose: 1, kind: "set", text: "No CrCl, SCr > 2: 1 mcg/kg/min (site).", lvl: "info" } : { dose: 2, kind: "set", text: "No CrCl, SCr ≤ 2: 2 mcg/kg/min (site).", lvl: "info" };
+      return { dose: 2, kind: "set", text: "Enter CrCl (or SCr): 2 if CrCl ≥ 50, else 1.", lvl: "info" };
+    case "milrinone": {
+      if (!hasCrcl && !dial) return null;
+      const c = dial ? 0 : crcl;
+      if (c > 50) return null;
+      const row = MILRINONE_RENAL.find(([k]) => c >= k) || MILRINONE_RENAL[MILRINONE_RENAL.length - 1];
+      const below = c < 5;
+      return { dose: row[1], kind: "max", text: `CrCl ${dial ? "on dialysis" : fmtNum(c)}: renal table max ${row[1]} mcg/kg/min (row CrCl ${row[0]})${below ? "; below the table, verify" : ""}.`, lvl: below ? "warn" : "info" };
+    }
+    case "nitroprusside":
+      if (dial) return { dose: 1, kind: "max", text: "Anuric / dialysis: 1 mcg/kg/min (label).", lvl: "info" };
+      if (hasCrcl && crcl < 30) return { dose: 3, kind: "max", text: "eGFR < 30: keep the mean rate below 3 mcg/kg/min (label).", lvl: "info" };
+      return null;
+    case "argatroban-site":
+      break;
+  }
+  switch (drug.hepatic) {
+    case "argatroban": {
+      const cp = ctx.childPugh;
+      if (isNum(cp) && cp >= 7) return { dose: 0.5, kind: "start", text: `Child-Pugh ${cp} (class ${cp >= 10 ? "C" : "B"}): start 0.5 mcg/kg/min at 1 mg/mL (label).`, lvl: "info" };
+      return { dose: 2, kind: "start", text: isNum(cp) ? `Child-Pugh ${cp} (class A): start 2 mcg/kg/min.` : "Start 2 mcg/kg/min; enter Child-Pugh (≥ 7 → start 0.5).", lvl: "info" };
+    }
+    case "argatroban-site": {
+      const cp = ctx.childPugh;
+      if (isNum(cp) && cp > 6) return { dose: 0.5, kind: "start", text: "Hepatic disease score > 6: use the 250 mg/500 mL bag, start 0.5 mcg/kg/min (site).", lvl: "info", concId: "500" };
+      if (hasCrcl && crcl < 60) return { dose: 1, kind: "start", text: "CrCl < 60: consider starting at 1 mcg/kg/min (site, institutional; not in label).", lvl: "info" };
+      return { dose: 2, kind: "start", text: "Start 2 mcg/kg/min.", lvl: "info" };
+    }
+    case "lidocaine":
+      if (isNum(ctx.childPugh) && ctx.childPugh >= 7) return { dose: null, kind: "max", text: "Hepatic impairment: use a lower rate (label).", lvl: "warn" };
+      return null;
+  }
+  return null;
+}
+
+// Institutional maxima (no label maximum) can be changed per session: inp.instMax = { drugId: value }.
+function effectiveMax(drug, inp = {}) {
+  const o = inp.instMax && inp.instMax[drug.id];
+  return drug.inst && isNum(o) && o > 0 ? o : drug.max;
+}
+
+// ---- Main calculation ----
+// inp: { model, drugId, concId, weight, weightUnit, direction: 'dose'|'rate', dose, rate, crcl, dialysis, scr, childPugh }
+function compute(inp) {
+  const model = inp.model === "site" ? "site" : "literature";
+  const drug = getDrug(model, inp.drugId);
+  if (!drug) return { status: "blocked", alerts: [{ lvl: "crit", text: "Unknown drug." }] };
+  const conc = getConc(drug, inp.concId), unit = drug.unit, wb = isWeightBased(unit), rule = ruleFor(model);
+  const alerts = [], push = (lvl, text, code) => alerts.push({ lvl, text, code });
+  let status = "ok";
+  const wtKg = toKg(inp.weight, inp.weightUnit, model);
+  const res = { model, drug, conc, unit, wtKg, rule, alerts, direction: inp.direction === "rate" ? "rate" : "dose" };
+
+  if (drug.status === "discontinued") push("crit", `${drug.name} is discontinued — not orderable. Shown for site parity only.`, "discontinued");
+  if (drug.noCalc) { res.status = "blocked"; res.table = []; res.load = []; return res; }
+
+  if (isNum(wtKg) && wtKg <= 0) { push("crit", "Weight must be greater than 0.", "weight"); status = "blocked"; }
+  else if (wb && !isNum(wtKg)) { push("crit", "Weight is required for this weight-based drug.", "weight"); status = "blocked"; }
+  if (isNum(wtKg) && wtKg > 0) {
+    const [lo, hi] = drug.wtRange || (model === "site" ? [40, 170] : [40, 150]);
+    if (wtKg > 350) push("crit", `Weight ${fmtNum(+wtKg.toFixed(1))} kg is implausible: check units.`, "weightRange");
+    else if (wb && (wtKg < lo || wtKg > hi)) push("warn", `Weight ${fmtNum(+wtKg.toFixed(1))} kg is outside the standard chart range (${lo}–${hi} kg).`, "weightRange");
+  }
+  const cw = capWeight(drug, wtKg);
+  res.wtUsed = cw.infusionKg; res.capped = cw.capped;
+  if (cw.capped) push("info", model === "site"
+    ? `Weight capped at ${drug.cap.kg} kg (site calculator).`
+    : `Weight > ${drug.cap.kg} kg: label fixed maximum used (bolus ${drug.cap.loadMg} mg; ${fmtNum(drug.cap.infusionKg * 60 / 1000 * 2)} mg/h at 2 mcg/kg/min).`, "cap");
+
+  const rec = recommend(drug, inp);
+  res.rec = rec;
+  if (rec) { push(rec.lvl, rec.text, "rec"); if (rec.hardStop) status = "hardStop"; }
+
+  const canCalc = status !== "blocked" && (!wb || isNum(cw.infusionKg));
+  let dose = NaN, doseRaw = NaN, rateRaw = NaN;
+  if (canCalc) {
+    if (res.direction === "dose") {
+      dose = inp.dose;
+      if (isNum(dose) && dose > 0) rateRaw = rateFromDose(dose, unit, conc.conc, cw.infusionKg);
+      else if (isNum(dose)) push("warn", "Enter a dose greater than 0.", "dose");
+      doseRaw = dose;
+    } else {
+      rateRaw = inp.rate;
+      if (isNum(rateRaw) && rateRaw > 0) doseRaw = doseFromRate(rateRaw, unit, conc.conc, cw.infusionKg);
+      else if (isNum(rateRaw)) push("warn", "Enter a rate greater than 0.", "rate");
+    }
+  }
+  const eps = 1e-9, maxDose = effectiveMax(drug, inp);
+  res.max = maxDose;
+  if (isNum(doseRaw) && doseRaw > 0) {
+    const d = res.direction === "rate" ? clean(doseRaw) : doseRaw;
+    if (isNum(maxDose) && d > maxDose + eps) {
+      push("crit", `HARD STOP: ${fmtNum(displayDose(d, unit))} ${unit} exceeds the maximum ${maxDose === drug.max ? drug.maxText : `${maxDose} ${unit} (institutional setting)`}.`, "max");
+      status = "hardStop";
+    } else if (drug.usual && (d < drug.usual[0] - eps || d > drug.usual[1] + eps)) {
+      push("warn", `${fmtNum(displayDose(d, unit))} ${unit} is outside the usual range ${drug.usual[0]}–${drug.usual[1]} ${unit}.`, "usual");
+    }
+    if (rec && isNum(rec.dose) && rec.kind !== "start" && d > rec.dose + eps)
+      push("warn", `Above the ${rec.kind === "max" ? "renal/hepatic maximum" : "renally adjusted dose"} of ${rec.dose} ${unit}.`, "recExceeded");
+  }
+  if (isNum(doseRaw) && doseRaw > 0 && isNum(rateRaw)) for (const L of drug.limits || []) {
+    const amt = L.per === "h" ? rateRaw * conc.conc : L.per === "min" ? rateRaw * conc.conc / 60 : doseRaw;
+    if (clean(amt) > L.above + eps) {
+      const u2 = L.per === "dose" ? unit : `${UNITS[unit].mass}/${L.per}`;
+      push(L.hard ? "crit" : "warn", `${L.hard ? "HARD STOP: " : ""}${fmtNum(+clean(amt).toPrecision(4))} ${u2} ${L.text}.`, "limit");
+      if (L.hard) status = "hardStop";
+    }
+  }
+  res.dose = { raw: doseRaw, display: res.direction === "rate" ? displayDose(doseRaw, unit) : doseRaw };
+  const showRate = !(status === "hardStop" && res.direction === "dose");
+  res.rate = { raw: rateRaw, display: res.direction === "rate" ? rateRaw : showRate ? displayRate(rateRaw, rule) : NaN };
+  res.status = status;
+  res.load = status === "blocked" ? [] : loading(drug, wtKg, model);
+  res.table = status === "blocked" ? [] : titration(drug, conc, wtKg, model, maxDose);
+  return res;
+}
+
+// ---- Printable weight × dose chart ----
+// Literature: library rows × 40–150 kg, half-up. Site: PDF columns and weights, PDF rounding (half-up, 1-dp exceptions, chart cap).
+function chartGrid(drug, conc, model) {
+  const wb = isWeightBased(drug.unit);
+  const pdf = model === "site" ? drug.pdf : null;
+  const doses = pdf ? pdf.doses : doseRows(drug, model).map((r) => r.dose);
+  const weights = wb ? (pdf ? pdf.weights || W(40, 170, 5) : LIT_WEIGHTS) : [{ kg: null, label: "any" }];
+  const rule = pdf ? "pdf" : "half-up", dp1 = !!(pdf && pdf.dp1), capMode = pdf ? "pdf" : undefined;
+  const hasLoad = (drug.load || []).some((L) => isNum(L.srcConc)) && wb;
+  const rows = weights.map((w) => {
+    const kg = w.kg, cw = capWeight(drug, kg, capMode);
+    const cells = doses.map((d) => displayRate(rateFromDose(d, drug.unit, conc.conc, cw.infusionKg), rule, dp1));
+    const load = hasLoad ? loading(drug, kg, model, { capMode, rule: pdf ? "pdf" : "lit" }).find((l) => isNum(l.ml)) : null;
+    return { kg, label: w.label, cells, loadMl: load ? load.mlDisplay : null };
+  });
+  return { doses, rows, rule, hasLoad };
+}
+
+// ---- Argatroban rate change from aPTT (site table; institutional) ----
+function argatrobanNewRate(currentRate, aptt, rule = "half-up") {
+  const a = Math.round(aptt);
+  if (!isNum(currentRate) || !isNum(a)) return null;
+  if (a > 100) return { factor: 0, action: "Stop the infusion. Recheck aPTT every 2 h until 40–83 s, then restart at 50% of the previous rate.", newRate: null };
+  const f = a <= 33 ? 1.5 : a <= 39 ? 1.25 : a <= 83 ? 1 : a <= 96 ? 0.75 : 0.5;
+  const action = f === 1 ? "No change." : f > 1 ? `Increase by ${Math.round((f - 1) * 100)}%.` : `Decrease by ${Math.round((1 - f) * 100)}%.`;
+  return { factor: f, action, newRate: displayRate(currentRate * f, rule) };
+}
+
+// ---- Argatroban: Novastan EU SmPC two-track table (literature; decisions/acyclovir-infusions.md Q9) ----
+// track 'standard' (start 2, +0.5, next aPTT 2 h) | 'reduced' (critically ill / hepatic: start 0.5, +0.1, next aPTT 4 h).
+// Targets 1.5–3 × baseline and ≤ 100 s; maximum 10 mcg/kg/min (US label).
+const ARGATROBAN = { max: 10, standard: { start: 2, step: 0.5, recheckH: 2 }, reduced: { start: 0.5, step: 0.1, recheckH: 4 } };
+function argatrobanTrack(sel, childPugh) {
+  if (sel === "standard" || sel === "reduced") return sel;
+  return isNum(childPugh) && childPugh >= 7 ? "reduced" : "standard";
+}
+function argatrobanNovastan({ track = "standard", dose, aptt, baseline }) {
+  const t = ARGATROBAN[track === "reduced" ? "reduced" : "standard"];
+  if (!isNum(dose) || !isNum(aptt) || !(baseline > 0)) return null;
+  const ratio = aptt / baseline;
+  if (ratio > 3 + 1e-9 || aptt > 100) {
+    const resume = clean(dose / 2);
+    return { ratio, band: "high", stop: true, newDose: 0, resumeDose: resume, recheckH: t.recheckH,
+      action: `Stop the infusion until aPTT is 1.5–3 × baseline (≤ 100 s), then resume at half the previous dose: ${fmtNum(resume)} mcg/kg/min.` };
+  }
+  if (ratio < 1.5 - 1e-9) {
+    const nd = clean(Math.min(dose + t.step, ARGATROBAN.max));
+    return { ratio, band: "low", stop: false, newDose: nd, recheckH: t.recheckH, capped: dose + t.step > ARGATROBAN.max + 1e-9,
+      action: `Increase by ${t.step} to ${fmtNum(nd)} mcg/kg/min${dose + t.step > ARGATROBAN.max + 1e-9 ? " (maximum 10)" : ""}; next aPTT in ${t.recheckH} h.` };
+  }
+  return { ratio, band: "in", stop: false, newDose: dose, recheckH: t.recheckH,
+    action: `In range (1.5–3 × baseline): no change. ${track === "reduced" ? `Next aPTT in ${t.recheckH} h.` : "After 2 consecutive in-range values, check at least daily."}` };
+}
+
+// ---- Procainamide loading infusion (literature; decisions Q7) ----
+// Target 17 mg/kg on actual weight capped at 100 kg = hard stop; > 1 g soft alert (label); rate default 20, hard max 50 mg/min.
+function procainamideLoad(drug, wtKg, { totalMg, rateMgMin, conc } = {}) {
+  const P = drug.procLoad;
+  if (!P) return null;
+  const alerts = [];
+  let status = "ok";
+  if (!(wtKg > 0)) return { status: "blocked", alerts: [{ lvl: "crit", text: "Weight is required for the loading dose.", code: "weight" }] };
+  const kg = Math.min(wtKg, P.capKg), maxMg = P.perKg * kg;
+  const total = isNum(totalMg) && totalMg > 0 ? totalMg : maxMg;
+  const rate = isNum(rateMgMin) && rateMgMin > 0 ? rateMgMin : P.defaultRate;
+  if (wtKg > P.capKg) alerts.push({ lvl: "info", text: `Weight capped at ${P.capKg} kg for the load (institutional).`, code: "cap" });
+  if (total > maxMg + 1e-9) { alerts.push({ lvl: "crit", text: `HARD STOP: ${fmtNum(+total.toFixed(0))} mg exceeds 17 mg/kg (${fmtNum(+maxMg.toFixed(0))} mg).`, code: "procMax" }); status = "hardStop"; }
+  else if (total > P.softMg + 1e-9) alerts.push({ lvl: "warn", text: `${fmtNum(+total.toFixed(0))} mg is above the label's maximum advisable 1 g (ACLS allows up to 17 mg/kg).`, code: "procSoft" });
+  if (rate > P.maxRate + 1e-9) { alerts.push({ lvl: "crit", text: `HARD STOP: loading rate ${fmtNum(rate)} mg/min exceeds ${P.maxRate} mg/min.`, code: "procRate" }); status = "hardStop"; }
+  const minutes = total / rate, mlh = isNum(conc) ? rate * 60 / conc : NaN, ml = isNum(conc) ? total / conc : NaN;
+  return { status, alerts, targetMg: maxMg, totalMg: total, rate, minutes, mlh: status === "hardStop" ? NaN : halfUp(mlh, 0), ml: halfUp(ml, 1) };
+}
+
+// ---- Abciximab 12-h bag (site PDF reconstruction §4; historical reference only) ----
+function abciximabBag(wtKg) {
+  const bolusMl = halfUp(0.25 * wtKg / 2, 1);
+  const mcgPerMin = Math.min(0.125 * wtKg, 10);
+  const bagMg = mcgPerMin * 720 / 1000, vialMl = halfUp(bagMg / 2, 1);
+  return { bolusMl, bolusMg: clean(bolusMl * 2), mcgPerMin, bagMg, vialMl, vialMg: clean(vialMl * 2), rate: 21 };
+}
+// CALC-END
+
+// ===================== UI =====================
+const $ = (id) => document.getElementById(id);
+const esc = PKUI.esc;
+const state = { model: "literature", wtUnit: "kg", direction: "dose", chart: false, instMax: {} }; // instMax: session-only institutional overrides
+const memory = { literature: {}, site: {} }; // last drug/conc per model (in-memory only)
+
+function badge(tag) {
+  if (!tag) return "";
+  if (/inst\./.test(tag)) return `<span class="src verify" title="${esc(tag)}">Institutional — P&amp;T</span>`;
+  const v = needsVerify(tag);
+  return `<span class="src${v ? " verify" : ""}" title="${esc(tag)}">${v ? "verify" : "src"}</span>`;
+}
+const provTag = (drug, key) => (drug.prov && (drug.prov[key] || drug.prov.all)) || "";
+
+function fillDrugs() {
+  const lib = LIB[state.model];
+  $("drug").innerHTML = lib.map((d) => `<option value="${esc(d.id)}">${esc(d.name)}${d.status === "discontinued" ? " — discontinued, not orderable" : ""} (${esc(d.unit)})</option>`).join("");
+  const m = memory[state.model];
+  if (m.drug && lib.some((d) => d.id === m.drug)) $("drug").value = m.drug;
+  fillConcs();
+}
+function fillConcs() {
+  const d = getDrug(state.model, $("drug").value);
+  $("conc").innerHTML = d.concs.map((c) => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join("");
+  const m = memory[state.model];
+  if (m.drug === d.id && m.conc && d.concs.some((c) => c.id === m.conc)) $("conc").value = m.conc;
+  $("doseUnit").textContent = d.unit;
+  const show = (id, on) => { $(id).hidden = !on; };
+  show("crclRow", !!d.renal);
+  show("dialRow", !!d.renal && !/argatroban/.test(d.renal));
+  show("scrRow", d.renal === "eptifibatide-site");
+  show("cpRow", !!d.hepatic);
+  show("argaCard", !!d.aptt);
+  show("procCard", !!d.procLoad);
+  show("instRow", !!d.inst);
+  show("argaTrackRow", d.aptt === "novastan"); show("argaBaseRow", d.aptt === "novastan"); show("argaRateRow", d.aptt !== "novastan");
+  if (d.inst) { const v = state.instMax[d.id]; $("instMax").value = isNum(v) ? v : d.max; $("instUnit").textContent = d.unit; }
+  if (d.procLoad) $("procBadge").innerHTML = badge(provTag(d, "load"));
+  $("argaBadge").innerHTML = d.aptt ? badge(state.model === "site" ? provTag(d, "all") : provTag(d, "aptt")) : "";
+  const hint = d.renal === "milrinone" ? "Milrinone renal table uses CrCl in mL/min/1.73 m²." : d.renal && /eptifibatide/.test(d.renal) ? "Use Cockcroft-Gault CrCl." : "";
+  $("renalHint").hidden = !hint; $("renalHint").textContent = hint;
+  if (!$("dose").value || $("dose").dataset.auto === "1") setDefaultDose(d);
+}
+function setDefaultDose(d) {
+  const rec = recommend(d, ctxFromInputs());
+  let v = rec && isNum(rec.dose) && rec.kind !== "max" ? rec.dose : d.usual ? d.usual[0] : doseRows(d, state.model)[0]?.dose;
+  if (isNum(v)) { $("dose").value = +(+v).toPrecision(10); $("dose").dataset.auto = "1"; }
+}
+const numVal = (id) => { const v = $(id).value; return v === "" ? NaN : parseFloat(v); };
+function ctxFromInputs() { return { crcl: numVal("crcl"), dialysis: $("dialysis").value, scr: numVal("scr"), childPugh: numVal("childPugh") }; }
+
+function read() {
+  return { model: state.model, drugId: $("drug").value, concId: $("conc").value, weight: numVal("wt"), weightUnit: state.wtUnit,
+    direction: state.direction, dose: numVal("dose"), rate: numVal("rate"), instMax: state.instMax, ...ctxFromInputs() };
+}
+
+const fmtRate = (x) => (isNum(x) ? (x < 5 ? x.toFixed(1) : x.toFixed(0)) : "—");
+const fmtDose = fmtNum;
+const fmtKg = (x) => (isNum(x) ? (+x.toFixed(1)).toString() : "—");
+
+function render() {
+  const inp = read();
+  memory[state.model] = { drug: inp.drugId, conc: inp.concId };
+  const r = compute(inp);
+  const d = r.drug, u = d.unit;
+  // Strip
+  const chips = [
+    ["Model", state.model === "site" ? "Site (pkineticdrugdosing.com)" : "Literature (S4S / labels)"],
+    ["Drug", d.name],
+    ["Conc", r.conc.label.split(" (")[0]],
+  ];
+  if (isNum(r.wtKg)) chips.push(["Weight", `${fmtKg(r.wtKg)} kg${state.wtUnit === "lb" ? ` (${fmtNum(inp.weight)} lb)` : ` (${fmtKg(fromKg(r.wtKg, "lb", state.model))} lb)`}`]);
+  if (r.capped) chips.push(["Dosing wt", `${fmtKg(r.wtUsed)} kg (cap)`]);
+  $("strip").innerHTML = chips.map(([k, v]) => `<span class="chip">${esc(k)} <b>${esc(v)}</b></span>`).join("");
+
+  // Result card
+  const pill = r.status === "hardStop" ? `<span class="pill crit">Hard stop</span>` : r.status === "blocked" ? `<span class="pill crit">Cannot calculate</span>`
+    : r.alerts.some((a) => a.lvl === "warn" || a.lvl === "crit") ? `<span class="pill warn">Check warnings</span>` : `<span class="pill ok">Within range</span>`;
+  let main = "", sub = "", right = "";
+  if (d.noCalc) {
+    main = `<div class="oline"><span class="tag">Status</span><span class="rx">Discontinued — not orderable</span></div>`;
+    const w = r.wtKg > 0 ? r.wtKg : NaN;
+    if (isNum(w)) { const b = abciximabBag(w); sub = `Historical PDF recipe at ${fmtKg(w)} kg: bolus ${b.bolusMl} mL (${b.bolusMg} mg); bag ${b.vialMl} mL vial (${b.vialMg} mg) in 250 mL at ${b.rate} mL/h × 12 h.`; }
+  } else if (r.direction === "dose") {
+    main = `<div class="oline"><span class="tag">Order</span><span class="rx">${esc(d.name)} ${esc(fmtDose(inp.dose))} ${esc(u)}</span></div>
+      <div class="oline"><span class="tag">Bag</span><span class="rx">${esc(r.conc.label)}</span></div>`;
+    right = `<span class="lbl">Pump rate</span><span class="val${r.status === "hardStop" ? " stop" : ""}">${r.status === "hardStop" ? "Not offered" : isNum(r.rate.display) ? `${fmtRate(r.rate.display)} <small>mL/h</small>` : "—"}</span>
+      <span class="lbl">exact ${isNum(r.rate.raw) ? r.rate.raw.toFixed(3) : "—"} mL/h</span>`;
+  } else {
+    main = `<div class="oline"><span class="tag">Pump</span><span class="rx">${esc(fmtNum(inp.rate))} mL/h of ${esc(r.conc.label)}</span></div>`;
+    right = `<span class="lbl">Delivered dose</span><span class="val${r.status === "hardStop" ? " stop" : ""}">${isNum(r.dose.display) ? `${fmtDose(r.dose.display)} <small>${esc(u)}</small>` : "—"}</span>
+      <span class="lbl">exact ${isNum(r.dose.raw) ? r.dose.raw.toPrecision(5) : "—"} ${esc(u)}</span>`;
+  }
+  const loads = (r.load || []).map((l) => isNum(l.mass)
+    ? `<div class="oline"><span class="tag">Load</span><span class="rx">${fmtNum(+(l.mass).toPrecision(4))} ${esc(l.massUnit)}${isNum(l.mlDisplay) ? ` = ${fmtNum(l.mlDisplay)} mL ${esc(l.from)}` : ""}</span><span class="subl">${esc(l.over)}</span>${l.verify ? badge("[R]") : ""}</div>`
+    : `<div class="oline"><span class="tag">Load</span><span class="subl">${esc(l.text)}</span>${l.verify ? badge("[R]") : ""}</div>`).join("");
+  const recBtn = r.rec && isNum(r.rec.dose) && r.rec.kind !== "max" && r.direction === "dose" && r.rec.dose !== inp.dose
+    ? ` <button type="button" class="dosebtn" id="useRec">Use ${fmtNum(r.rec.dose)} ${esc(u)}</button>` : "";
+  $("result").innerHTML = `<h2>Result ${pill} <span class="pill ${state.model === "site" ? "warn" : "ok"}">${state.model === "site" ? "Site model" : "Literature model"}</span></h2>
+    <div class="top"><div class="lines">${main}${loads}${sub ? `<p class="subl">${esc(sub)}</p>` : ""}</div><div class="right">${right}</div></div>
+    ${r.rec ? `<p class="subl">${esc(r.rec.text)}${recBtn}</p>` : ""}
+    <p class="hint">Rounding: ${state.model === "site" ? "half-to-even (site server)" : "half-up"}; &lt; 5 mL/h to 0.1, otherwise whole mL/h.</p>`;
+  const ub = $("useRec");
+  if (ub) ub.addEventListener("click", () => { $("dose").value = r.rec.dose; $("dose").dataset.auto = "0"; if (r.rec.concId) { $("conc").value = r.rec.concId; } render(); });
+  PKUI.renderBanners($("alerts"), r.alerts.filter((a) => a.code !== "rec"));
+
+  // Titration table
+  const wb = isWeightBased(u);
+  $("tblHint").textContent = d.noCalc ? "Not orderable." : wb && !(r.wtKg > 0) ? "Enter a weight." : `${wb ? `For ${fmtKg(r.wtUsed)} kg. ` : ""}${state.model === "site" ? "Same dose rows as the site's calculator output." : "Dose rows up to the maximum."}`;
+  const selDose = r.direction === "dose" ? inp.dose : NaN;
+  const nearestRate = r.direction === "rate" && isNum(inp.rate) ? inp.rate : NaN;
+  let selIdx = -1;
+  if (r.table.length) {
+    if (isNum(selDose)) selIdx = r.table.findIndex((t) => Math.abs(t.dose - selDose) < 1e-9);
+    else if (isNum(nearestRate)) { let best = Infinity; r.table.forEach((t, i) => { const e = Math.abs(t.raw - nearestRate); if (e < best) { best = e; selIdx = i; } }); }
+  }
+  const hasBand = r.table.some((t) => t.band);
+  $("tbl").innerHTML = r.table.length ? `<thead><tr>${hasBand ? "<th>CrCl band</th>" : ""}<th>${esc(u)}</th><th>mL/h</th></tr></thead><tbody>${r.table.map((t, i) =>
+    `<tr class="${i === selIdx ? "sel" : ""}${t.over ? " over" : ""}">${hasBand ? `<td>${esc(t.band)}</td>` : ""}<td class="${t.outside ? "soft" : ""}">${esc(fmtNum(t.dose))}</td><td>${esc(fmtRate(t.rate))}</td></tr>`).join("")}</tbody>` : "";
+
+  // Info
+  const info = [
+    ["Concentration", `${r.conc.label}`, provTag(d, "conc")],
+    ["Dose unit", u + (wb ? " (weight-based)" : ""), ""],
+    ["Usual", d.usualText, provTag(d, "range")],
+    ["Maximum (hard stop)", isNum(r.max) && r.max !== d.max ? `${r.max} ${u} (institutional setting; default ${d.max})` : isNum(d.max) ? `${d.max} ${u}` + (d.maxText && !d.maxText.startsWith(String(d.max)) ? ` — ${d.maxText}` : "") : d.maxText, provTag(d, "max")],
+  ];
+  if (d.cap) info.push(["Weight cap", `${d.cap.kg} kg (${state.model === "site" ? "formula weight" : "label fixed maximum above"})`, provTag(d, "cap")]);
+  if (d.renal) info.push(["Renal rule", (d.renal || "").replace(/-.*/, ""), provTag(d, "renal")]);
+  if (d.hepatic) info.push(["Hepatic rule", d.hepatic.replace(/-.*/, ""), provTag(d, "hepatic")]);
+  $("info").innerHTML = info.map(([k, v, tag]) => `<dt>${esc(k)}</dt><dd>${esc(v)}${badge(tag)}</dd>`).join("");
+  $("notes").innerHTML = (d.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
+
+  // Argatroban helper
+  if (d.aptt === "novastan") {
+    const track = argatrobanTrack($("argaTrack").value, inp.childPugh);
+    const dose = r.direction === "dose" ? inp.dose : r.dose.raw;
+    const o = argatrobanNovastan({ track, dose, aptt: numVal("aptt"), baseline: numVal("apttBase") });
+    const nd = o ? (o.stop ? o.resumeDose : o.newDose) : NaN;
+    const nr = isNum(nd) && r.wtUsed > 0 ? displayRate(rateFromDose(nd, u, r.conc.conc, r.wtUsed), "half-up") : NaN;
+    $("argaOut").textContent = (track === "reduced" ? "Critically ill / hepatic track (start 0.5, steps of 0.1). " : "Standard track (start 2, steps of 0.5). ") +
+      (o ? `aPTT ${o.ratio.toFixed(2)} × baseline. ${o.action}${isNum(nr) ? ` ${o.stop ? "Resume" : "Rate"} at ${fmtRate(nr)} mL/h.` : ""}` : "Enter the baseline and current aPTT; the current dose is the ordered dose.") + " Target 1.5–3 × baseline, ≤ 100 s; maximum 10 mcg/kg/min.";
+  } else if (d.aptt) {
+    const cur = isNum(numVal("argaRate")) ? numVal("argaRate") : r.rate.display;
+    if ($("argaRate").value === "" && isNum(r.rate.display)) $("argaRate").placeholder = String(r.rate.display);
+    const o = argatrobanNewRate(cur, numVal("aptt"), ruleFor(state.model) === "half-even" ? "half-up" : "half-up");
+    $("argaOut").textContent = o ? `${o.action}${o.newRate != null ? ` New rate ${fmtRate(o.newRate)} mL/h.` : ""} (Site table: aPTT ≤ 33 +50%; 34–39 +25%; 40–83 none; 84–96 −25%; 97–100 −50%; > 100 stop.)` : "Enter the current rate and aPTT (rounded to a whole second).";
+  }
+
+  if (d.procLoad) {
+    const p = procainamideLoad(d, r.wtKg, { totalMg: numVal("procMg"), rateMgMin: numVal("procRate"), conc: r.conc.conc });
+    if (p && isNum(p.targetMg)) $("procMg").placeholder = `${fmtNum(+p.targetMg.toFixed(0))} (17 mg/kg)`;
+    $("procOut").textContent = p && p.status !== "blocked" ? `${fmtNum(+p.totalMg.toFixed(0))} mg at ${fmtNum(p.rate)} mg/min = ${p.minutes.toFixed(0)} min; ${isNum(p.mlh) ? `${fmtNum(p.mlh)} mL/h for ${fmtNum(p.ml)} mL` : "no rate offered"} of ${r.conc.label}. Stop early for hypotension, QRS widening > 50% or arrhythmia suppression.` : "Enter weight.";
+    PKUI.renderBanners($("procAlerts"), p ? p.alerts : []);
+  }
+
+  if (state.chart) renderChart(); else $("chartHint").textContent = isWeightBased(u) ? "Weight rows × dose columns." : "One row: dose → mL/h (not weight-based).";
+  renderLib();
+}
+
+function renderChart() {
+  const d = getDrug(state.model, $("drug").value), conc = getConc(d, $("conc").value);
+  $("chartWrap").hidden = false; $("printBtn").hidden = false; $("chartBtn").textContent = "Hide chart";
+  if (d.noCalc) { $("chart").innerHTML = ""; $("chartHint").textContent = "Not orderable."; return; }
+  const g = chartGrid(d, conc, state.model);
+  $("chartHint").textContent = state.model === "site" ? "Reproduces the site's PDF chart (half-up; propofol, bivalirudin, eptifibatide to 0.1 mL/h)." : "mL/h, half-up; < 5 mL/h to 0.1.";
+  $("chartPrintHead").textContent = `${d.name} — ${conc.label} — ${d.unit} → mL/h — ${state.model === "site" ? "site model" : "literature model"}. Educational use; verify before use.`;
+  $("chart").innerHTML = `<thead><tr><th>kg \\ ${esc(d.unit)}</th>${g.doses.map((x) => `<th>${esc(fmtNum(x))}</th>`).join("")}${g.hasLoad ? "<th>Load mL</th>" : ""}</tr></thead><tbody>${g.rows.map((row) =>
+    `<tr><td>${esc(row.label)}</td>${row.cells.map((c, i) => `<td class="${isNum(d.max) && g.doses[i] > d.max + 1e-9 ? "over" : ""}">${esc(fmtRate(c))}</td>`).join("")}${g.hasLoad ? `<td>${esc(fmtNum(row.loadMl))}</td>` : ""}</tr>`).join("")}</tbody>`;
+}
+
+function renderLib() {
+  const lib = LIB[state.model], n = drugCount(state.model);
+  $("libCount").textContent = `${n.entries} entries, ${n.orderable} orderable — ${state.model} model`;
+  const rng = (d) => (d.usual ? `${d.usual[0]}–${d.usual[1]}` : "—");
+  $("lib").innerHTML = `<thead><tr><th>Drug</th><th>Concentrations</th><th>Unit</th><th>Usual</th><th>Max</th><th>Wt-based</th><th>Wt cap</th><th>Loading</th><th>Renal / hepatic</th><th>Notes</th><th>Provenance</th></tr></thead><tbody>${lib.map((d) => {
+    const prov = Object.entries(d.prov || {}).map(([k, v]) => `${k}: ${v}`).join("; ");
+    const loads = (d.load || []).map((L) => (isNum(L.perKg) ? `${d.unit === "mcg/kg/min" && L.perKg < 1 ? `${clean(L.perKg * 1000)} mcg/kg` : `${L.perKg} mg/kg`} ${L.over || ""}` : L.text)).join("; ");
+    return `<tr><td class="${d.status === "discontinued" ? "disc" : ""}">${esc(d.name)}${d.status === "discontinued" ? " (discontinued)" : ""}</td><td>${d.concs.map((c) => esc(c.label)).join("<br>")}</td><td class="mono">${esc(d.unit)}</td>
+      <td class="mono">${esc(rng(d))}</td><td class="mono">${esc(isNum(d.max) ? String(d.max) : d.maxText)}</td><td>${isWeightBased(d.unit) ? "yes" : "no"}</td><td>${d.cap ? `${d.cap.kg} kg` : "—"}</td>
+      <td>${esc(loads || "—")}</td><td>${esc([d.renal, d.hepatic].filter(Boolean).join(", ") || "—")}</td><td>${esc((d.notes || []).join(" "))}</td><td>${esc(prov)}${badge(Object.values(d.prov || {}).find(needsVerify) || Object.values(d.prov || {})[0])}</td></tr>`;
+  }).join("")}</tbody>`;
+}
+
+// ---- Events ----
+PKUI.segmented($("modelSeg"), (v) => {
+  // Keep the same drug if the other library has it.
+  const cur = $("drug").value;
+  state.model = v;
+  if (!memory[v].drug && LIB[v].some((d) => d.id === cur)) memory[v] = { drug: cur };
+  $("dose").dataset.auto = "1";
+  fillDrugs(); render();
+});
+PKUI.segmented($("dirSeg"), (v) => {
+  state.direction = v;
+  $("doseRow").hidden = v !== "dose"; $("rateRow").hidden = v !== "rate";
+  if (v === "rate" && $("rate").value === "") { const r = compute({ ...read(), direction: "dose" }); if (isNum(r.rate.display)) $("rate").value = r.rate.display; }
+  render();
+});
+$("wtUnit").addEventListener("click", () => {
+  const v = numVal("wt"), to = state.wtUnit === "kg" ? "lb" : "kg";
+  if (isNum(v)) $("wt").value = to === "lb" ? +fromKg(v, "lb", state.model).toFixed(1) : +toKg(v, "lb", state.model).toFixed(1);
+  state.wtUnit = to; $("wtUnit").textContent = to; render();
+});
+$("drug").addEventListener("change", () => { $("dose").dataset.auto = "1"; $("argaRate").value = ""; fillConcs(); render(); });
+$("conc").addEventListener("change", render);
+$("dose").addEventListener("input", () => { $("dose").dataset.auto = "0"; render(); });
+for (const id of ["wt", "rate", "argaRate", "aptt", "apttBase", "argaTrack", "procMg", "procRate"]) $(id).addEventListener("input", render);
+$("instMax").addEventListener("input", () => { state.instMax[$("drug").value] = numVal("instMax"); render(); });
+for (const id of ["crcl", "dialysis", "scr", "childPugh"]) $(id).addEventListener("input", () => { if ($("dose").dataset.auto === "1") setDefaultDose(getDrug(state.model, $("drug").value)); render(); });
+$("chartBtn").addEventListener("click", () => {
+  state.chart = !state.chart;
+  if (!state.chart) { $("chartWrap").hidden = true; $("printBtn").hidden = true; $("chartBtn").textContent = "Show chart"; }
+  render();
+});
+$("printBtn").addEventListener("click", () => { document.body.classList.add("printing"); window.print(); });
+window.addEventListener("afterprint", () => document.body.classList.remove("printing"));
+
+fillDrugs();
+render();
+</script>
+</body>
+</html>

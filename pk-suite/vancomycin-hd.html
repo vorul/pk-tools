@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vancomycin Charts and HD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+  .credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+  .credit a { color: var(--accent); }
+  .hdr-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .themebtn { font: 500 .78rem var(--font-body); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  .setrow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+  .setrow > span { font-size: .8rem; color: var(--muted); }
+  .note { font-size: .8rem; color: var(--muted); margin: 6px 0 0; }
+  ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .86rem; }
+  td.l { text-align: left; white-space: normal; font-family: var(--font-body); }
+  .signoff { display: inline-block; font: 600 .72rem var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--crit); background: var(--crit-bg); border: 1.5px solid var(--crit); border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
+  .sitebadge { display: inline-block; font: 600 .7rem var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--ok); background: var(--band); border-radius: 4px; padding: 2px 8px; white-space: nowrap; }
+  .proposed { border: 2px dashed var(--crit); border-radius: 6px; padding: 8px 10px; background: var(--crit-bg); display: grid; gap: 4px; }
+  .proposed .rx { color: var(--ink); }
+  .ord-text { width: 100%; min-height: 7em; font: .82rem var(--font-data); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
+  /* Chart table */
+  table.vchart { font-size: .74rem; }
+  table.vchart th, table.vchart td { padding: 3px 5px; text-align: right; }
+  table.vchart th:first-child, table.vchart td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; text-align: left; }
+  table.vchart td.goal { background: var(--band); }
+  table.vchart .pcol { outline: 1px solid var(--accent); outline-offset: -1px; }
+  table.vchart td.hit { background: var(--accent); color: var(--surface); font-weight: 600; }
+  table.vchart tr.meta td { color: var(--muted); font-size: .68rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .76rem; color: var(--muted); align-items: center; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 4px; border: 1px solid var(--line); }
+  #printArea { display: none; }
+  .order .lines { flex-basis: 220px; }
+  .order .signoff, .proposed .signoff { white-space: normal; }
+  @media (max-width: 480px) { table.vchart { font-size: .7rem; } }
+  @media print {
+    @page { size: landscape; margin: 8mm; }
+    body.printing { background: #fff; color: #000; padding: 0; }
+    body.printing > .wrap { display: none !important; }
+    body.printing #printArea { display: block; }
+    #printArea section { page-break-after: always; break-after: page; }
+    #printArea h3 { font: 600 12pt var(--font-display); margin: 0 0 2mm; }
+    #printArea p { font-size: 8pt; margin: 0 0 2mm; }
+    #printArea table { font-size: 7pt; width: 100%; border-collapse: collapse; }
+    #printArea th, #printArea td { border: .5pt solid #888; padding: 1px 2px; color: #000; background: #fff !important; position: static; }
+    #printArea td.goal { background: #e3f1e6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Vancomycin Charts &amp; Hemodialysis</h1>
+    <div class="hdr-right">
+      <button type="button" class="themebtn" id="themeBtn" aria-label="Colour theme">Theme: auto</button>
+    </div>
+  </header>
+  <p class="credit">Trough charts (Chart I and II) and the high-flux HD protocol follow Marshall Pierce, PharmD, at <a href="https://pkineticdrugdosing.com/documents/vancomycin.html" target="_blank" rel="noopener">pkineticdrugdosing.com</a>, with literature corrections (Rybak 2020). Part of the PK Suite. For AUC and Bayesian dosing use <a href="vancomycin.html">vancomycin.html</a>.</p>
+  <div class="alert crit" role="alert"><b>Trough-only dosing is no longer recommended</b> (Rybak 2020): AUC24 400–600 mg·h/L is the standard. The trough charts are a legacy and educational tool. The HD section uses pre-HD levels, which the guideline still supports.</div>
+
+  <section class="card">
+    <h2>Model</h2>
+    <div class="setrow">
+      <span>Parameter set</span>
+      <div class="seg" id="modelSeg" role="group" aria-label="Model">
+        <button data-value="literature" aria-pressed="true" title="Literature defaults (lit/vancomycin.md)">Literature</button>
+        <button data-value="site" aria-pressed="false" title="Reproduces pkineticdrugdosing.com">Site</button>
+      </div>
+    </div>
+    <p class="note" id="modelNote"></p>
+  </section>
+
+  <nav class="seg tabs" role="tablist" aria-label="Tool">
+    <button type="button" role="tab" id="tab-charts" data-tab="charts" aria-selected="true" aria-controls="panel-charts">Dosing charts</button>
+    <button type="button" role="tab" id="tab-hd" data-tab="hd" aria-selected="false" aria-controls="panel-hd">Hemodialysis (high-flux)</button>
+  </nav>
+
+  <!-- ===================== Charts ===================== -->
+  <div id="panel-charts" role="tabpanel" aria-labelledby="tab-charts" class="wrap" style="max-width:none">
+    <section class="card">
+      <h2>Patient</h2>
+      <div class="fields">
+        <label>Age <span class="ig"><input id="age" type="number" min="18" max="120" step="any" value="60"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+        <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
+        <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button class="ub" id="htU"></button></span></label>
+        <label>Weight (actual, TBW) <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
+        <label>SCr <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button class="ub" id="scrU"></button></span></label>
+        <label class="check" style="align-self:end"><input type="checkbox" id="floor07"> Round SCr up to 0.7 mg/dL (author's institution)</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Regimen goal</h2>
+      <div class="fields">
+        <label>Maintenance dose (chart) <select id="mgkg"></select></label>
+        <label>Goal trough low <span class="ig"><input id="goalLo" type="number" min="0" step="any" value="15"><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
+        <label>Goal trough high <span class="ig"><input id="goalHi" type="number" min="0" step="any" value="20"><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
+        <label>Loading-dose cap <select id="chCap"><option value="3000" selected>3000 mg</option><option value="4000">4000 mg (critically ill &gt; 120 kg; low evidence)</option></select></label>
+        <label>Dose rounding <select id="inc"><option value="250" selected>250 mg</option><option value="125">125 mg</option><option value="50">50 mg</option></select></label>
+      </div>
+      <p class="note">Chart values exist for 8–15 mg/kg in 1 mg/kg steps (Chart I: 15–12, Chart II: 11–8). Vanchart's text also names 12.5 mg/kg, but <b>no 12.5 mg/kg chart was published</b>; that option is computed from the same equation and marked as such.</p>
+    </section>
+
+    <div class="alerts" id="chAlerts"></div>
+
+    <section class="card order" id="chOrder" aria-live="polite"></section>
+
+    <section class="card">
+      <h2>Intervals for this patient</h2>
+      <div class="tablewrap"><table id="tauTable"></table></div>
+      <p class="note">Chart mode snaps CrCl to the nearest column at the chosen chart mg/kg; calculator mode uses the exact normalized CrCl. The final column uses the rounded dose (actual mg/kg). Shaded rows are inside the goal.</p>
+    </section>
+
+    <section class="card">
+      <h2>Retrospective adjustment: one steady-state trough ("fit K")</h2>
+      <div class="fields">
+        <label>Current dose (chart) <select id="rMgkg"></select></label>
+        <label>Current interval <select id="rTau"></select></label>
+        <label>Measured SS trough <span class="ig"><input id="rLevel" type="number" min="0" step="any" value="28"><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
+        <label>New dose (chart) <select id="rNew"></select></label>
+      </div>
+      <div id="retroOut" style="margin-top:10px"></div>
+      <p class="note">Valid only at steady state (after 3–5 doses). Vd is held at 0.65 L/kg (the chart value, at any BMI) and only K is fitted, which is the method Vanchart validates (true Vd 0.4–0.9 L/kg). This non-Bayesian trough-only fit is not a guideline method <span class="src verify" title="lit/vancomycin.md §3 item 7: keep with a warning or remove">verify</span>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Dosing chart</h2>
+      <div class="setrow" style="margin-bottom:8px">
+        <label style="display:inline-grid">Chart <select id="chartSel"></select></label>
+        <div class="actions" style="margin-left:auto">
+          <button type="button" id="printOne">Print this chart</button>
+          <button type="button" id="printAll">Print all charts</button>
+        </div>
+      </div>
+      <p class="note" id="chartHead"></p>
+      <div class="tablewrap"><table class="vchart" id="chartTable"></table></div>
+      <div class="legend" style="margin-top:6px">
+        <span><span class="sw" style="background:var(--band)"></span>trough inside goal</span>
+        <span><span class="sw" style="outline:1px solid var(--accent)"></span>patient's nearest CrCl column</span>
+        <span><span class="sw" style="background:var(--accent)"></span>chart-mode pick</span>
+      </div>
+    </section>
+
+    <details class="card">
+      <summary>Chart model and sources</summary>
+      <div class="body">
+        <p><code>Kel = 0.00107 × CrCl_norm + 0.0052106005</code> (chart header), <code>CrCl_norm = CrCl × 1.73 / BSA</code> (DuBois), <code>Vd = 0.65 L/kg TBW</code>, infusion time <code>T′ = 1.5 h</code> (back-calculated; not printed on the chart).</p>
+        <p><code>Cmin,ss = Dose(mg/kg)·(1 − e^(−K·T′))·e^(−K(τ − T′)) / (0.65·K·T′·(1 − e^(−K·τ)))</code>. Regenerated cells match 569 of 600 published cells (τ 8/12/24) exactly; the other 31 (Chart I, mostly CrCl ≤ 15) differ by 0.1–0.3 mcg/mL.</p>
+        <p>CrCl: Cockcroft-Gault with LBW (Devine) = min(LBW, TBW) in the Site model; the suite literature policy (AdjBW if TBW &gt; 1.2 × IBW) in the Literature model. Heights under 60 in clamp the LBW height term at 0. Dosing weight and Vd use TBW.</p>
+        <p>Sources: specs/vanco-charts-hd.md §3, §5a–5b; Vanchart.pdf; Vancomycin-Dosing-Chart-I/II.pdf; lit/vancomycin.md §1a.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- ===================== HD ===================== -->
+  <div id="panel-hd" role="tabpanel" aria-labelledby="tab-hd" class="wrap" style="max-width:none" hidden>
+    <section class="card">
+      <h2>Patient and dialysis</h2>
+      <div class="fields">
+        <label>Weight (actual, TBW) <span class="ig"><input id="hWt" type="number" min="0" step="any" value="80"><button class="ub" id="hWtU"></button></span></label>
+        <label>Dose timing <select id="hTiming"><option value="post" selected>After HD</option><option value="during">During HD (intradialytic)</option></select></label>
+        <label>Membrane <select id="hMem"><option value="high" selected>High-flux</option><option value="low">Low-flux</option></select></label>
+        <label>Session length <span class="ig"><input id="hT" type="number" min="1" max="8" step="any" value="4"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Schedule <select id="hFirst"><option value="0" selected>M/W/F (load Mon)</option><option value="1">M/W/F (load Wed)</option><option value="2">M/W/F (load Fri)</option></select></label>
+        <label>Residual CrCl (optional) <span class="ig"><input id="hRes" type="number" min="0" step="any" placeholder="mL/min"><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
+        <label>Pre-HD goal <select id="hGoal"></select></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <div class="fields">
+        <label>Maintenance rule
+          <select id="hRule">
+            <option value="mgkg10" selected>10 mg/kg TBW (Rybak 2020)</option>
+            <option value="flat750">Flat 750 mg post-HD (site 2020 MUE)</option>
+            <option value="tiers">Weight tiers 500 / 750 / 1000 (legacy)</option>
+          </select>
+        </label>
+        <label>Loading protocol <select id="hLdProt"><option value="guideline" selected>25 mg/kg (35 if intradialytic)</option><option value="legacy">Legacy 20 mg/kg</option></select></label>
+        <label>Loading cap <select id="hCap"><option value="3000" selected>3000 mg</option><option value="4000">4000 mg (low evidence)</option><option value="2000">2000 mg (legacy)</option><option value="0">None (2016 MUE)</option></select></label>
+      </div>
+      <p class="note" id="ruleNote"></p>
+    </section>
+
+    <div class="alerts" id="hdAlerts"></div>
+
+    <section class="card order" id="hdOrder" aria-live="polite"></section>
+
+    <section class="card">
+      <h2>Level timing</h2>
+      <ul class="plain">
+        <li>Draw a level <b>after the loading dose, before the first HD</b>, to confirm an adequate load.</li>
+        <li id="levelPlan"></li>
+        <li>Pre-HD sampling is preferred. If a level is drawn after dialysis, wait <b>at least 6 h post-HD</b>: earlier levels are falsely low (redistribution up to 12 h, 20–40% rebound).</li>
+        <li>Without a loading dose, levels take about 2 weeks to stabilize.</li>
+        <li>Give post-HD doses as soon as possible after dialysis.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Predicted pre-HD levels (HD PK model)</h2>
+      <div class="fields">
+        <label>Vd <span class="ig"><input id="pVd" type="number" step="any"><button type="button" class="ub" tabindex="-1" disabled>L/kg</button></span></label>
+        <label>Non-HD clearance <span class="ig"><input id="pClr" type="number" step="any"><button type="button" class="ub" tabindex="-1" disabled>L/h</button></span></label>
+        <label>HD clearance <span class="ig"><input id="pClhd" type="number" step="any"><button type="button" class="ub" tabindex="-1" disabled>L/h</button></span></label>
+        <label class="check" style="align-self:end"><input type="checkbox" id="pAuto" checked> Use defaults for the dose timing</label>
+        <label id="pPresetL" style="display:none">Parameter preset (Site) <select id="pPreset"><option value="default" selected>Tool defaults (by dose timing)</option><option value="workbook">Pierce HD workbook</option></select></label>
+        <label class="wbf" style="display:none">Workbook Vd <select id="wbVd"></select></label>
+        <label class="wbf" style="display:none">HD clearance multiplier <select id="wbMhd"></select></label>
+        <label class="wbf" style="display:none">Renal clearance multiplier <select id="wbMr"></select></label>
+      </div>
+      <p class="note" id="pNote"></p>
+      <div id="predOut"></div>
+    </section>
+
+    <section class="card">
+      <h2>Adjust by pre-HD level</h2>
+      <div class="fields">
+        <label>Measured level <span class="ig"><input id="aLevel" type="number" min="0" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
+        <label>Current maintenance dose <span class="ig"><input id="aDose" type="number" min="0" step="any" value="750"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+        <label>Drawn <select id="aWhen"><option value="pre" selected>Pre-HD</option><option value="post">After HD</option></select></label>
+        <label>Hours after end of HD <span class="ig"><input id="aHrs" type="number" min="0" step="any" placeholder="if after HD"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+      </div>
+      <div id="adjOut" style="margin-top:10px"></div>
+      <div class="tablewrap" style="margin-top:10px"><table id="adjTable"></table></div>
+    </section>
+
+    <details class="card">
+      <summary>HD model and sources</summary>
+      <div class="body">
+        <p>Replacement dose: <code>Peak_req = Trough / e^(−K_r(gap − T_HD))</code>, <code>C_postHD = Trough·e^(−(K_r + K_HD)T_HD)</code>, <code>Dose = (Peak_req − C_postHD)·Vd</code>. Clearances are in L/h and not weight-scaled.</p>
+        <p>Weekly superposition: one dose at the end of each session, <code>A = D / (Vd(1 − e^−(K_r·168 + K_HD·T_HD·3)))</code>; each peak sums the doses of the week decayed by renal K for the elapsed time plus HD K for each session passed. Trough before a session = previous peak × <code>e^(−K_r(gap − T_HD))</code>. The site prints the trough exponent as <code>e^(−(Krenal*(3*24)−Tdialysis))</code>; it is read here as <code>K_r × (72 − T_HD)</code>, which reproduces the site's table.</p>
+        <p>Parameters: after HD Vd 1.03 L/kg, CL 0.4621 L/h, CL_HD 4.08 L/h (2020 MUE, institutional, unpublished); during HD 1.17 / 0.3348 / 6.9 (2016 MUE). Site model preset "Pierce HD workbook": Vd 1.0 L/kg (0.65/1/1.3), the same flat clearances with 0.25–2 multipliers, pre-HD 15, 56 h between sessions, 2 h infusion in the AUC (vancomycinHDClearnacnevrsweight.xlsx; clearances do not scale with weight). AUC regression <code>AUC = 24.715 × trough + 53.958</code> is a site MUE estimate, not peer reviewed.</p>
+        <p>Literature (Rybak 2020, PMID 32191793): LD 25 mg/kg (35 intradialytic high-flux, 30 low-flux), cap 3 g (4 g option, Payne 2024, low evidence); MD 10 mg/kg TBW after HD (12.5 intradialytic; 7.5 low-flux), rounded to 250 mg with a 500 mg floor and 1500 mg cap (institutional, low confidence); 25% larger dose before the 3-day gap; pre-HD 15–20 (15–25 option for severe infection). First pre-HD level before the 2nd session after the load (Lewis 2021, UNMC 2024). Residual function: about 40 mg per mL/min per 48 h (Matzke-derived, ×1.5 for 72 h). Tool does not apply to CRRT or HD for acute kidney injury.</p>
+        <p>Pre-HD adjustment (Literature): Stanford Health Care Vancomycin Dosing Guide 2023; UNMC/Nebraska Medicine 2024; Panais R, <i>J Nephrol</i> 2010 (PMID 20540035); Lewis SJ, Mueller BA, <i>J Clin Pharmacol</i> 2021 (PMID 32851685) and Lewis 2023 <i>BMC Nephrol</i> (PMID 37710245). Proportional estimate = dose × goal midpoint ÷ level, bounded ±50%. Decisions: DECISIONS.md and decisions/vancomycin-aminoglycosides.md §1–5.</p>
+        <p>Sources: specs/vanco-charts-hd.md §4–5c, §8 TC5–TC9; lit/vancomycin.md §1e, §2.8, §3.</p>
+      </div>
+    </details>
+  </div>
+
+  <footer>Educational and clinical decision-support use by trained clinicians only. Trough charts are a legacy method; population HD parameters come from single-institution MUEs. Confirm with measured levels, product labeling, institutional protocols and clinical judgement before dosing. PK Suite <span id="ver"></span>.</footer>
+</div>
+<div id="printArea" aria-hidden="true"></div>
+
+<script src="lib/pkcore.js"></script>
+<script src="lib/pk-ui.js"></script>
+<script>
+// CALC-START
+// Pure calculations for vancomycin-hd.html (no DOM). Source of truth: specs/vanco-charts-hd.md, lit/vancomycin.md.
+// Uses PK.body / PK.renal (CrCl, BSA), PK.one (steady-state infusion model, AUC, fractions) and PK.round.
+// Local helpers (not in pkcore): bisection for the single-trough "fit K", the HD time-varying-K superposition
+// (clearance changes during dialysis, which PK.one.superpose cannot express), the HD dose rules and the adjustment table.
+// Internal units: h, mg/L (= mcg/mL), L, L/h, kg, height in inches, SCr mg/dL.
+
+const isFin = (x) => typeof x === "number" && isFinite(x);
+const r1 = (x) => (isFin(x) ? PK.round.roundTo(x, 0.1) : NaN);
+
+// ===================== Trough charts (Chart I and Chart II) =====================
+const CHART = {
+  CRCL: [140, 130, 120, 100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 7.5, 5, 2.5], // mL/min/1.73 m², no 110 column
+  TAUS: [8, 12, 16, 18, 24, 36, 48, 60, 72, 96, 120, 144, 168],
+  DOSES: [15, 14, 13, 12, 11, 10, 9, 8],       // published sets (Chart I: 15–12, Chart II: 11–8)
+  UNPUBLISHED: [12.5],                         // Vanchart text names 12.5 mg/kg but no 12.5 chart exists: computed only
+  K_SLOPE: 0.00107, K_INT: 0.0052106005,       // chart header / Vanchart
+  TINF: 1.5,                                   // T' back-calculated (spec §3a): reproduces 569/600 cells exactly
+  VD_PER_KG: 0.65,                             // L/kg TBW
+};
+const chartName = (mgkg) => (mgkg >= 12 && Number.isInteger(mgkg) ? "Chart I" : Number.isInteger(mgkg) && mgkg >= 8 ? "Chart II" : "computed (no published chart)");
+const chartK = (crclNorm) => CHART.K_SLOPE * crclNorm + CHART.K_INT;
+// Steady-state trough / peak for a mg/kg dose: Vd in L/kg so mg/kg ÷ L/kg = mg/L.
+// vd (L/kg) defaults to the chart's 0.65; the patient calculator passes 0.5 for BMI ≥ 30 in the Literature model.
+const chartSS = (mgkg, tau, k, vd = CHART.VD_PER_KG) => PK.one.ss({ dose: mgkg, tau, tinf: CHART.TINF }, { V: vd, k });
+const chartTrough = (mgkg, tau, k, vd) => chartSS(mgkg, tau, k, vd).cmin;
+// Approved decision (decisions/vancomycin-aminoglycosides.md §5): Vd 0.5 L/kg TBW at BMI ≥ 30, no TBW cap (warn > 200 kg).
+const OBESE = { bmi: 30, vdPerKg: 0.5, warnTbw: 200 };
+
+function chartTable(mgkg) {
+  const ks = CHART.CRCL.map(chartK);
+  return {
+    mgkg, name: chartName(mgkg), published: CHART.DOSES.includes(mgkg),
+    k: ks, t12: ks.map((k) => PK.one.halfLife(k)), swing: mgkg / CHART.VD_PER_KG,
+    rows: CHART.TAUS.map((tau) => ({ tau, cells: ks.map((k) => r1(chartTrough(mgkg, tau, k))) })),
+  };
+}
+
+// Nearest chart column. Ties go to the lower CrCl (longer interval, the conservative choice).
+function nearestCol(crclNorm) {
+  let best = 0;
+  CHART.CRCL.forEach((c, i) => { if (Math.abs(c - crclNorm) <= Math.abs(CHART.CRCL[best] - crclNorm) + 1e-12) best = i; });
+  return best;
+}
+
+// Distance of a value from a [lo, hi] range (0 inside).
+const rangeDist = (x, [lo, hi]) => (x < lo ? lo - x : x > hi ? x - hi : 0);
+// Choose the interval: inside the goal → closest to the goal midpoint; none inside → closest to the range.
+function chooseTau(list, goal) {
+  const mid = (goal[0] + goal[1]) / 2;
+  const inR = list.filter((x) => rangeDist(x.trough, goal) === 0);
+  const pool = inR.length ? inR : list;
+  const score = (x) => (inR.length ? Math.abs(x.trough - mid) : rangeDist(x.trough, goal));
+  const best = pool.reduce((b, x) => (score(x) < score(b) - 1e-12 ? x : b), pool[0]);
+  return { ...best, inRange: inR.length > 0 };
+}
+
+// Patient renal function for the chart (Vanchart steps 1–4). model 'literature' | 'site' selects the PK.renal preset.
+//   i = { age, sex, heightIn, tbw, scr, scrFloor07 (bool) }
+function patientRenal(i, model = "literature") {
+  const flags = [];
+  let hIn = i.heightIn;
+  if (isFin(hIn) && hIn < 60) { flags.push({ lvl: "warn", text: "Height under 60 in: the LBW height term is clamped at 0 (spec §5a)." }); hIn = 60; }
+  const cg = PK.renal.cockcroftGault({ preset: model === "site" ? "site" : "literature", age: i.age, sex: i.sex, scr: i.scr, tbw: i.tbw, heightIn: hIn, scrFloor: i.scrFloor07 ? 0.7 : null });
+  flags.push(...cg.flags.filter((f) => f.code !== "short"));
+  const heightCm = PK.body.inToCm(i.heightIn);
+  const bsa = PK.body.bsa(i.tbw, heightCm);
+  const crclNorm = PK.renal.normalizeTo173(cg.crcl, bsa);
+  const k = chartK(crclNorm);
+  const bmi = PK.body.bmi(i.tbw, heightCm);
+  if (crclNorm > 140) flags.push({ lvl: "warn", text: "Normalized CrCl above 140: off the chart (calculator mode extrapolates)." });
+  if (crclNorm < 2.5) flags.push({ lvl: "warn", text: "Normalized CrCl below 2.5: off the chart. Consider the dialysis tab if on HD." });
+  let vdPerKg = CHART.VD_PER_KG;
+  if (bmi >= OBESE.bmi) {
+    if (model === "site") flags.push({ lvl: "warn", text: "BMI ≥ 30: the Site model keeps Vd 0.65 L/kg TBW; the Literature model uses 0.5 L/kg." });
+    else { vdPerKg = OBESE.vdPerKg; flags.push({ lvl: "info", text: "BMI ≥ 30: calculator uses Vd 0.5 L/kg TBW (Rybak 2020; approved decision). The published chart grids stay at 0.65 L/kg. LD 20–25 mg/kg." }); }
+  }
+  if (i.tbw > OBESE.warnTbw) flags.push({ lvl: "warn", text: "TBW above 200 kg: Vd and CrCl estimates are unreliable; obtain levels early (no TBW cap applied)." });
+  return { vdPerKg, crcl: cg.crcl, weightUsed: cg.weight, weightBasis: cg.weightBasis, ibw: cg.ibw, scrUsed: cg.scrUsed, bsa, bmi, crclNorm, k, t12: PK.one.halfLife(k), flags };
+}
+
+// Loading dose for the chart tool. Site: 20 mg/kg (chart header, range 20–25). Literature: 25 mg/kg (Rybak 2020, 20–35). Cap 3 g.
+function chartLoading(tbw, model = "literature", { inc = 250, cap = 3000 } = {}) {
+  const mgkg = model === "site" ? 20 : 25;
+  const exact = mgkg * tbw;
+  return { mgkg, exact, order: Math.min(cap, PK.round.roundTo(exact, inc)), capped: PK.round.roundTo(exact, inc) > cap, range: [20 * tbw, 25 * tbw] };
+}
+
+// Prospective dosing (Vanchart steps 5–8): chart mode (nearest column) and calculator mode (exact K), then the rounded dose.
+function chartRecommend({ mgkg, tbw, crclNorm, goal = [15, 20], inc = 250, vdPerKg = CHART.VD_PER_KG }) {
+  const col = nearestCol(crclNorm), kCol = chartK(CHART.CRCL[col]), kExact = chartK(crclNorm);
+  const chartList = CHART.TAUS.map((tau) => ({ tau, trough: r1(chartTrough(mgkg, tau, kCol)) }));
+  const calcList = CHART.TAUS.map((tau) => ({ tau, trough: r1(chartTrough(mgkg, tau, kExact, vdPerKg)) }));
+  const doseExact = mgkg * tbw;
+  const dose = Math.max(inc, PK.round.roundTo(doseExact, inc));
+  const actualMgkg = dose / tbw;
+  const finalList = CHART.TAUS.map((tau) => ({ tau, trough: r1(chartTrough(actualMgkg, tau, kExact, vdPerKg)) }));
+  const pick = chooseTau(finalList, goal);
+  const ss = chartSS(actualMgkg, pick.tau, kExact, vdPerKg);
+  const V = vdPerKg * tbw, CL = kExact * V;
+  return {
+    col, colCrcl: CHART.CRCL[col], kCol, kExact, vdPerKg,
+    chartList, chartPick: chooseTau(chartList, goal), calcList, calcPick: chooseTau(calcList, goal),
+    doseExact, dose, actualMgkg, finalList, tau: pick.tau, inRange: pick.inRange,
+    trough: ss.cmin, peak: ss.cmax, V, CL, auc24: PK.one.auc24Dose(dose, CL, pick.tau),
+  };
+}
+
+// Calculator-mode single-trough fit: solve Cmin,ss(K) = measured by bisection (Cmin falls as K rises), K in [0.001, 0.5].
+function fitK({ mgkg, tau, trough }) {
+  let lo = 0.001, hi = 0.5;
+  const f = (k) => chartTrough(mgkg, tau, k) - trough;
+  if (!(trough > 0) || f(lo) < 0 || f(hi) > 0) return { k: NaN, ok: false };
+  for (let i = 0; i < 100; i++) { const mid = (lo + hi) / 2; if (f(mid) > 0) lo = mid; else hi = mid; }
+  const k = (lo + hi) / 2;
+  return { k, ok: true, crclNormEq: (k - CHART.K_INT) / CHART.K_SLOPE, t12: PK.one.halfLife(k) };
+}
+
+// Retrospective adjustment from one steady-state trough (spec §5b). Holds Vd 0.65 L/kg, fits only K.
+function retroAdjust({ mgkg, tau, trough, goal = [15, 20], newMgkg }) {
+  const nm = isFin(newMgkg) ? newMgkg : mgkg;
+  // Chart mode: in the current-tau row of the current mg/kg chart, the column with the closest trough is the "fit K".
+  const row = CHART.CRCL.map((c) => r1(chartTrough(mgkg, tau, chartK(c))));
+  let col = 0;
+  row.forEach((v, i) => { if (Math.abs(v - trough) < Math.abs(row[col] - trough) - 1e-12) col = i; });
+  const kChart = chartK(CHART.CRCL[col]);
+  const chartList = CHART.TAUS.map((t) => ({ tau: t, trough: r1(chartTrough(nm, t, kChart)) }));
+  const fit = fitK({ mgkg, tau, trough });
+  const calcList = fit.ok ? CHART.TAUS.map((t) => ({ tau: t, trough: r1(chartTrough(nm, t, fit.k)) })) : [];
+  return {
+    chart: { col, crcl: CHART.CRCL[col], cell: row[col], k: kChart, list: chartList, pick: chooseTau(chartList, goal) },
+    calc: { ...fit, list: calcList, pick: fit.ok ? chooseTau(calcList, goal) : null },
+  };
+}
+
+// ===================== High-flux hemodialysis =====================
+const HD = {
+  params: {
+    post: { vdPerKg: 1.03, clr: 0.4621, clhd: 4.08, label: "2020 MUE, dose after HD (n = 44)" },
+    during: { vdPerKg: 1.17, clr: 0.3348, clhd: 6.9, label: "2016 MUE, dose in the last hour of HD (n = 52)" },
+  },
+  goal: [15, 20],
+  starts: [0, 48, 96],   // three sessions a week (M/W/F or Tu/Th/Sa), session start times in h
+  period: 168,
+  // Site model preset reproducing Pierce's vancomycinHDClearnacnevrsweight.xlsx (workbook verification 2026-10-23):
+  // Vd 1.0 L/kg (drop-down 0.65/1/1.3), flat Cl_HD 4.08 and Cl_r 0.4621 L/h (multipliers 0.25–2, not weight-scaled),
+  // pre-HD target 15, 4 h session, 56 h between sessions, 2 h infusion in the AUC. Pass to hdReplacement unchanged.
+  workbook: {
+    params: { vdPerKg: 1, clr: 0.4621, clhd: 4.08, label: "Pierce HD workbook (44 high-flux patients dosed post-HD, 1 L/kg)" },
+    target: 15, tHD: 4, gap: 56, tinf: 2,
+    vdOptions: [0.65, 1, 1.3],
+    multipliers: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+  },
+};
+
+// Loading dose. Guideline (site + Rybak 2020): 25 mg/kg TBW, 35 mg/kg if intradialytic (30 for low-flux), cap 3000 mg.
+// Legacy protocol: 20 mg/kg, cap 2000 mg. `dose` = capped exact; `order` = rounded to 250 mg, then capped.
+function hdLoading({ tbw, timing = "post", membrane = "high", protocol = "guideline", cap = 3000, inc = 250 }) {
+  const mgkg = protocol === "legacy" ? 20 : timing === "during" ? (membrane === "low" ? 30 : 35) : 25;
+  const capV = isFin(cap) && cap > 0 ? cap : Infinity;
+  const exact = mgkg * tbw;
+  return { mgkg, exact, dose: Math.min(exact, capV), order: Math.min(PK.round.roundTo(exact, inc), capV), capped: exact > capV, cap: capV };
+}
+
+// Residual renal function add-on.
+//   Site: rule of thumb +200 mg at CrCl 5, +400 mg at 10 mL/min (stepped).
+//   Literature (approved decision §4, low confidence): linear, 40 mg per mL/min per 48 h gap (Matzke 0.0413 L/h per mL/min
+//   × 48 h × 20 mg/L ≈ 39.7), scaled by gap/48 (×1.5 for 72 h). Only the final dose is rounded.
+function residualAddOn(crcl, { model = "literature", gap = 48 } = {}) {
+  if (!isFin(crcl) || crcl <= 0) return 0;
+  if (model === "site") return crcl < 5 ? 0 : crcl < 10 ? 200 : 400;
+  return 40 * crcl * (gap / 48);
+}
+// Approved decision §1: 10 mg/kg TBW post-HD (12.5 intradialytic), floor 500 / cap 1500 mg (floor and cap: low confidence).
+const HD_MD = { mgkgPost: 10, mgkgDuring: 12.5, floor: 500, cap: 1500 };
+
+// Maintenance dose. rule: 'flat750' (site 2020 MUE) | 'mgkg10' (Rybak 2020) | 'tiers' (legacy weight tiers).
+// Literature model: +25% for the dose before the 72 h interdialytic gap (Rybak 2020); low-flux uses the Rybak row (7.5 mg/kg).
+// Site model: no 72 h rule; low-flux "about 8% removed, no supplemental dose" (outdated per the literature check).
+function hdMaintenance({ tbw, timing = "post", membrane = "high", rule, residualCrcl, model = "literature", inc = 250 }) {
+  const flags = [];
+  if (!rule) rule = model === "literature" ? "mgkg10" : "flat750";
+  let clamped = false;
+  let base, basis, range;
+  if (membrane === "low") {
+    if (model === "site") {
+      flags.push({ lvl: "crit", text: "Site states low-flux HD removes about 8% so no supplemental dose is needed. The literature check marks this outdated (Rybak 2020: 7.5 mg/kg after each session). Switch the Model to Literature." });
+      return { none: true, base: 0, addOn: 0, regularExact: 0, regular: 0, longGapExact: 0, longGap: 0, longGapFactor: 1, rule: "lowflux-site", basis: "Site: no supplemental dose (low-flux)", flags };
+    }
+    base = 7.5 * tbw; basis = "7.5 mg/kg (Rybak 2020 low-permeability row)";
+    range = timing === "during" ? [7.5 * tbw, 10 * tbw] : null;
+  } else if (rule === "mgkg10" && model === "literature") {
+    const mk = timing === "during" ? HD_MD.mgkgDuring : HD_MD.mgkgPost;
+    const raw = mk * tbw;
+    base = Math.min(HD_MD.cap, Math.max(HD_MD.floor, raw)); clamped = base !== raw;
+    basis = `${mk} mg/kg TBW (Rybak 2020${timing === "during" ? "; intradialytic 10–15" : ""}), floor 500 / cap 1500 mg`;
+    range = timing === "during" ? [10 * tbw, 15 * tbw] : null;
+    if (clamped) flags.push({ lvl: "info", text: `${mk} mg/kg × ${tbw} kg = ${Math.round(raw)} mg is outside the 500–1500 mg floor/cap; ${base} mg used (floor and cap are a low-confidence institutional choice).` });
+  } else if (rule === "mgkg10") {
+    base = 10 * tbw; basis = "10 mg/kg (Rybak 2020)";
+    range = timing === "during" ? [10 * tbw, 15 * tbw] : null;
+  } else if (rule === "tiers") {
+    base = tbw < 75 ? 500 : tbw < 100 ? 750 : 1000; basis = "Legacy weight tiers (< 75 kg 500, 75–< 100 kg 750, ≥ 100 kg 1000 mg)";
+    flags.push({ lvl: "warn", text: "Weight tiers: the 2020 MUE found weight correlated poorly with the dose needed; shown for information." });
+    if (timing === "during") flags.push({ lvl: "warn", text: "The weight tiers were a post-HD protocol." });
+  } else {
+    base = timing === "during" ? 1000 : 750; basis = timing === "during" ? "Flat 1000 mg (site intradialytic range 1000–1250)" : "Flat 750 mg (site 2020 MUE)";
+    range = timing === "during" ? [1000, 1250] : [750, 1000];
+  }
+  const addOn = residualAddOn(residualCrcl, { model, gap: 48 });
+  const addOn72 = model === "literature" ? residualAddOn(residualCrcl, { model, gap: 72 }) : addOn;
+  if (isFin(residualCrcl) && residualCrcl > 15) flags.push({ lvl: "warn", text: "Residual CrCl above 15 mL/min is not ESRD-like: consider the standard renal model or level-guided dosing." });
+  const regularExact = base + addOn;
+  const longGapFactor = model === "literature" ? 1.25 : 1;
+  const longGapExact = base * longGapFactor + addOn72;
+  const rnd = (x) => Math.max(inc, PK.round.roundTo(x, inc));
+  return { none: false, base, clamped, addOn, addOn72, regularExact, regular: rnd(regularExact), longGapExact, longGap: rnd(longGapExact), longGapFactor, rule, basis, range, flags };
+}
+
+// Post-HD replacement dose to hold a desired pre-HD trough (spec §4e), with the HD AUC (T_inf 1 h, tau = gap).
+function hdReplacement({ tbw, tHD = 4, gap = 48, target = 20, params = HD.params.post, tinf = 1 }) {
+  const V = params.vdPerKg * tbw, kr = params.clr / V, khd = params.clhd / V;
+  const peakReq = target / PK.one.fracRemaining(kr, gap - tHD);
+  const cPost = target * PK.one.fracRemaining(kr + khd, tHD);
+  const dose = (peakReq - cPost) * V;
+  const aucFull = ((peakReq - target) / kr + (target - cPost) / (kr + khd) + ((peakReq + cPost) * tinf) / 2) * (24 / gap);
+  const aucAbbrev = ((peakReq - target) / kr + ((peakReq + target) * tinf) / 2) * (24 / gap);
+  return { V, kr, khd, peakReq, cPost, dose, aucFull, aucAbbrev, fracRemovedHD: PK.one.dialysisFractionRemoved(params.clhd, params.clr, V, tHD) };
+}
+
+// Elimination exponent between two times: renal K the whole time plus HD K during each complete session in between.
+// Weekly steady state, one dose at the end of each session (spec §4e superposition, trough exponent read as K_r·(72 − T_HD)).
+//   doses: number or [d0, d1, d2] per session of the week.
+function hdWeekly({ doses, tbw, params = HD.params.post, tHD = 4, starts = HD.starts, period = HD.period }) {
+  const n = starts.length, V = params.vdPerKg * tbw, kr = params.clr / V, khd = params.clhd / V;
+  const D = Array.isArray(doses) ? doses : starts.map(() => doses);
+  const tDose = starts.map((s) => s + tHD);
+  const A = 1 / PK._omexp(kr * period + khd * tHD * n);
+  const mod = (x, m) => ((x % m) + m) % m;
+  const peaks = tDose.map((ti, i) => D.reduce((s, d, j) => s + (d / V) * A * Math.exp(-(kr * mod(ti - tDose[j], period) + khd * tHD * mod(i - j, n))), 0));
+  const troughs = starts.map((s, i) => { const p = mod(i - 1, n); return peaks[p] * PK.one.fracRemaining(kr, mod(s - tDose[p], period)); });
+  return { V, kr, khd, peaks, troughs, maxPeak: Math.max(...peaks), minPeak: Math.min(...peaks), maxTrough: Math.max(...troughs), minTrough: Math.min(...troughs) };
+}
+
+// Non-steady-state course: LD at the end of session 0, then maintenance after every later session.
+// Returns the pre-HD level before each session 1..nSessions (= before MD #k) and the post-dose peak.
+//   first: index in `starts` of the first session (0 = start of the week, e.g. Monday).
+function hdSimulate({ ld, doses, tbw, params = HD.params.post, tHD = 4, starts = HD.starts, period = HD.period, nSessions = 12, first = 0 }) {
+  const n = starts.length, V = params.vdPerKg * tbw, kr = params.clr / V, khd = params.clhd / V;
+  const D = Array.isArray(doses) ? doses : starts.map(() => doses);
+  const sess = Array.from({ length: nSessions + 1 }, (_, k) => {
+    const idx = first + k, w = Math.floor(idx / n), d = idx % n;
+    return { k, day: d, t: w * period + starts[d] - starts[first] };
+  });
+  const given = []; // { t, dose, session }
+  const level = (t, k) => given.reduce((s, g) => s + (g.dose / V) * Math.exp(-(kr * (t - g.t) + khd * tHD * Math.max(0, k - g.session - 1))), 0);
+  const out = [];
+  for (const s of sess) {
+    const pre = s.k === 0 ? 0 : level(s.t, s.k);
+    const dose = s.k === 0 ? ld : D[s.day];
+    given.push({ t: s.t + tHD, dose, session: s.k });
+    out.push({ session: s.k, day: s.day, t: s.t, preHD: pre, dose, peak: level(s.t + tHD + 1e-9, s.k + 1) });
+  }
+  return out;
+}
+
+// 2020 MUE regression (site MUE estimate, not peer reviewed): AUC (mg·day/L) = 24.715·pre-HD trough + 53.958.
+const hdAucFromTrough = (tr) => 24.715 * tr + 53.958;
+
+// Adjustment by pre-HD level (goal 15–20). status 'site' = rule stated by the 2020 MUE; 'proposed' = spec placeholder,
+// shown only under a "Proposed — needs clinician sign-off" badge (gaps < 10, > 20–< 25, > 30, and the > 25 / 25–30 overlap).
+const ADJUST_RULES = [
+  { band: "< 10", test: (L) => L < 10, status: "proposed", action: "Increase by more than 250 mg (up to 500 mg); consider a supplemental dose; recheck pre-HD.", hold: false, delta: [250, 500] },
+  { band: "10 to < 15", test: (L) => L < 15, status: "site", action: "Increase the prior dose by up to 250 mg.", hold: false, delta: [250, 250] },
+  { band: "15 to 20", test: (L) => L <= 20, status: "site", action: "No change.", hold: false, delta: [0, 0] },
+  { band: "> 20 to < 25", test: (L) => L < 25, status: "proposed", action: "No change, or decrease by 250 mg.", hold: false, delta: [-250, 0] },
+  { band: "25 (exactly)", test: (L) => L <= 25, status: "site", action: "Decrease by 250–500 mg (site: ≥ 25 to 30).", hold: false, delta: [-500, -250] },
+  { band: "> 25 to 30", test: (L) => L <= 30, status: "proposed", action: "Hold the post-HD dose (site: hold if > 25), then resume 250–500 mg lower (site: 25–30 decrease). The site states both; this combined reading is a proposal.", hold: true, delta: [-500, -250] },
+  { band: "> 30", test: () => true, status: "proposed", action: "Hold, recheck the pre-HD level, then decrease by at least 500 mg.", hold: true, delta: [-500, -500] },
+];
+// Literature model (approved decision §2): band table built from published protocols (Stanford 2023, UNMC 2024,
+// Panais 2010, Lewis 2021/2023). Low–moderate evidence. status 'protocol'. Goal 15–20; with the 15–25 (severe infection)
+// goal, > 20–25 means no change.
+const ADJUST_RULES_LIT = [
+  { band: "< 10", test: (L) => L < 10, action: "Give a supplemental 10–15 mg/kg after this HD, then raise the maintenance dose by 250–500 mg (+500 if < 7.5). Recheck before the next HD.", hold: false, delta: [250, 500] },
+  { band: "10 to < 15", test: (L) => L < 15, action: "Raise the maintenance dose by 250 mg. Recheck before the next HD.", hold: false, delta: [250, 250] },
+  { band: "15 to 20", test: (L) => L <= 20, action: "No change. Recheck weekly.", hold: false, delta: [0, 0] },
+  { band: "> 20 to 25", test: (L) => L <= 25, action: "Lower the maintenance dose by 250 mg (no change if the 15–25 goal is selected). Recheck before the next HD.", hold: false, delta: [-250, -250] },
+  { band: "> 25 to 30", test: (L) => L <= 30, action: "Hold this dose. Recheck pre-HD; resume 250–500 mg lower when the next pre-HD level is ≤ 20.", hold: true, delta: [-500, -250] },
+  { band: "> 30", test: () => true, action: "Hold. Recheck pre-HD each session; resume 500 mg lower when ≤ 20. Flag for pharmacist review.", hold: true, delta: [-500, -500] },
+];
+const PROTOCOL_LABEL = "Based on published protocols (Stanford, UNMC, Panais, Lewis) — low–moderate evidence";
+// Proportional estimate: dose × target ÷ level (target = goal midpoint, 17.5 at 15–20), rounded to 250 mg, bounded ±50%.
+function proportionalDose(dose, level, goal = HD.goal, inc = 250) {
+  const target = (goal[0] + goal[1]) / 2;
+  const raw = (dose * target) / level;
+  const bounded = Math.min(1.5 * dose, Math.max(0.5 * dose, raw));
+  return { target, raw, bounded, dose: PK.round.roundTo(bounded, inc), limited: bounded !== raw };
+}
+
+function hdAdjust({ level, dose, goal = HD.goal, hoursPostHD, model = "literature", tbw }) {
+  const flags = [];
+  if (!isFin(level) || !isFin(dose)) return null;
+  if (isFin(hoursPostHD) && hoursPostHD < 6) {
+    flags.push({ lvl: "crit", text: `Level drawn ${hoursPostHD} h after HD: falsely low (redistribution up to 12 h, 20–40% rebound). Do not adjust on it; redraw pre-HD.` });
+    return { band: "invalid timing", status: "invalid", action: "Do not adjust: redraw pre-HD (or ≥ 6 h post-HD).", hold: false, newDose: dose, range: [dose, dose], flags };
+  }
+  if (model === "literature") {
+    const rule = ADJUST_RULES_LIT.find((r) => r.test(level));
+    const wide = goal[0] === 15 && goal[1] === 25;
+    if (!(goal[0] === 15 && (goal[1] === 20 || wide))) flags.push({ lvl: "warn", text: "The band table is written for a pre-HD goal of 15–20 (or 15–25)." });
+    let delta = rule.delta;
+    if (wide && rule.band === "> 20 to 25") delta = [0, 0];
+    const range = delta.map((d) => Math.max(0, dose + d));
+    let newDose = rule.band === "< 10" ? dose + (level < 7.5 ? 500 : 250) : rule.hold ? range[1] : dose + delta[0];
+    newDose = Math.max(0, newDose);
+    const supplemental = rule.band === "< 10" && isFin(tbw) ? [10 * tbw, 15 * tbw].map((x) => PK.round.roundTo(x, 250)) : null;
+    if (range[0] <= 0) flags.push({ lvl: "warn", text: "The suggested decrease reaches 0 mg: review the regimen." });
+    if (rule.band === "> 30") flags.push({ lvl: "crit", text: "Pre-HD level above 30: hold and flag for pharmacist review." });
+    return { band: rule.band, status: "protocol", action: wide && rule.band === "> 20 to 25" ? "No change (15–25 goal). Recheck weekly." : rule.action,
+      hold: rule.hold, newDose, range, supplemental, proportional: proportionalDose(dose, level, goal), flags };
+  }
+  const rule = ADJUST_RULES.find((r) => r.test(level));
+  let status = rule.status;
+  if (goal[0] !== 15 || goal[1] !== 20) { status = "proposed"; flags.push({ lvl: "warn", text: "The site's adjustment rules are written for a pre-HD goal of 15–20. With another goal every action is a proposal." }); }
+  const range = rule.delta.map((d) => Math.max(0, dose + d));
+  const newDose = rule.delta[1] > 0 ? range[1] : rule.delta[0] < 0 ? range[1] : dose; // increases: top of range; decreases: smallest step
+  if (range[0] <= 0) flags.push({ lvl: "warn", text: "The suggested decrease reaches 0 mg: review the regimen." });
+  return { band: rule.band, status, action: rule.action, hold: rule.hold, newDose, range, flags };
+}
+
+// Infusion time at ≤ 15 mg/min and ≥ 60 min, rounded up to 30 min.
+const infusionMinutes = (dose) => Math.max(60, Math.ceil(dose / 15 / 30 - 1e-9) * 30);
+// CALC-END
+
+// ===================== UI =====================
+const $ = (id) => document.getElementById(id);
+const { esc } = PKUI;
+const f1 = (x) => PK.round.fmt(x, 1), f0 = (x) => PK.round.fmt(x, 0);
+$("ver").textContent = `v${PK.version}`;
+
+// Local provenance tags (rendered like PKUI.badge).
+const LSRC = {
+  chartModel: { label: "Chart model K = 0.00107·CrCl_norm + 0.0052106005, Vd 0.65 L/kg, T′ 1.5 h", ref: "vanco-charts-hd §3a", verify: false },
+  tinf: { label: "T′ = 1.5 h is back-calculated; not printed on the charts", ref: "vanco-charts-hd §9.1", verify: true },
+  ldChart: { label: "LD 20–25 mg/kg TBW (chart header 20 mg/kg; Rybak 2020 20–35, default 25), cap 3 g", ref: "vanco-charts-hd §5a; lit §2.2", verify: false },
+  hdLd: { label: "HD LD 25 mg/kg (35 intradialytic), cap 3000 mg", ref: "vanco-charts-hd §4a; Rybak 2020", verify: false },
+  hdMd: { label: "Post-HD maintenance 10 mg/kg TBW (Rybak 2020); flat 750 mg and tiers as options", ref: "decisions/vancomycin-aminoglycosides.md §1 (moderate)", verify: false },
+  hdMdSite: { label: "Flat 750 mg post-HD (site 2020 MUE, unpublished)", ref: "vanco-charts-hd §4c", verify: true },
+  floorCap: { label: "Maintenance floor 500 mg / cap 1500 mg: institutional proposal fitted to the MUE range 410–1398 mg", ref: "decisions/vancomycin-aminoglycosides.md §1 (low)", verify: true },
+  residual: { label: "Residual CrCl add-on +200 mg at 5, +400 mg at 10 mL/min (site rule of thumb; stepped)", ref: "vanco-charts-hd §4a", verify: true },
+  residualLit: { label: "Residual add-on about 40 mg per mL/min per 48 h (×1.5 for 72 h), derived from Matzke 1984", ref: "decisions/vancomycin-aminoglycosides.md §4 (low)", verify: true },
+  obeseVd: { label: "Vd 0.5 L/kg TBW at BMI ≥ 30 (Rybak 2020; Dunn 2019 0.52)", ref: "decisions/vancomycin-aminoglycosides.md §5 (moderate)", verify: false },
+  ldCap4: { label: "LD cap 4 g (Payne 2024) for critically ill > 120 kg", ref: "decisions/vancomycin-aminoglycosides.md §5 (low)", verify: true },
+  protocols: { label: PROTOCOL_LABEL, ref: "decisions/vancomycin-aminoglycosides.md §2 (low–moderate)", verify: true },
+  goal1525: { label: "Pre-HD 15–25 for severe infection (AUC may exceed 600 at the top)", ref: "decisions/vancomycin-aminoglycosides.md §3 (moderate)", verify: true },
+  gap72: { label: "+25% for the dose before the 3-day gap", ref: "Rybak 2020 (lit §1e)", verify: false },
+  lowflux: { label: "Low-flux: Rybak 2020 low-permeability row (MD 7.5 mg/kg; LD 25, or 30 intradialytic)", ref: "lit §1e", verify: false },
+  hdPk: { label: "Institutional MUE PK fit (unpublished)", ref: "vanco-charts-hd §4d; lit §1e", verify: true },
+  hdWb: { label: "Pierce HD workbook: Vd 1 L/kg, flat Cl_HD 4.08 / Cl_r 0.4621 L/h, pre-HD 15, gap 56 h, T′ 2 h (unpublished)", ref: "vanco-charts-hd Workbook verification; workbook-checks/vancomycin-aminoglycosides.md §3", verify: true },
+  aucReg: { label: "AUC = 24.715 × trough + 53.958 (site MUE regression, not peer reviewed)", ref: "lit §1e", verify: true },
+  goal2025: { label: "Pre-HD goal 20–25 is not guideline-supported", ref: "lit §3 item 2", verify: true },
+};
+const badge = (k) => {
+  if (PK.sources[k]) return PKUI.badge(k);
+  const s = LSRC[k];
+  if (!s) return `<span class="src verify" title="Unknown source">verify</span>`;
+  const t = esc(`${s.label} (${s.ref})`);
+  return s.verify ? `<span class="src verify" title="${t}">verify</span>` : `<span class="src" title="${t}">src</span>`;
+};
+const SIGNOFF = `<span class="signoff">Proposed — needs clinician sign-off</span>`;
+const SITE_RULE = `<span class="sitebadge">Site rule (2020 MUE)</span>`;
+const PROTO = `<span class="sitebadge" style="color:var(--warn);background:var(--warn-bg);white-space:normal">${esc(PROTOCOL_LABEL)}</span>`;
+
+// ---------- Tabs ----------
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function showTab(name) {
+  tabs.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  $("panel-charts").hidden = name !== "charts";
+  $("panel-hd").hidden = name !== "hd";
+}
+tabs.forEach((b) => b.addEventListener("click", () => { showTab(b.dataset.tab); history.replaceState(null, "", `#${b.dataset.tab}`); }));
+tabs.forEach((b, idx) => b.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  const n = tabs[(idx + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+  n.focus(); n.click();
+}));
+if (location.hash === "#hd") showTab("hd");
+
+// ---------- Theme ----------
+const THEMES = ["auto", "light", "dark"];
+let theme = "auto";
+try { theme = localStorage.getItem("pk-theme") || "auto"; } catch (e) {}
+function applyTheme() {
+  if (theme === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", theme);
+  $("themeBtn").textContent = `Theme: ${theme}`;
+}
+$("themeBtn").addEventListener("click", () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; try { localStorage.setItem("pk-theme", theme); } catch (e) {} applyTheme(); });
+applyTheme();
+
+// ---------- Model ----------
+let model = "literature";
+const MODEL_NOTE = {
+  literature: "Literature (default): CrCl weight = suite policy (AdjBW if TBW > 1.2 × IBW, else min(IBW, TBW)); chart LD 25 mg/kg; HD +25% before the 72 h gap and the Rybak low-flux row (Rybak 2020, lit/vancomycin.md).",
+  site: "Site: reproduces pkineticdrugdosing.com: CrCl with min(LBW, TBW); chart LD 20 mg/kg (header); no 72 h rule; low-flux 'no supplemental dose' (outdated).",
+};
+// Model-dependent HD defaults: Literature → 10 mg/kg and goals 15–20 / 15–25; Site → flat 750 and goals 15–20 / 20–25.
+function applyModelDefaults() {
+  $("hRule").value = model === "literature" ? "mgkg10" : "flat750";
+  $("hGoal").innerHTML = model === "literature"
+    ? '<option value="15-20" selected>15–20 mcg/mL</option><option value="15-25">15–25 mcg/mL (severe infection: bacteremia, endocarditis, osteomyelitis)</option>'
+    : '<option value="15-20" selected>15–20 mcg/mL</option><option value="20-25">20–25 mcg/mL (site MUE; needs sign-off)</option>';
+}
+applyModelDefaults();
+PKUI.segmented($("modelSeg"), (v) => { model = v; applyModelDefaults(); renderAll(); });
+
+// ---------- Copy helper ----------
+function copyText(text, statusEl, ta) {
+  const done = () => { statusEl.textContent = "Copied"; setTimeout(() => (statusEl.textContent = ""), 2000); };
+  const fallback = () => { ta.focus(); ta.select(); statusEl.textContent = "Press Ctrl+C to copy"; };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-copy]");
+  if (!b) return;
+  const card = b.closest(".order"), ta = card.querySelector("textarea");
+  copyText(ta.value, card.querySelector(".copied"), ta);
+});
+const orderBlock = (text) => `<textarea class="ord-text" readonly aria-label="Order text">${esc(text)}</textarea>
+  <div class="actions"><button type="button" class="primary" data-copy>Copy order text</button><span class="copied" role="status"></span></div>`;
+
+// ===================== Charts tab =====================
+const htT = PKUI.unitToggle($("ht"), $("htU"), ["in", "cm"], { dp: 1, onChange: () => renderCharts() });
+const wtT = PKUI.unitToggle($("wt"), $("wtU"), ["kg", "lb"], { dp: 1, onChange: () => renderCharts() });
+const scrT = PKUI.unitToggle($("scr"), $("scrU"), ["mg/dL", "µmol/L"], { dp: 2, onChange: () => renderCharts() });
+const fnum = (id) => { const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; };
+
+const optHtml = (sel) => [15, 14, 13, 12.5, 12, 11, 10, 9, 8].map((d) =>
+  `<option value="${d}"${d === sel ? " selected" : ""}>${d} mg/kg${CHART.DOSES.includes(d) ? ` (${chartName(d)})` : " (computed, no published chart)"}</option>`).join("");
+$("mgkg").innerHTML = optHtml(15);
+$("chartSel").innerHTML = optHtml(15);
+$("rMgkg").innerHTML = optHtml(15);
+$("rNew").innerHTML = optHtml(15);
+$("rTau").innerHTML = CHART.TAUS.map((t) => `<option value="${t}"${t === 12 ? " selected" : ""}>q${t}h</option>`).join("");
+$("mgkg").addEventListener("change", () => { $("chartSel").value = $("mgkg").value; renderCharts(); });
+$("rMgkg").addEventListener("change", () => { $("rNew").value = $("rMgkg").value; renderCharts(); });
+["age", "sex", "ht", "wt", "scr", "floor07", "goalLo", "goalHi", "inc", "chCap", "chartSel", "rTau", "rLevel", "rNew"].forEach((id) =>
+  $(id).addEventListener(id === "sex" || id === "inc" || id === "chCap" || id === "chartSel" || id === "rTau" || id === "rNew" || id === "floor07" ? "change" : "input", () => renderCharts()));
+
+let lastChart = null; // { pr, rec, goal } for the chart highlight
+
+function chartInputs() {
+  return { age: fnum("age"), sex: $("sex").value, heightIn: htT.unit() === "in" ? fnum("ht") : htT.getValue() / 2.54, tbw: wtT.getValue(), scr: scrT.getValue(), scrFloor07: $("floor07").checked };
+}
+
+function renderCharts() {
+  const i = chartInputs();
+  const goal = [fnum("goalLo"), fnum("goalHi")];
+  const mgkg = parseFloat($("mgkg").value), inc = parseFloat($("inc").value);
+  const alerts = [];
+  const ok = [i.age, i.heightIn, i.tbw, i.scr].every((x) => isFin(x) && x > 0) && goal.every(isFin) && goal[0] < goal[1];
+  if (!ok) {
+    PKUI.renderBanners($("chAlerts"), [{ lvl: "warn", text: "Enter age, height, weight, SCr and a goal range (low < high)." }]);
+    $("chOrder").innerHTML = ""; $("tauTable").innerHTML = ""; lastChart = null; renderChartTable(); renderRetro(goal); return;
+  }
+  if (i.age < 18) alerts.push({ lvl: "crit", text: "Adults only (18 years and older)." });
+  const pr = patientRenal(i, model);
+  alerts.push(...pr.flags);
+  if (!CHART.DOSES.includes(mgkg)) alerts.push({ lvl: "info", text: `${mgkg} mg/kg has no published chart: values are computed from the chart equation.` });
+  const rec = chartRecommend({ mgkg, tbw: i.tbw, crclNorm: pr.crclNorm, goal, inc, vdPerKg: pr.vdPerKg });
+  if (!rec.inRange) alerts.push({ lvl: "warn", text: "No standard interval reaches the goal at this mg/kg: the closest is shown. Try another mg/kg." });
+  if (rec.tau >= 48) alerts.push({ lvl: "warn", text: "Interval ≥ 48 h: consider level-guided (pulse) dosing or the AUC tool." });
+  const chCap = parseFloat($("chCap").value);
+  const ld = chartLoading(i.tbw, model, { cap: chCap });
+  PKUI.renderBanners($("chAlerts"), alerts);
+  lastChart = { pr, rec, goal, mgkg };
+
+  const mins = infusionMinutes(rec.dose), ldMins = infusionMinutes(ld.order);
+  const text = [
+    `Vancomycin loading dose ${ld.order} mg IV x1 (${ld.mgkg} mg/kg TBW${ld.capped ? `, capped at ${chCap / 1000} g` : ""}), infuse over ${ldMins} min.`,
+    `Then vancomycin ${rec.dose} mg IV q${rec.tau}h (${PK.round.fmt(rec.actualMgkg, 1)} mg/kg TBW), infuse over ${mins} min (≤ 15 mg/min).`,
+    `Predicted steady-state trough ${f1(rec.trough)} mcg/mL (goal ${goal[0]}–${goal[1]}); K ${PK.round.fmt(pr.k, 4)} h⁻¹, t½ ${f1(pr.t12)} h, CrCl ${f1(pr.crcl)} mL/min (${f1(pr.crclNorm)} mL/min/1.73 m²).`,
+    `Trough before the 4th dose. Legacy trough chart (${model} model); AUC-guided dosing preferred.`,
+  ].join("\n");
+  $("chOrder").innerHTML = `
+    <div class="top">
+      <div class="lines">
+        <div class="oline"><span class="tag">Load</span><span class="rx">${ld.order} mg IV × 1</span>${badge("ldChart")}${chCap > 3000 ? badge("ldCap4") : ""}</div>
+        <div class="oline"><span class="tag">Maint</span><span class="rx">${rec.dose} mg IV q${rec.tau}h</span>${badge("chartModel")}</div>
+        <div class="subl">${PK.round.fmt(rec.actualMgkg, 2)} mg/kg after rounding (chart ${mgkg} mg/kg × ${f1(i.tbw)} kg = ${f0(rec.doseExact)} mg). LD range 20–25 mg/kg = ${f0(ld.range[0])}–${f0(ld.range[1])} mg.</div>
+      </div>
+      <div class="right"><span class="lbl">Predicted SS trough</span><span class="val">${f1(rec.trough)}</span><span class="lbl">mcg/mL · peak ${f1(rec.peak)} · AUC24 ${f0(rec.auc24)}</span>
+        <span class="pill ${rec.inRange ? "ok" : "warn"}">${rec.inRange ? "in goal" : "outside goal"}</span></div>
+    </div>
+    <div class="info">
+      <div><span class="lbl">CrCl (CG, ${esc(pr.weightBasis)} ${f1(pr.weightUsed)} kg)</span>${f1(pr.crcl)} mL/min ${badge("cockcroftGault")}</div>
+      <div><span class="lbl">BSA (DuBois)</span>${PK.round.fmt(pr.bsa, 3)} m² ${badge("dubois")}</div>
+      <div><span class="lbl">CrCl normalized</span>${f1(pr.crclNorm)} mL/min/1.73 m²</div>
+      <div><span class="lbl">K / t½</span>${PK.round.fmt(pr.k, 4)} h⁻¹ / ${f1(pr.t12)} h</div>
+      <div><span class="lbl">Chart column</span>${rec.colCrcl} → q${rec.chartPick.tau}h (${f1(rec.chartPick.trough)})</div>
+      <div><span class="lbl">Infusion time T′ in model</span>1.5 h ${badge("tinf")}</div>
+      <div><span class="lbl">Vd (calculator)</span>${PK.round.fmt(pr.vdPerKg, 2)} L/kg × TBW = ${f1(rec.V)} L ${pr.vdPerKg !== CHART.VD_PER_KG ? badge("obeseVd") : ""}</div>
+      <div><span class="lbl">Model</span>${model === "site" ? "Site" : "Literature"}</div>
+    </div>
+    ${orderBlock(text)}`;
+
+  const tr = (x, goalCheck = true) => `<td${goalCheck && rangeDist(x, goal) === 0 ? ' style="background:var(--band)"' : ""}>${f1(x)}</td>`;
+  $("tauTable").innerHTML = `<thead><tr><th>Interval</th><th>Chart (col ${rec.colCrcl})</th><th>Calculator (${f1(pr.crclNorm)})</th><th>Rounded dose ${rec.dose} mg</th></tr></thead><tbody>` +
+    CHART.TAUS.map((t, k) => `<tr class="${t === rec.tau ? "sel" : ""}"><td>q${t}h</td>${tr(rec.chartList[k].trough)}${tr(rec.calcList[k].trough)}${tr(rec.finalList[k].trough)}</tr>`).join("") + "</tbody>";
+  renderChartTable();
+  renderRetro(goal);
+}
+
+function chartTableHtml(mgkg, { highlight = true } = {}) {
+  const t = chartTable(mgkg);
+  const lc = highlight && lastChart ? lastChart : null;
+  const goal = lc ? lc.goal : [fnum("goalLo"), fnum("goalHi")];
+  const pcol = lc ? lc.rec.col : -1;
+  const hitTau = lc && lc.mgkg === mgkg ? lc.rec.chartPick.tau : null;
+  const head = `<tr><th>τ (h) \\ CrCl</th>${CHART.CRCL.map((c, j) => `<th class="${j === pcol ? "pcol" : ""}">${c}</th>`).join("")}</tr>`;
+  const meta = `<tr class="meta"><td>Kel (h⁻¹)</td>${t.k.map((k) => `<td>${k.toFixed(3)}</td>`).join("")}</tr>
+    <tr class="meta"><td>T½ (h)</td>${t.t12.map((x) => `<td>${x.toFixed(2)}</td>`).join("")}</tr>`;
+  const rows = t.rows.map((r) => `<tr><td>${r.tau}</td>${r.cells.map((v, j) => {
+    const cls = [j === pcol ? "pcol" : "", r.tau === hitTau && j === pcol ? "hit" : rangeDist(v, goal) === 0 ? "goal" : ""].filter(Boolean).join(" ");
+    return `<td${cls ? ` class="${cls}"` : ""}>${v.toFixed(1)}</td>`;
+  }).join("")}</tr>`).join("");
+  return { html: `<thead>${head}</thead><tbody>${meta}${rows}</tbody>`, t };
+}
+const chartCaption = (t) => `${t.mgkg} mg/kg maintenance dose · ${t.name} · peak-to-trough change ≈ ${t.swing.toFixed(1)} mcg/mL · Loading dose 20 mg/kg for peak of about 30 mcg/mL · Serum levels predicted (troughs, mcg/mL) · CrCl in mL/min/1.73 m²`;
+
+function renderChartTable() {
+  const mgkg = parseFloat($("chartSel").value);
+  const { html, t } = chartTableHtml(mgkg);
+  $("chartTable").innerHTML = html;
+  $("chartHead").innerHTML = esc(chartCaption(t)) + (t.published ? "" : ` <span class="src verify" title="No 12.5 mg/kg chart was published (spec §9.3)">computed</span>`);
+}
+$("chartSel").addEventListener("change", renderChartTable);
+
+function doPrint(list) {
+  const goal = [fnum("goalLo"), fnum("goalHi")];
+  $("printArea").innerHTML = list.map((d) => { const { html, t } = chartTableHtml(d, { highlight: false });
+    return `<section><h3>Vancomycin Dosing Chart: ${d} mg/kg (${esc(t.name)})</h3><p>${esc(chartCaption(t))}. Shaded: trough ${goal[0]}–${goal[1]}. Kel = 0.00107·CrCl + 0.0052106005, Vd 0.65 L/kg TBW, T′ 1.5 h. Trough-only dosing is no longer recommended (Rybak 2020). Educational use.</p><table>${html}</table></section>`; }).join("");
+  document.body.classList.add("printing");
+  window.print();
+}
+window.addEventListener("afterprint", () => document.body.classList.remove("printing"));
+$("printOne").addEventListener("click", () => doPrint([parseFloat($("chartSel").value)]));
+$("printAll").addEventListener("click", () => doPrint(CHART.DOSES));
+
+function renderRetro(goal) {
+  const mgkg = parseFloat($("rMgkg").value), tau = parseFloat($("rTau").value), level = fnum("rLevel"), nm = parseFloat($("rNew").value);
+  if (!(level > 0) || !goal.every(isFin)) { $("retroOut").innerHTML = `<p class="note">Enter the measured trough.</p>`; return; }
+  const r = retroAdjust({ mgkg, tau, trough: level, goal, newMgkg: nm });
+  const rows = CHART.TAUS.map((t, k) => {
+    const c = r.chart.list[k].trough, x = r.calc.ok ? r.calc.list[k].trough : NaN;
+    const g = (v) => (rangeDist(v, goal) === 0 ? ' style="background:var(--band)"' : "");
+    return `<tr class="${t === (r.calc.pick || r.chart.pick).tau ? "sel" : ""}"><td>q${t}h</td><td${g(c)}>${f1(c)}</td><td${g(x)}>${f1(x)}</td></tr>`;
+  }).join("");
+  $("retroOut").innerHTML = `
+    <dl class="calc">
+      <dt>Chart mode: closest cell in the q${tau}h row (${mgkg} mg/kg)</dt><dd>${f1(r.chart.cell)} at CrCl column ${r.chart.crcl} → fit K ${r.chart.k.toFixed(3)} h⁻¹</dd>
+      <dt>Calculator mode: K solved for ${f1(level)} mcg/mL</dt><dd>${r.calc.ok ? `${r.calc.k.toFixed(4)} h⁻¹ (t½ ${f1(r.calc.t12)} h, ≈ CrCl ${f1(r.calc.crclNormEq)})` : "no solution in K 0.001–0.5"}</dd>
+      <dt>New interval at ${nm} mg/kg (chart / calculator)</dt><dd>q${r.chart.pick.tau}h / ${r.calc.ok ? `q${r.calc.pick.tau}h` : "—"}${r.calc.ok && !r.calc.pick.inRange ? " (closest, outside goal)" : ""}</dd>
+    </dl>
+    <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>Interval</th><th>Chart column ${r.chart.crcl}</th><th>Fitted K</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ===================== HD tab =====================
+const hWtT = PKUI.unitToggle($("hWt"), $("hWtU"), ["kg", "lb"], { dp: 1, onChange: () => renderHD() });
+["hWt", "hT", "hRes", "pVd", "pClr", "pClhd", "aLevel", "aDose", "aHrs"].forEach((id) => $(id).addEventListener("input", () => renderHD()));
+["hTiming", "hMem", "hFirst", "hGoal", "hRule", "hLdProt", "hCap", "pAuto", "pPreset", "wbVd", "wbMhd", "wbMr", "aWhen"].forEach((id) => $(id).addEventListener("change", () => renderHD(id)));
+const DAYS = ["Mon", "Wed", "Fri"];
+
+// Pierce HD workbook preset (Site model only): drop-downs as in the workbook's Sheet2.
+const WB = HD.workbook;
+const wbOpts = (list, sel) => list.map((v) => `<option value="${v}"${v === sel ? " selected" : ""}>${v}</option>`).join("");
+$("wbVd").innerHTML = wbOpts(WB.vdOptions, WB.params.vdPerKg);
+$("wbMhd").innerHTML = wbOpts(WB.multipliers, 1);
+$("wbMr").innerHTML = wbOpts(WB.multipliers, 1);
+const wbOn = () => model === "site" && $("pPreset").value === "workbook";
+
+function syncParams() {
+  $("pPresetL").style.display = model === "site" ? "" : "none";
+  if (model !== "site") $("pPreset").value = "default";
+  const wb = wbOn();
+  document.querySelectorAll(".wbf").forEach((el) => (el.style.display = wb ? "" : "none"));
+  $("pAuto").closest("label").style.display = wb ? "none" : "";
+  if (wb) {
+    $("pVd").value = parseFloat($("wbVd").value);
+    $("pClr").value = WB.params.clr * parseFloat($("wbMr").value);
+    $("pClhd").value = WB.params.clhd * parseFloat($("wbMhd").value);
+    ["pVd", "pClr", "pClhd"].forEach((id) => ($(id).disabled = true));
+    $("pNote").innerHTML = `Preset: ${esc(WB.params.label)}. The workbook's clearances are flat L/h and <b>do not scale with weight</b>: only Vd does, so K falls as weight rises and the replacement dose stays nearly flat. ${badge("hdWb")}`;
+    return;
+  }
+  const p = HD.params[$("hTiming").value];
+  if ($("pAuto").checked) { $("pVd").value = p.vdPerKg; $("pClr").value = p.clr; $("pClhd").value = p.clhd; }
+  ["pVd", "pClr", "pClhd"].forEach((id) => ($(id).disabled = $("pAuto").checked));
+  $("pNote").innerHTML = `${$("pAuto").checked ? `Defaults: ${esc(p.label)}.` : "Custom parameters."} ${badge("hdPk")}`;
+}
+
+function renderHD(changed) {
+  if (changed === "hLdProt") $("hCap").value = $("hLdProt").value === "legacy" ? "2000" : "3000";
+  if (!changed || ["hTiming", "pAuto", "pPreset", "wbVd", "wbMhd", "wbMr"].includes(changed)) syncParams();
+  if (changed === "aWhen" && $("aWhen").value === "pre") $("aHrs").value = "";
+  const tbw = hWtT.getValue(), timing = $("hTiming").value, membrane = $("hMem").value, tHD = fnum("hT");
+  const res = fnum("hRes"), goal = $("hGoal").value.split("-").map(Number), rule = $("hRule").value;
+  const alerts = [{ lvl: "info", text: "Chronic intermittent HD only: not for CRRT or HD for acute kidney injury (excluded from the MUEs)." }];
+  if (!(tbw > 0) || !(tHD > 0)) { PKUI.renderBanners($("hdAlerts"), [{ lvl: "warn", text: "Enter weight and session length." }]); $("hdOrder").innerHTML = ""; $("predOut").innerHTML = ""; return; }
+  if (goal[0] === 20) alerts.push({ lvl: "warn", text: "Pre-HD goal 20–25 is not guideline-supported (Rybak 2020 recommends 15–20); needs clinician sign-off." });
+  const resPresent = isFin(res) && res > 0;
+  if (goal[0] === 15 && goal[1] === 25) alerts.push({ lvl: resPresent ? "warn" : "info", text: `Goal 15–25 (severe infection): a pre-HD level of 25 maps to an AUC of about ${f0(hdAucFromTrough(25))}–${f0(25 * 27)} mg·h/L, above 600${resPresent ? "; residual renal function is present, so nephrotoxicity matters" : ""}.` });
+  if (tbw > 200) alerts.push({ lvl: "warn", text: "TBW above 200 kg: weight-based doses are uncertain; obtain levels early." });
+  $("levelPlan").innerHTML = model === "literature"
+    ? "First <b>pre-HD level before the 2nd session after the load</b> (Lewis 2021; UNMC 2024), then before the next session after any change, then weekly."
+    : "Then a <b>pre-HD level before maintenance doses 2, 3 and 4</b>; after that periodically (at least weekly, Rybak 2020).";
+  $("ruleNote").innerHTML = model === "literature"
+    ? `Literature default: 10 mg/kg TBW post-HD (12.5 intradialytic), rounded to 250 mg, floor 500 / cap 1500 mg ${badge("floorCap")}. Flat 750 mg and weight tiers are options.`
+    : `Site default: flat 750 mg post-HD (2020 MUE) ${badge("hdMdSite")}. Rybak 2020 recommends 10 mg/kg (switch the Model to Literature).`;
+  if (membrane === "low") alerts.push({ lvl: "warn", text: "Low-flux membrane: removal is small (about 8% per session); modern US HD is almost entirely high-flux." });
+  if (isFin(res) && res > 15) alerts.push({ lvl: "warn", text: "Residual CrCl above 15 mL/min: the add-on rule of thumb stops at +400 mg (10 mL/min)." });
+  const ld = hdLoading({ tbw, timing, membrane, protocol: $("hLdProt").value, cap: parseFloat($("hCap").value) });
+  const md = hdMaintenance({ tbw, timing, membrane, rule, residualCrcl: res, model });
+  const ruleDefault = model === "literature" ? "mgkg10" : "flat750";
+  alerts.push(...md.flags);
+  if (rule !== ruleDefault && membrane !== "low") alerts.push({ lvl: "info", text: `Maintenance rule changed from the ${model} default (${ruleDefault === "mgkg10" ? "10 mg/kg" : "flat 750 mg"}).` });
+  if (ld.cap === 4000) alerts.push({ lvl: "warn", text: "4 g loading cap selected: low evidence (Payne 2024), for critically ill patients > 120 kg." });
+  PKUI.renderBanners($("hdAlerts"), alerts);
+
+  const when = timing === "during" ? "during the last hour of HD" : "after HD";
+  const longGapLine = md.none ? "" : model === "literature" && md.longGap !== md.regular
+    ? `${md.longGap} mg after the last session before the 72 h gap (+25%).` : "";
+  const text = [
+    `Vancomycin loading dose ${ld.order} mg IV x1 ${when} (${ld.mgkg} mg/kg × ${f1(tbw)} kg${ld.capped ? `, capped at ${ld.cap} mg` : ""}), infuse over ${infusionMinutes(ld.order)} min.`,
+    md.none ? "Maintenance: none per site (low-flux)." :
+      `Maintenance: vancomycin ${md.regular} mg IV ${when} each session (${esc(md.basis)}${md.addOn ? `, +${f0(md.addOn)} mg residual renal function` : ""}), infuse over ${infusionMinutes(md.regular)} min. ${longGapLine}`.trim(),
+    `Goal pre-HD level ${goal[0]}–${goal[1]} mcg/mL. ${model === "literature" ? "First pre-HD level before the 2nd session after the load, then before the next session after any change, then weekly." : "Level after the load before the first HD, then pre-HD before maintenance doses 2, 3 and 4."} Post-HD levels only ≥ 6 h after HD.`,
+  ].join("\n");
+  $("hdOrder").innerHTML = `
+    <div class="top">
+      <div class="lines">
+        <div class="oline"><span class="tag">Load</span><span class="rx">${ld.order} mg IV × 1 ${when}</span>${badge(membrane === "low" ? "lowflux" : "hdLd")}</div>
+        <div class="subl">${ld.mgkg} mg/kg × ${f1(tbw)} kg = ${f0(ld.exact)} mg${ld.capped ? ` → cap ${ld.cap} mg` : ""}; rounded to 250 mg.</div>
+        <div class="oline"><span class="tag">Maint</span><span class="rx">${md.none ? "none (site, low-flux)" : `${md.regular} mg IV ${when}`}</span>${badge(model === "literature" && rule === "mgkg10" ? "hdMd" : "hdMdSite")}${model === "literature" && rule === "mgkg10" && membrane !== "low" ? badge("floorCap") : ""}</div>
+        ${md.none ? "" : `<div class="subl">${esc(md.basis)}: ${f0(md.base)} mg${md.addOn ? ` + ${f0(md.addOn)} mg residual CrCl ${badge(model === "literature" ? "residualLit" : "residual")}` : ""}${md.range ? `; range ${f0(md.range[0])}–${f0(md.range[1])} mg` : ""}.</div>`}
+        ${md.none ? "" : `<div class="oline"><span class="tag">72 h</span><span class="rx">${md.longGap} mg before the long gap</span>${model === "literature" ? badge("gap72") : ""}</div>
+        <div class="subl">${model === "literature" ? `+25% on the base${md.addOn72 ? ` plus ${f0(md.addOn72)} mg residual (72 h)` : ""} = ${f0(md.longGapExact)} mg for the dose before the 3-day interdialytic period (Rybak 2020).` : "Site: no rule for the 72 h gap (the site only says it needs more drug). See the PK estimate below."}</div>`}
+        ${model === "site" && rule === "flat750" && membrane !== "low" ? `<div>${SIGNOFF} <span class="note">Site flat 750 mg vs Rybak 10 mg/kg (= ${f0(10 * tbw)} mg here).</span></div>` : ""}
+      </div>
+      <div class="right"><span class="lbl">Pre-HD goal</span><span class="val">${goal[0]}–${goal[1]}</span><span class="lbl">mcg/mL</span>${goal[0] === 20 ? badge("goal2025") : goal[1] === 25 ? badge("goal1525") : ""}</div>
+    </div>
+    <div class="info">
+      <div><span class="lbl">Timing</span>${timing === "during" ? "Intradialytic" : "Post-HD"}</div>
+      <div><span class="lbl">Membrane</span>${membrane === "low" ? "Low-flux" : "High-flux"}</div>
+      <div><span class="lbl">Model</span>${model === "site" ? "Site" : "Literature"}</div>
+    </div>
+    ${orderBlock(text)}`;
+
+  renderPred({ tbw, tHD, goal, ld, md });
+  renderAdjust(goal, md, tbw);
+}
+
+function renderPred({ tbw, tHD, goal, ld, md }) {
+  const params = { vdPerKg: fnum("pVd"), clr: fnum("pClr"), clhd: fnum("pClhd") };
+  if (![params.vdPerKg, params.clr, params.clhd].every((x) => x > 0)) { $("predOut").innerHTML = `<p class="note">Enter positive PK parameters.</p>`; return; }
+  const target = (goal[0] + goal[1]) / 2;
+  const r48 = hdReplacement({ tbw, tHD, gap: 48, target, params }), r72 = hdReplacement({ tbw, tHD, gap: 72, target, params });
+  const first = parseInt($("hFirst").value, 10);
+  // Per-session doses: the session before the 72 h gap (Fri, index 2) gets the long-gap dose.
+  const doses = md.none ? [0, 0, 0] : [md.regular, md.regular, md.longGap];
+  const wk = hdWeekly({ doses, tbw, params, tHD });
+  const sim = hdSimulate({ ld: ld.order, doses, tbw, params, tHD, nSessions: 9, first });
+  const g = (v) => (rangeDist(v, goal) === 0 ? ' style="background:var(--band)"' : rangeDist(v, goal) > 0 ? ' style="background:var(--warn-bg)"' : "");
+  let wbHtml = "";
+  if (wbOn()) {
+    const w = hdReplacement({ tbw, tHD, gap: WB.gap, target: WB.target, params, tinf: WB.tinf });
+    wbHtml = `<dl class="calc" style="margin-top:8px">
+      <dt>Pierce HD workbook: pre-HD ${WB.target}, gap ${WB.gap} h, T′ ${WB.tinf} h, session ${f1(tHD)} h ${badge("hdWb")}</dt>
+      <dd>Dose ${f0(w.dose)} mg · C_post ${f1(w.cPost)} · Peak_req ${f1(w.peakReq)} mcg/mL · ${f0(100 * w.fracRemovedHD)}% lost per session · AUC24 ${f0(w.aucFull)} mg·h/L · LD ${f0(25 * w.V)} mg (25 mg/L × Vd)</dd>
+    </dl>${tHD !== WB.tHD ? `<p class="note">The workbook uses a ${WB.tHD} h session.</p>` : ""}`;
+  }
+  $("predOut").innerHTML = wbHtml + `
+    <div class="two" style="margin-top:8px">
+      <div>
+        <dl class="calc">
+          <dt>Vd / K_renal / K_HD</dt><dd>${f1(r48.V)} L / ${r48.kr.toFixed(5)} / ${r48.khd.toFixed(5)} h⁻¹</dd>
+          <dt>Fraction removed per ${tHD} h session</dt><dd>${f0(100 * r48.fracRemovedHD)}%</dd>
+          <dt>Replacement dose for pre-HD ${f1(target)}: 48 h gap</dt><dd>${f0(r48.dose)} mg (AUC ${f0(r48.aucFull)})</dd>
+          <dt>Replacement dose: 72 h gap</dt><dd>${f0(r72.dose)} mg (AUC ${f0(r72.aucFull)})</dd>
+          <dt>AUC from pre-HD ${goal[0]} / ${goal[1]} (MUE regression) ${badge("aucReg")}</dt><dd>${f0(hdAucFromTrough(goal[0]))} / ${f0(hdAucFromTrough(goal[1]))} mg·day/L</dd>
+        </dl>
+      </div>
+      <div class="tablewrap"><table><thead><tr><th>Steady state</th><th>Mon</th><th>Wed</th><th>Fri</th></tr></thead><tbody>
+        <tr><td>Dose (mg)</td>${doses.map((d) => `<td>${f0(d)}</td>`).join("")}</tr>
+        <tr><td>Pre-HD trough</td>${wk.troughs.map((v) => `<td${g(v)}>${f1(v)}</td>`).join("")}</tr>
+        <tr><td>Post-dose peak</td>${wk.peaks.map((v) => `<td>${f1(v)}</td>`).join("")}</tr>
+      </tbody></table></div>
+    </div>
+    <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Course from the load</th>${sim.slice(1).map((s) => `<th>${DAYS[s.day]} #${s.session}</th>`).join("")}</tr></thead><tbody>
+      <tr><td>Pre-HD level (mcg/mL)</td>${sim.slice(1).map((s) => `<td${g(s.preHD)}>${f1(s.preHD)}</td>`).join("")}</tr>
+      <tr><td>Dose after session (mg)</td>${sim.slice(1).map((s) => `<td>${f0(s.dose)}</td>`).join("")}</tr>
+    </tbody></table></div>
+    <p class="note">Weekly superposition at steady state with the corrected trough exponent K_r × (gap − T_HD); the course table starts with the load after the first session (${DAYS[first]}). Predictions only: the 2020 MUE model had RMSE 4.85 mcg/mL and bias −1.4. Residual renal function is not added to the model clearance.</p>`;
+}
+
+function renderAdjust(goal, md, tbw) {
+  const level = fnum("aLevel"), dose = fnum("aDose");
+  const hrs = $("aWhen").value === "post" ? fnum("aHrs") : NaN;
+  if ($("aWhen").value === "post" && !isFin(hrs)) { $("adjOut").innerHTML = `<p class="note">Enter the hours after the end of HD for a post-HD level.</p>`; }
+  else {
+    const a = hdAdjust({ level, dose, goal, hoursPostHD: hrs, model, tbw });
+    if (!a) $("adjOut").innerHTML = `<p class="note">Enter the level and the current dose.</p>`;
+    else {
+      const flags = a.flags.map((f) => `<div class="alert ${f.lvl === "crit" ? "crit" : ""}">${esc(f.text)}</div>`).join("");
+      const doseTxt = a.hold ? `Hold this post-HD dose; resume at ${f0(a.range[0])}–${f0(a.range[1])} mg`
+        : a.range[0] === a.range[1] ? `${f0(a.newDose)} mg` : `${f0(a.newDose)} mg (range ${f0(a.range[0])}–${f0(a.range[1])})`;
+      let body = `<div class="oline"><span class="tag">Band</span><span class="rx">${esc(a.band)}</span></div>
+        <div class="oline"><span class="tag">Action</span><span>${esc(a.action)}</span></div>
+        ${a.supplemental ? `<div class="oline"><span class="tag">Now</span><span class="rx">Supplemental ${f0(a.supplemental[0])}–${f0(a.supplemental[1])} mg after this HD (10–15 mg/kg)</span></div>` : ""}
+        <div class="oline"><span class="tag">Maint</span><span class="rx">${doseTxt}</span></div>`;
+      if (a.proportional) {
+        const p = a.proportional;
+        body += `<div class="oline"><span class="tag">Prop.</span><span class="rx">${f0(p.dose)} mg</span><span class="note">proportional estimate: ${f0(dose)} × ${f1(p.target)} ÷ ${f1(level)} = ${f0(p.raw)} mg${p.limited ? ", bounded to ±50%" : ""}, rounded to 250 mg. Assumes linear steady state; approximate before about the 3rd maintenance dose.${p.dose !== a.newDose && !a.hold ? " Differs from the band table: review both." : ""}</span></div>`;
+      }
+      $("adjOut").innerHTML = flags + (a.status === "site"
+        ? `<div style="display:grid;gap:4px">${SITE_RULE}${body}</div>`
+        : a.status === "protocol" ? `<div style="display:grid;gap:4px">${PROTO}${body}</div>`
+        : a.status === "proposed" ? `<div class="proposed">${SIGNOFF}<span class="note">Not a site rule or guideline recommendation: placeholder from the spec for review.</span>${body}</div>`
+        : `<div class="alert crit">${esc(a.action)}</div>`);
+    }
+  }
+  if (model === "literature") {
+    $("adjTable").innerHTML = `<thead><tr><th>Pre-HD level</th><th>Action (goal ${goal[0]}–${goal[1]})</th><th>Basis</th></tr></thead><tbody>` +
+      ADJUST_RULES_LIT.map((r) => `<tr><td>${esc(r.band)}</td><td class="l">${esc(r.action)}</td><td class="l">Published protocols ${badge("protocols")}</td></tr>`).join("") + "</tbody>";
+  } else {
+    $("adjTable").innerHTML = `<thead><tr><th>Pre-HD level</th><th>Action (goal 15–20)</th><th>Status</th></tr></thead><tbody>` +
+      ADJUST_RULES.map((r) => `<tr><td>${esc(r.band)}</td><td class="l">${esc(r.action)}</td><td class="l">${r.status === "site" ? SITE_RULE : SIGNOFF}</td></tr>`).join("") + "</tbody>";
+  }
+}
+
+function renderAll() {
+  $("modelNote").textContent = MODEL_NOTE[model];
+  renderCharts();
+  renderHD();
+}
+renderAll();
+</script>
+</body>
+</html>

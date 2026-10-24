@@ -1,0 +1,1778 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phenytoin Dose Adjuster</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+/* Page-specific additions to lib/pk.css (PK Suite). Layout: compact order entry. One column: patient strip, situation switcher,
+   inputs written as a sentence, then the result as a ready-to-copy order. Detail panels open on demand. */
+.country { display: inline-flex; align-items: center; gap: 6px; }
+.country .seg button { font-family: var(--font-display); font-weight: 600; letter-spacing: .05em; padding: 4px 9px; }
+.country small { color: var(--muted); font-size: .74rem; }
+.chip.edit { cursor: pointer; color: var(--accent); border-color: var(--accent); font: 500 .84rem var(--font-body); }
+.chip.model { border-color: var(--accent); }
+.fields input[type=checkbox] { width: auto; }
+.sentence { display: grid; gap: 9px; }
+.line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: .9rem; color: var(--muted); }
+.line .k { color: var(--ink); font-weight: 500; }
+.line input[type=number] { width: 6.2em; }
+.line input.w4 { width: 4.6em; }
+.line { min-width: 0; }
+.line select { max-width: 100%; min-width: 0; }
+.line .arrow { color: var(--muted); }
+.order .right button.ub { border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+.actions button[aria-pressed="true"] { background: var(--accent-soft); }
+.copied { font-size: .82rem; color: var(--ok); }
+.flag-warn { color: var(--warn); }
+.flag-crit { color: var(--crit); }
+dl.calc .full { grid-column: 1 / -1; text-align: right; font-family: var(--font-data); font-size: .76rem; color: var(--muted); }
+tr.cur td { color: var(--muted); }
+.tablewrap + .hint { margin-top: 6px; }
+textarea.note { width: 100%; min-height: 120px; font: .8rem var(--font-data); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 8px; resize: vertical; }
+ol.recheck { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+ol.recheck li { display: grid; grid-template-columns: minmax(110px, 10rem) minmax(0, 1fr); gap: 4px 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+ol.recheck li:last-child { border-bottom: 0; padding-bottom: 0; }
+ol.recheck .when { font-family: var(--font-data); font-size: .86rem; }
+ol.recheck .when small { display: block; color: var(--muted); font-size: .74rem; }
+ol.recheck .why { font-size: .85rem; }
+ol.recheck + .hint { margin-top: 8px; }
+@media (max-width: 480px) { ol.recheck li { grid-template-columns: minmax(0, 1fr); } }
+.stack { display: grid; gap: 12px; }
+details p { margin: 0; }
+.credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+.credit a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Phenytoin Dose Adjuster</h1>
+    <div class="country">
+      <small>Units</small>
+      <div class="seg" role="group" aria-label="Units for every field">
+        <button type="button" data-country="ca" aria-pressed="true" title="Canada: µmol/L, albumin g/L, cm, kg">CA</button>
+        <button type="button" data-country="us" aria-pressed="false" title="US: mg/L, albumin g/dL, inches, kg">US</button>
+        <button type="button" data-country="uk" aria-pressed="false" title="UK: mg/L, albumin g/L, cm, kg">UK</button>
+      </div>
+    </div>
+  </header>
+  <p class="credit">Based on the phenytoin dosing work of Marshall Pierce, PharmD, at <a href="https://pkineticdrugdosing.com/index.html" target="_blank" rel="noopener">pkineticdrugdosing.com</a>.</p>
+
+  <div class="strip" id="strip" aria-label="Patient summary"></div>
+
+  <section class="card" id="patientPanel" hidden>
+    <h2>Patient, binding and model</h2>
+    <div class="fields">
+      <label class="wide">Model
+        <select id="model">
+          <option value="literature" selected>Literature defaults: Anderson 0.25 (ICU 0.29, ESRD Soriano 0.2) binding, Vmax 6.0 at 60 y and older</option>
+          <option value="site">Site workbook: Winter 0.9·Alb/4.4 + 0.1 (HD × 0.48), Vmax 7 at 60 y and older</option>
+        </select>
+      </label>
+      <label>Age <span class="ig"><input id="age" type="number" min="0" step="any" value="45"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="70" data-q="wt"><button type="button" class="ub" data-for="wt"></button></span></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="178" data-q="ht"><button type="button" class="ub" data-for="ht"></button></span></label>
+      <label>Albumin <span class="ig"><input id="alb" type="number" min="0" step="any" value="44" data-q="alb"><button type="button" class="ub" data-for="alb"></button></span></label>
+      <label>Renal status
+        <select id="renal">
+          <option value="normal">CrCl &gt; 25 mL/min</option>
+          <option value="mid">CrCl 10–25, no dialysis</option>
+          <option value="lt10">CrCl &lt; 10, not on dialysis</option>
+          <option value="hd">ESRD on hemodialysis</option>
+        </select>
+      </label>
+      <label>Creatinine (optional) <span class="ig"><input id="scr" type="number" min="0" step="any" placeholder="checks CrCl" data-q="scr"><button type="button" class="ub" data-for="scr"></button></span></label>
+      <label class="check"><input id="icu" type="checkbox"> ICU or neuro-ICU patient</label>
+      <label>Correct levels using
+        <select id="bind">
+          <option value="alb">Albumin equation</option>
+          <option value="free">Measured free level</option>
+          <option value="vpa">Valproic acid level</option>
+        </select>
+      </label>
+      <label id="albEqRow">Albumin equation
+        <select id="albEq">
+          <option value="auto" selected>Model default</option>
+          <option value="winter">Winter 0.9·Alb/4.4 + 0.1 (HD × 0.48)</option>
+          <option value="st">Sheiner-Tozer 0.2·Alb + 0.1 (ESRD 0.1)</option>
+        </select>
+      </label>
+      <label id="freeRow" hidden>Free level <span class="ig"><input id="free" type="number" min="0" step="any" value="3.6" data-q="phenFree"><button type="button" class="ub" data-for="free"></button></span></label>
+      <label id="freeTotRow" hidden>Total, same draw <span class="ig"><input id="freeTot" type="number" min="0" step="any" placeholder="tab level" data-q="phen"><button type="button" class="ub" data-for="freeTot"></button></span></label>
+      <label id="vpaRow" hidden>Valproic acid <span class="ig"><input id="vpa" type="number" min="0" step="any" value="485" data-q="vpa"><button type="button" class="ub" data-for="vpa"></button></span></label>
+      <label>CYP2C9
+        <select id="cyp">
+          <option value="normal">Normal or unknown</option>
+          <option value="im">Intermediate (Vmax × 0.75)</option>
+          <option value="pm">Poor (Vmax × 0.5)</option>
+        </select>
+      </label>
+      <label>Assumed Km
+        <select id="kmMode">
+          <option value="age">By age (Murphy)</option>
+          <option value="winter" selected>Winter adult (4.0)</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <label>Km <span class="ig"><input id="km" type="number" min="0.1" step="any" value="4"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+      <label>Round doses to
+        <select id="inc">
+          <option value="auto" selected>What the product can give</option>
+          <option value="10">Nearest 10 mg/day</option>
+          <option value="25">Nearest 25 mg/day</option>
+          <option value="50">Nearest 50 mg/day</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <nav class="seg" role="tablist" aria-label="Situation">
+    <button type="button" role="tab" id="tab-adjust" data-tab="adjust" aria-selected="true">Adjust</button>
+    <button type="button" role="tab" id="tab-start" data-tab="start" aria-selected="false">Start</button>
+    <button type="button" role="tab" id="tab-two" data-tab="two" aria-selected="false">Two levels</button>
+    <button type="button" role="tab" id="tab-hist" data-tab="hist" aria-selected="false">Dose history</button>
+    <button type="button" role="tab" id="tab-stop" data-tab="stop" aria-selected="false">After stopping</button>
+    <button type="button" role="tab" id="tab-load" data-tab="load" aria-selected="false">Load or switch</button>
+    <button type="button" role="tab" id="tab-interp" data-tab="interp" aria-selected="false">Interpret</button>
+  </nav>
+
+  <!-- Adjust -->
+  <section class="card sentence tabpanel" id="panel-adjust" role="tabpanel" aria-labelledby="tab-adjust">
+    <div class="line"><span class="k">Taking</span>
+      <select id="a_form" class="form-select" aria-label="Product"></select>
+      <input id="a_dose" type="number" min="0" step="any" value="100" aria-label="Dose"> mg
+      <select id="a_tau" class="tau-select" aria-label="Interval"></select>
+      for <input id="a_days" class="w4" type="number" min="0" step="any" value="21" aria-label="Days on regimen"> days
+    </div>
+    <div class="line"><span class="k">Level</span>
+      <span class="ig"><input id="a_level" type="number" min="0" step="any" value="32" data-q="phen" aria-label="Measured total level"><button type="button" class="ub" data-for="a_level"></button></span>
+      <span class="arrow" aria-hidden="true">→</span><span class="k">target</span>
+      <span class="ig"><input id="a_target" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Target level, normal binding"><button type="button" class="ub" data-for="a_target"></button></span>
+      <label class="check"><input id="a_trough" type="checkbox"> trough on once-daily</label>
+    </div>
+    <div class="line"><span class="k">Method</span>
+      <select id="a_method" aria-label="One-level method">
+        <option value="default" selected>Model default (literature: Bayesian; site: Km assumed)</option>
+        <option value="map">Bayesian, population priors</option>
+        <option value="km">Km assumed (Winter)</option>
+        <option value="gc">Graves-Cloyd (empiric, verify)</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- Start -->
+  <section class="card sentence tabpanel" id="panel-start" role="tabpanel" aria-labelledby="tab-start" hidden>
+    <div class="line"><span class="k">Load</span>
+      <select id="s_load" aria-label="Loading route">
+        <option value="iv">IV phenytoin</option>
+        <option value="fos">fosphenytoin (PE)</option>
+        <option value="oral">oral, divided</option>
+        <option value="none">no load</option>
+      </select>
+      to <span class="ig"><input id="s_loadTarget" type="number" min="0" step="any" value="80" data-q="phen" aria-label="Level to load to"><button type="button" class="ub" data-for="s_loadTarget"></button></span>
+      <label class="check"><input id="s_slow" type="checkbox"> elderly or cardiac</label>
+    </div>
+    <div class="line"><span class="k">Maintain</span>
+      <select id="s_form" class="form-select" aria-label="Maintenance product"></select>
+      <select id="s_tau" class="tau-select" aria-label="Interval"></select>
+      <span class="arrow" aria-hidden="true">→</span><span class="k">target</span>
+      <span class="ig"><input id="s_target" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Target level"><button type="button" class="ub" data-for="s_target"></button></span>
+    </div>
+  </section>
+
+  <!-- Two levels -->
+  <section class="card sentence tabpanel" id="panel-two" role="tabpanel" aria-labelledby="tab-two" hidden>
+    <div class="line"><span class="k">Levels</span>
+      <select id="t_mode" aria-label="Which two levels">
+        <option value="ss">at steady state on two doses</option>
+        <option value="nss">on one regimen, not at steady state</option>
+      </select>
+    </div>
+    <div class="line t-ss"><span class="k">Was</span>
+      <select id="t_form1" class="form-select" aria-label="First product"></select>
+      <input id="t_dose1" type="number" min="0" step="any" value="150" aria-label="First dose"> mg
+      <select id="t_tau1" class="tau-select" aria-label="First interval"></select>
+      <span class="arrow" aria-hidden="true">→</span>
+      <span class="ig"><input id="t_lvl1" type="number" min="0" step="any" value="32" data-q="phen" aria-label="First steady-state level"><button type="button" class="ub" data-for="t_lvl1"></button></span>
+    </div>
+    <div class="line t-ss"><span class="k">Now</span>
+      <select id="t_form2" class="form-select" aria-label="Current product"></select>
+      <input id="t_dose2" type="number" min="0" step="any" value="175" aria-label="Current dose"> mg
+      <select id="t_tau2" class="tau-select" aria-label="Current interval"></select>
+      <span class="arrow" aria-hidden="true">→</span>
+      <span class="ig"><input id="t_lvl2" type="number" min="0" step="any" value="79" data-q="phen" aria-label="Current steady-state level"><button type="button" class="ub" data-for="t_lvl2"></button></span>
+    </div>
+    <div class="line t-nss" hidden><span class="k">Taking</span>
+      <select id="t_form" class="form-select" aria-label="Product"></select>
+      <input id="t_dose" type="number" min="0" step="any" value="300" aria-label="Dose"> mg
+      <select id="t_tau" class="tau-select" aria-label="Interval"></select>
+    </div>
+    <div class="line t-nss" hidden><span class="k">Level</span>
+      <span class="ig"><input id="t_c1" type="number" min="0" step="any" value="79" data-q="phen" aria-label="First level"><button type="button" class="ub" data-for="t_c1"></button></span>
+      then <span class="ig"><input id="t_c2" type="number" min="0" step="any" value="103" data-q="phen" aria-label="Second level"><button type="button" class="ub" data-for="t_c2"></button></span>
+      after <input id="t_days" class="w4" type="number" min="0" step="any" value="10" aria-label="Days between levels"> days
+      <select id="t_method" aria-label="Fit method">
+        <option value="mb">mass balance (Km assumed)</option>
+        <option value="bayes">Bayesian fit, levels</option>
+        <option value="bayesTime">Bayesian fit, time between levels (site workbook)</option>
+      </select>
+    </div>
+    <div class="line"><span class="k">Target</span>
+      <span class="ig"><input id="t_target" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Target level"><button type="button" class="ub" data-for="t_target"></button></span>
+    </div>
+  </section>
+
+  <!-- Dose history -->
+  <section class="card sentence tabpanel" id="panel-hist" role="tabpanel" aria-labelledby="tab-hist" hidden>
+    <div class="line"><span class="k">Given</span>
+      <select id="h_form" class="form-select" aria-label="Product"></select>
+      load <input id="h_load" type="number" min="0" step="any" placeholder="none" aria-label="First (loading) dose, mg, blank if none"> mg, then
+      <input id="h_dose" type="number" min="0" step="any" value="100" aria-label="Maintenance dose"> mg
+      <select id="h_tau" class="tau-select" aria-label="Interval"></select>
+      × <input id="h_n" class="w4" type="number" min="1" step="1" value="8" aria-label="Number of doses given so far"> doses
+    </div>
+    <div class="line"><span class="k">Before</span>
+      dose 1 <span class="ig"><input id="h_pre" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level before dose 1"><button type="button" class="ub" data-for="h_pre"></button></span>
+      drawn <input id="h_preH" class="w4" type="number" min="0" step="any" placeholder="0" aria-label="Hours before dose 1"> h earlier
+    </div>
+    <div class="line"><span class="k">Levels</span>
+      <span class="ig"><input id="h_c1" type="number" min="0" step="any" value="16" data-q="phen" aria-label="Level 1"><button type="button" class="ub" data-for="h_c1"></button></span>
+      at <input id="h_t1" class="w4" type="number" step="any" value="42" aria-label="Level 1, hours after dose 1"> h ·
+      <span class="ig"><input id="h_c2" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 2"><button type="button" class="ub" data-for="h_c2"></button></span>
+      at <input id="h_t2" class="w4" type="number" step="any" aria-label="Level 2, hours after dose 1"> h
+    </div>
+    <div class="line"><span class="k">More</span>
+      <span class="ig"><input id="h_c3" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 3"><button type="button" class="ub" data-for="h_c3"></button></span>
+      at <input id="h_t3" class="w4" type="number" step="any" aria-label="Level 3, hours after dose 1"> h ·
+      <span class="ig"><input id="h_c4" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 4"><button type="button" class="ub" data-for="h_c4"></button></span>
+      at <input id="h_t4" class="w4" type="number" step="any" aria-label="Level 4, hours after dose 1"> h
+    </div>
+    <div class="line"><span class="k">Fit</span>
+      <select id="h_fit" aria-label="Parameters to fit">
+        <option value="kmvm" selected>Km and Vmax</option>
+        <option value="kmvmvd">Km, Vmax and Vd (needs a peak)</option>
+      </select>
+      <span class="arrow" aria-hidden="true">→</span><span class="k">target</span>
+      <span class="ig"><input id="h_target" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Target level"><button type="button" class="ub" data-for="h_target"></button></span>
+    </div>
+    <p class="hint">Hours count from dose 1. A level drawn at the same time as a dose is taken as just before it (a trough).</p>
+  </section>
+
+  <!-- After stopping -->
+  <section class="card sentence tabpanel" id="panel-stop" role="tabpanel" aria-labelledby="tab-stop" hidden>
+    <div class="line"><span class="k">Levels</span>
+      <span class="ig"><input id="x_c1" type="number" min="0" step="any" value="120" data-q="phen" aria-label="Earlier level"><button type="button" class="ub" data-for="x_c1"></button></span>
+      then <span class="ig"><input id="x_c2" type="number" min="0" step="any" value="95" data-q="phen" aria-label="Later level, blank if only one" placeholder="optional"><button type="button" class="ub" data-for="x_c2"></button></span>
+      after <input id="x_hours" class="w4" type="number" min="0" step="any" value="24" aria-label="Hours between levels"> h,
+      latest drawn <input id="x_since" class="w4" type="number" min="0" step="any" value="0" aria-label="Hours since the latest level"> h ago
+    </div>
+    <div class="line"><span class="k">Restart</span>
+      at <span class="ig"><input id="x_target" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Restart level"><button type="button" class="ub" data-for="x_target"></button></span>
+      on <select id="x_form" class="form-select" aria-label="Restart product"></select>
+      <select id="x_tau" class="tau-select" aria-label="Interval"></select>
+    </div>
+  </section>
+
+  <!-- Load or switch -->
+  <section class="card sentence tabpanel" id="panel-load" role="tabpanel" aria-labelledby="tab-load" hidden>
+    <div class="line"><span class="k">Need</span>
+      <select id="l_mode" aria-label="Situation">
+        <option value="load">a top-up load</option>
+        <option value="switch">to switch product or route</option>
+      </select>
+    </div>
+    <div class="line l-load"><span class="k">Level</span>
+      <span class="ig"><input id="l_level" type="number" min="0" step="any" value="32" data-q="phen" aria-label="Current total level"><button type="button" class="ub" data-for="l_level"></button></span>
+      <span class="arrow" aria-hidden="true">→</span>
+      <span class="ig"><input id="l_desired" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Desired level"><button type="button" class="ub" data-for="l_desired"></button></span>
+      by <select id="l_route" aria-label="Route">
+        <option value="iv">IV phenytoin</option>
+        <option value="fos">fosphenytoin (PE)</option>
+        <option value="cap">oral capsules</option>
+        <option value="susp">oral suspension</option>
+      </select>
+      <label class="check"><input id="l_slow" type="checkbox"> elderly or cardiac</label>
+    </div>
+    <div class="line l-switch" hidden><span class="k">From</span>
+      <select id="l_from" class="form-select" aria-label="Current product"></select>
+      <input id="l_fromDose" type="number" min="0" step="any" value="100" aria-label="Current dose"> mg
+      <select id="l_fromTau" class="tau-select" aria-label="Current interval"></select>
+      level <span class="ig"><input id="l_curLevel" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Current steady-state level, optional" placeholder="optional"><button type="button" class="ub" data-for="l_curLevel"></button></span>
+    </div>
+    <div class="line l-switch" hidden><span class="k">To</span>
+      <select id="l_to" class="form-select" aria-label="New product"></select>
+      <select id="l_toTau" class="tau-select" aria-label="New interval"></select>
+    </div>
+  </section>
+
+  <!-- Interpret -->
+  <section class="card sentence tabpanel" id="panel-interp" role="tabpanel" aria-labelledby="tab-interp" hidden>
+    <div class="line"><span class="k">Level</span>
+      <span class="ig"><input id="i_level" type="number" min="0" step="any" value="32" data-q="phen" aria-label="Measured total level"><button type="button" class="ub" data-for="i_level"></button></span>
+      drawn <input id="i_hours" class="w4" type="number" min="0" step="any" value="10" aria-label="Hours since last dose"> h after
+      <select id="i_route" aria-label="Last dose">
+        <option value="maint">an oral maintenance dose</option>
+        <option value="iv">IV phenytoin</option>
+        <option value="fos">fosphenytoin</option>
+        <option value="oralload">an oral load</option>
+      </select>
+    </div>
+    <div class="line"><span class="k">CRRT</span>
+      effluent <input id="i_eff" class="w4" type="number" min="0" step="any" placeholder="none" aria-label="CRRT effluent flow, L/h"> L/h, replace with
+      <select id="i_form" class="form-select" aria-label="Replacement product"></select>
+    </div>
+  </section>
+
+  <div class="stack" id="result" aria-live="polite"></div>
+
+  <section class="card">
+    <details>
+      <summary>Methods and sources</summary>
+      <div class="body">
+        <p><b>Units.</b> Every field has its own unit; click the unit to switch it, and the value converts. CA, US and UK set every field and the results to that country's usual units. The model runs in mg/L, g/dL, inches and kg. Phenytoin µmol/L = mg/L × 3.964 (MW 252.27): 10–20 mg/L is 40–80 µmol/L, free 1–2 mg/L is 4–8 µmol/L. Valproic acid µmol/L = mg/L × 6.934. Albumin g/L ÷ 10 = g/dL. Km stays in mg/L.</p>
+        <p><b>Salt factor.</b> S = 0.92 for phenytoin sodium capsules, IV phenytoin and fosphenytoin (mg PE); S = 1.0 for chewable tablets and suspension. F = 1. Products are not interchangeable mg for mg.</p>
+        <p><b>Model setting.</b> <i>Literature defaults</i> (the default) use the values recommended in the suite literature review: Anderson 0.25 binding (0.29 in ICU, Soriano 0.2 in ESRD) and Vmax 6.0 mg/kg/day at 60 y and older. <i>Site workbook</i> reproduces pkineticdrugdosing.com and its workbooks: Winter binding and Vmax 7 at 60 y and older. The active model is shown on every result card. Values marked <span class="src verify">verify</span> come from outside the site, from secondary sources, or are suite policy; hover a badge for its source.</p>
+        <p><b>Binding</b>, with factor = measured total ÷ normal-binding level and <code>C<sub>NB</sub> = C / factor</code> (Alb in g/dL). Literature default: Anderson 1997 <code>0.25·Alb + 0.1</code>; ICU (Kane 2013) <code>0.29·Alb + 0.1</code>; dialysis or CrCl &lt; 10 mL/min (Soriano 2017) <code>0.2·Alb + 0.1</code>, always with a mandatory free-level banner. CrCl 10–25 without dialysis keeps the standard equation, because binding there is unpredictable rather than ESRD-like (Winter, Liponi 1984); a free level is recommended, and required with albumin below 3.5 g/dL. The legacy ESRD forms (Winter 0.48, 0.1·Alb + 0.1) are options only: they over-predict the free fraction by 75–200% in dialysis patients (Soriano 2017; Palumbo 2026, PMID 42557917). These coefficients were confirmed through a secondary source (ClinCalc), so they carry a verify badge. Selectable: Winter (Eq 14.2, 14.3) <code>0.9·Alb/4.4 + 0.1</code>, hemodialysis <code>0.9 × 0.48 × Alb/4.4 + 0.1</code>; classic Sheiner-Tozer <code>0.2·Alb + 0.1</code> (ESRD <code>0.1·Alb + 0.1</code>). The factor is capped at 1, so normal albumin is never corrected upward (suite policy). Measured free level: <code>factor = 0.1 ÷ (free/total)</code>. Valproate &gt; 20 mg/L (Eq 14.8): <code>(0.095 + 0.001 × VPA) × C / 0.1</code>. No equation is reliable in ICU patients or in renal failure with low albumin (Montgomery 2019, Barra 2020), so the tool asks for a measured free level there. Patient-specific reported range is 10–20 mg/L × the binding factor (Eq 14.4–14.7). Every fit uses binding-corrected levels.</p>
+        <p><b>Weights and volume.</b> IBW (Devine) 50 (M) or 45.5 (F) + 2.3 kg per inch over 60 (actual weight under 152 cm). Vd = 0.65 L/kg (1 L/kg under 1 year); above IBW, IBW + 1.33(TBW − IBW). Vmax per kg uses the lesser of IBW and actual weight.</p>
+        <p><b>Population values</b> (Murphy 2005, from your workbook): 0.5–3 y Km 6.6 (SD 4.2), Vmax 14 (4.2); 4–6 y 6.8 (3.5), 10.9 (3); 7–9 y 6.5 (3), 10.1 (2.6); 10–17 y 5.7 (2.7), 8.3 (2.8); 18–59 y 4.3 (3.5), 7 (3); ≥ 60 y 5.8 (2.3), 7 (3) in the site model; the literature model uses Vmax 6.0 (SD 1.9) at 60 y and older (Bauer &amp; Blouin 1982, studied at 60–79 y). There are no data at 80 y and older: 6.0 is kept, flagged, with a prior CV of at least 0.35. The pediatric values match Bauer &amp; Blouin 1983. Winter assumes Km 4 for adults. CYP2C9 intermediate and poor metabolizers: Vmax × 0.75 and × 0.5.</p>
+        <p><b>One level</b> (Eq 14.30–14.31): <code>Vmax = R(Km + C)/C</code>, <code>R = S·F·Dose·24/τ</code>; dose <code>Vmax·T/((Km + T)·S)</code>; <code>Css = Km·R/(Vmax − R)</code>. <b>Two steady-state levels</b> (Eq 14.36): <code>Km = (R2 − R1)/(R1/C1 − R2/C2)</code>. <b>Not at steady state</b>: mass balance (Eq 14.33–14.34) <code>eliminated/day = R − (C2 − C1)·V/t</code>, <code>Vmax = eliminated × (Km + Cavg)/Cavg</code>; or a Bayesian fit minimizing <code>((C2 − C2pred)/(0.1·C2))² + ((Km − Km<sub>pop</sub>)/SD)² + ((Vmax − Vmax<sub>pop</sub>)/SD)²</code>. <b>After stopping</b> (Eq 14.25): <code>Vmax = V·[Km·ln(C1/C2) + (C1 − C2)]/t</code>. Two steady-state pairs whose level does not rise more than proportionally to the dose are rejected (the workbook hides them with ABS()).</p>
+        <p><b>Other one-level methods.</b> <i>Bayesian, population priors</i>: MAP fit of Km and Vmax to one steady-state level, <code>((C − Css)/(0.1·C))² + ((Km − Km<sub>pop</sub>)/SD)² + ((Vmax − Vmax<sub>pop</sub>)/SD)²</code>. This is the computed version of Winter's orbit graph. In the literature model this is the default single-level method, with fixed Km 4 (Winter) shown as a cross-check. <i>Graves-Cloyd</i> (Graves NM, Leppik IE et al., Ther Drug Monit 1986, PMID 3824428): <code>D<sub>new</sub> = D<sub>old</sub>·(C<sub>new</sub>/C<sub>old</sub>)<sup>0.2</sup></code>. It under-predicts on average, so the dose is rounded up. Bauer's form with exponents 0.199/0.804 is the same equation. Timing estimates use the Km and Vmax of the curve through the current point and the Graves point.</p>
+        <p><b>Time-based Bayesian</b> (site workbook "Bayesian 2NonSteadyStateLevels"): fits the time between two levels, <code>((T<sub>obs</sub> − T<sub>pred</sub>)/(0.1·T<sub>obs</sub>))² + ((Vmax − Vmax<sub>pop</sub>)/(0.4·Vmax<sub>pop</sub>))² + ((Km − Km<sub>pop</sub>)/(0.4·Km<sub>pop</sub>))²</code>, with T<sub>pred</sub> the closed-form time between levels. The site prior is Vmax 7 mg/kg/day; the literature model uses the age-group Vmax. Fits are solved with the suite optimizer (Levenberg-Marquardt), which finds the true minimum the workbook's saved Solver result misses.</p>
+        <p><b>Dose history</b> (explicit workbook; Goličnik 2011, Tang &amp; Xiao 2007). Each dose is an instant bolus. Between doses <code>C(t) = Km·W((C<sub>0</sub>/Km)·e<sup>(C<sub>0</sub> − (Vmax/V)·t)/Km</sup>)</code>, with W the Lambert W function solved exactly (the workbook uses an approximation good to 0.2%). Bolus steady state: the peak P solves <code>C(P, τ) + S·D/V = P</code> (equal to the workbook's Z), and trough = P − S·D/V. The MAP fit uses the workbook priors (CV 0.4 on Km, Vmax/V and, optionally, Vd) and a level error of 0.1 × observed. Fitted values outside 0.2–1.8 × population (the workbook Solver bounds) are flagged. Fit Vd only when a peak is available.</p>
+        <p><b>Loading</b> (Eq 14.28, 14.32, 14.29): <code>LD = V·(Cdesired − Cobserved)/S</code>; after IV <code>C0 = S·LD/V</code>; oral peak about <code>0.5·S·LD/V</code>. Binding does not change the loading dose. Maximum IV rates: phenytoin 50 mg/min (25 elderly or cardiac; children 1 mg/kg/min), fosphenytoin 150 mg PE/min (children 3 mg PE/kg/min). Oral loads: ≤ 400 mg per dose every 2 h. Sample 2 h after IV phenytoin, 4 h after fosphenytoin, 24 h after an oral load. <b>Switch</b> (Eq 14.35): new dose = dose × S<sub>old</sub>/S<sub>new</sub>. <b>CRRT</b> (Eq 14.38): removed mg/day = unbound level × effluent L/h × 24.</p>
+        <p><b>Timing and rounding.</b> Steady-state check (Eq 14.24) <code>(115 + 35C)·C/(R × 70/wt)</code> days; t90 (Eq 14.23); time between levels integrates <code>V·dC/dt = R − Vmax·C/(Km + C)</code>. Recheck day 3 (dose ≥ 85% of Vmax, &gt; 15% increase, or predicted &gt; 18 mg/L) or day 5, then at the model's 90% time (≥ day 7). Doses round to 100 + 30 mg capsule combinations (≤ two 30 mg per dose, doses within 30 mg), whole 50 mg chewables, or 25 mg steps, choosing the predicted level closest to target within 10–20 mg/L.</p>
+        <p><b>Not modeled.</b> Interacting drugs, enteral feeds, hepatic disease, pregnancy, neonates, oral absorption (the dose-history model treats doses as instant). <b>Shared code.</b> Body weights, Cockcroft-Gault, rounding and the fitting engine come from the PK Suite library (lib/pkcore.js). The creatinine field only checks the renal-status choice; doses don't depend on it.</p>
+        <p><b>Based on.</b> Marshall Pierce, PharmD. Pharmacokinetic Drug Dosing: <a href="https://pkineticdrugdosing.com/index.html" target="_blank" rel="noopener">pkineticdrugdosing.com</a>, including the <a href="https://pkineticdrugdosing.com/documents/phenytoin.html" target="_blank" rel="noopener">phenytoin dosing page</a> and its Phenytoin_Dosing.xlsx and PhenytoinexplicitequationSolving.xlsm calculators. This tool reimplements those methods; any errors are its own.</p>
+        <p><b>Other sources.</b> Winter ME. Basic Clinical Pharmacokinetics, 6th ed., ch. 14 (Phenytoin). Tang S, Xiao Y. J Pharmacokinet Pharmacodyn 2007;34:807–827. Goličnik M. Eur J Drug Metab Pharmacokinet 2011;36:121–127. Murphy JE. Clinical Pharmacokinetics, 2005 (population Km and Vmax).</p>
+      </div>
+    </details>
+  </section>
+
+  <footer><b>Educational use.</b> This is a teaching and decision-support aid for trained clinicians, not a substitute for clinical judgement, local protocols or a pharmacist review. Outputs are model estimates from limited levels and population assumptions, and some defaults still need clinical sign-off (marked verify). Check adherence, timing, binding and interactions, and recheck levels after any change.</footer>
+</div>
+
+<script src="lib/pkcore.js"></script>
+<script src="lib/pk-ui.js"></script>
+<script>
+// CALC-START
+const SALT = { cap: 0.92, chew: 1, susp: 1, inj: 0.92, fos: 0.92 };
+const ORAL = { cap: true, chew: true, susp: true, inj: false, fos: false };
+const FORM_NAME = { cap: "extended capsules", chew: "chewable tablets", susp: "suspension", inj: "IV phenytoin", fos: "fosphenytoin (PE)" };
+const FORM_LABEL = {
+  cap: "Extended capsules, phenytoin sodium (S 0.92)",
+  chew: "Chewable tablets 50 mg, phenytoin acid (S 1.0)",
+  susp: "Suspension 125 mg/5 mL, phenytoin acid (S 1.0)",
+  inj: "IV phenytoin sodium (S 0.92)",
+  fos: "Fosphenytoin, mg PE (S 0.92)",
+};
+// PK Suite version of the user's phenytoin-calculator.html. Pure math only (no DOM).
+// Shared math comes from lib/pkcore.js: PK.body (IBW, adjusted weight, dosing weight), PK.renal (Cockcroft-Gault),
+// PK.round (rounding) and PK.fit (MAP / least squares). pkcore has no Michaelis-Menten (`mm`) module yet
+// (README §2 item 6), so the phenytoin-specific MM and Lambert W helpers below are local to this page.
+
+// Parameter sets ("Model" setting). literature = lit/lithium-phenobarb-phenytoin.md §1c (default);
+// site = pkineticdrugdosing.com workbooks (Phenytoin_Dosing.xlsx, PhenytoinexplicitequationSolving.xlsm).
+const MODELS = { literature: "Literature defaults", site: "Site workbook" };
+// Population Km / Vmax by age (Murphy 2005 = Bauer & Blouin 1983 pediatric; from the workbook's lookuparray). mkd = usual maintenance mg/kg/day.
+const POP_SITE = [
+  { min: 0.5, max: 1, km: 6.6, kmSd: 4.2, vm: 14, vmSd: 4.2, vd: 1, mkd: [4, 8] },
+  { min: 1, max: 4, km: 6.6, kmSd: 4.2, vm: 14, vmSd: 4.2, vd: 0.65, mkd: [4, 10] },
+  { min: 4, max: 7, km: 6.8, kmSd: 3.5, vm: 10.9, vmSd: 3, vd: 0.65, mkd: [4, 10] },
+  { min: 7, max: 10, km: 6.5, kmSd: 3, vm: 10.1, vmSd: 2.6, vd: 0.65, mkd: [4, 10] },
+  { min: 10, max: 18, km: 5.7, kmSd: 2.7, vm: 8.3, vmSd: 2.8, vd: 0.65, mkd: [4, 8] },
+  { min: 18, max: 60, km: 4.3, kmSd: 3.5, vm: 7, vmSd: 3, vd: 0.65, mkd: [4, 7] },
+  { min: 60, max: 200, km: 5.8, kmSd: 2.3, vm: 7, vmSd: 3, vd: 0.65, mkd: [4, 7] },
+];
+// Literature: Vmax 6.0 ± 1.9 mg/kg/day at 60–79 y (Bauer & Blouin 1982, PMID 7060313); applied from 60 y, ≥ 80 y flagged as extrapolated.
+const POP_LIT = POP_SITE.map((g) => (g.min >= 60 ? { ...g, vm: 6.0, vmSd: 1.9, src: "elderlyLit" } : g));
+const POP = POP_SITE; // name kept for the original tests
+const CYP = { normal: 1, im: 0.75, pm: 0.5 };
+function popFor(age, model = "literature") { return (model === "site" ? POP_SITE : POP_LIT).find((g) => age >= g.min && age < g.max) || null; }
+const defaultL = (x) => `${x.toFixed(1)} mg/L`;
+
+// Provenance for displayed parameters and defaults. verify: true shows a "verify" badge (off-site, secondary or unverified).
+const SRC = {
+  popPeds: { label: "Pediatric Vmax/Km: Bauer & Blouin 1983 (via Murphy 2005)", ref: "PMID 6653035; specs/phenytoin.md §3.1", verify: false },
+  popAdult: { label: "Adult Vmax 7 mg/kg/day, Km 4.3 mg/L (site, Murphy 2005)", ref: "specs/phenytoin.md §3.1; Km 4.3 primary not verified", verify: true },
+  elderlyLit: { label: "≥ 60 y Vmax 6.0 ± 1.9 mg/kg/day (Bauer & Blouin 1982, 60–79 y)", ref: "PMID 7060313; approved default", verify: false },
+  elderly80: { label: "≥ 80 y: no population Vmax/Km data; 6.0 kept, prior CV ≥ 0.35", ref: "decisions/lithium-phenobarb-phenytoin.md Q3", verify: true },
+  elderlySite: { label: "≥ 60 y Vmax 7, Km 5.8 (site workbook)", ref: "specs/phenytoin.md §3.1", verify: false },
+  winterKm: { label: "Winter adult Km 4 mg/L", ref: "Winter 6e ch. 14", verify: false },
+  vdInfant: { label: "Vd 1 L/kg under 1 year (site)", ref: "specs/phenytoin.md §3.2; primary not verified", verify: true },
+  vdObese: { label: "Vd weight IBW + 1.33·(TBW − IBW); Vmax on min(IBW, TBW)", ref: "specs/phenytoin.md §3.2, §4.1", verify: false },
+  winterBinding: { label: "Winter Eq 14.2/14.3: 0.9·Alb/4.4 + 0.1; ESRD on HD 0.9·0.48·Alb/4.4 + 0.1", ref: "Winter 6e; Liponi 1984 (PMID 6538287)", verify: false },
+  anderson: { label: "Anderson 1997 revised Winter-Tozer 0.25·Alb + 0.1", ref: "PMID 9066931; coefficient via ClinCalc (lit 1c)", verify: true },
+  kane: { label: "Kane, Bress, Tesoro 2013 neuro-ICU 0.29·Alb + 0.1", ref: "Ann Pharmacother 2013;47:628, PMID 23606554; coefficient via ClinCalc", verify: true },
+  soriano: { label: "Soriano 2017 ESRD 0.2·Alb + 0.1", ref: "PMID 28470115; coefficient via ClinCalc (lit 1c)", verify: true },
+  sheinerTozer: { label: "Sheiner-Tozer 0.2·Alb + 0.1 (ESRD 0.1·Alb + 0.1)", ref: "Kiang & Ensom 2016 (PMID 26825643)", verify: false },
+  albClamp: { label: "Binding factor capped at 1 (no correction at or above normal albumin)", ref: "suite policy; not in sources", verify: true },
+  freeLevel: { label: "Measured free/total pair: factor = 0.1 ÷ (free/total)", ref: "Winter 6e; specs/phenytoin.md §4.2", verify: false },
+  vpa: { label: "Valproate > 20 mg/L: fu = 0.095 + 0.001·VPA (Winter Eq 14.8)", ref: "Winter 6e", verify: false },
+  cyp2c9: { label: "CYP2C9 IM/PM Vmax × 0.75 / 0.5", ref: "site text; specs/phenytoin.md §2.1", verify: false },
+  oneLevel: { label: "Vmax = R(Km + C)/C, Km assumed (Winter Eq 14.30)", ref: "Winter 6e; specs/phenytoin.md §4.3", verify: false },
+  mapSS: { label: "One-level MAP (Bayesian steady state; orbit-graph equivalent); primary single-level method", ref: "decisions/lithium-phenobarb-phenytoin.md; Pryka 1991, Toscano 1986", verify: false },
+  legacyEsrd: { label: "Legacy ESRD 0.1·Alb + 0.1 / Winter 0.48: over-predicts free fraction 75–200% in HD", ref: "Soriano 2017 (PMID 28470115); Palumbo 2026 (PMID 42557917)", verify: false },
+  gravesCloyd: { label: "Graves 1986: Dnew = Dold·(Cnew/Cold)^0.2, rounded up (under-predicts on average)", ref: "Graves NM, Leppik IE et al. Ther Drug Monit 1986;8:427, PMID 3824428", verify: false },
+  ludden: { label: "Two steady-state levels (Ludden; Winter Eq 14.36); invalid pairs rejected", ref: "PMID 837647; specs/phenytoin.md §4.4", verify: false },
+  massBalance: { label: "Mass balance on two non-steady-state levels (Winter Eq 14.33–14.34)", ref: "specs/phenytoin.md §4.5", verify: false },
+  concBayes: { label: "Concentration MAP, RK4, Murphy SDs (this tool's original method)", ref: "specs/phenytoin.md §4.10c; not in sources", verify: true },
+  timeBayes: { label: "Time-between-levels MAP, 40% CV priors (site Bayesian 2NonSteadyStateLevels)", ref: "specs/phenytoin.md §4.10a", verify: false },
+  decline: { label: "Decline with no dosing (Winter Eq 14.25)", ref: "Winter 6e", verify: false },
+  ssCheck: { label: "Conservative steady-state time (Winter Eq 14.24)", ref: "Winter 6e", verify: false },
+  t90: { label: "t90 = Km·V·(2.3·Vm − 0.9·R)/(Vm − R)² (Winter Eq 14.23)", ref: "Winter 6e", verify: false },
+  lambertW: { label: "Explicit MM bolus model with Lambert W (exact W by Newton)", ref: "Goličnik 2011; Tang & Xiao 2007; specs/phenytoin.md §4.9", verify: false },
+  explicitMap: { label: "Dose-history MAP: priors CV 0.4 on Km, Vmax/V (and Vd), level error 0.1·obs", ref: "PhenytoinexplicitequationSolving.xlsm; specs/phenytoin.md §4.10b", verify: false },
+  troughAdj: { label: "Trough on once-daily → average: + 0.25·S·Dose/V oral (0.5 IV)", ref: "this tool's original extra; not in sources", verify: true },
+  crrt: { label: "CRRT removal = unbound level × effluent × 24 (Winter Eq 14.38)", ref: "Winter 6e", verify: false },
+  crcl: { label: "Cockcroft-Gault (PK.renal) to check the renal status", ref: "pkcore; crcl spec", verify: false },
+};
+
+// Albumin-based binding factor (measured total ÷ normal-binding equivalent).
+// eq: 'auto' (model default) | 'winter' | 'st' (classic Sheiner-Tozer). Literature auto = Anderson 0.25, ICU Kane 0.29,
+// dialysis or CrCl < 10 Soriano 0.2 (capped at 1). CrCl 10–25 not on dialysis keeps the non-ESRD equation (Winter/Liponi).
+function albuminFactor({ alb, renal, icu, eq, model }) {
+  // ESRD form: on dialysis (both models); CrCl < 10 not on dialysis also uses it in the literature model (decisions Q1).
+  const hd = renal === "hd" || (renal === "lt10" && model !== "site");
+  let use = eq && eq !== "auto" ? eq : model === "site" ? "winter" : hd ? "soriano" : icu ? "kane" : "anderson";
+  if (use === "winter") {
+    const ratio = Math.min(alb / 4.4, 1), h = hd ? 0.48 : 1;
+    return { use, src: "winterBinding", factor: 0.9 * h * ratio + 0.1,
+      label: ratio === 1 && h === 1 ? "Albumin normal, no correction" : `0.9${h !== 1 ? " × 0.48" : ""} × (Alb ÷ normal ${ratio.toFixed(2)}) + 0.1 (Winter)` };
+  }
+  const coef = use === "st" ? (hd ? 0.1 : 0.2) : { anderson: 0.25, kane: 0.29, soriano: 0.2 }[use];
+  const raw = coef * alb + 0.1, factor = Math.min(raw, 1);
+  const name = { anderson: "Anderson", kane: "Kane, ICU", soriano: "Soriano, ESRD", st: hd ? "Sheiner-Tozer, ESRD" : "Sheiner-Tozer" }[use];
+  return { use, src: use === "st" ? "sheinerTozer" : use, factor, raw, coef, clamped: raw > 1,
+    label: raw >= 1 ? `${coef} × Alb + 0.1 ≥ 1 (${name}): no correction` : `${coef} × Alb ${+alb.toFixed(2)} + 0.1 (${name})` };
+}
+
+// Patient-level model shared by every tab.
+function patientModel(p, primaryLevel) {
+  const alerts = [];
+  const warn = (lvl, text) => alerts.push({ lvl, text });
+  const model = p.model === "site" ? "site" : "literature";
+  const htIn = p.htu === "cm" ? p.ht / 2.54 : p.ht;
+  const pop = popFor(p.age, model);
+  let ibw = PK.body.ibw(p.sex, htIn);
+  if (!(htIn >= 60)) ibw = p.wt;
+  const vdWt = p.wt > ibw ? PK.body.adjustedBW(ibw, p.wt, 1.33) : p.wt;
+  const dosingWt = PK.body.dosingWeight({ policy: "minIbwTbw", tbw: p.wt, ibw }).weight;
+  const V = (pop ? pop.vd : 0.65) * vdWt;
+  let Km = p.km;
+  if (p.kmMode === "age") Km = pop ? pop.km : 4.3;
+  else if (p.kmMode === "winter") Km = 4;
+  const cyp = CYP[p.cyp] || 1;
+  const VmPop = (pop ? pop.vm : 7) * dosingWt * cyp;
+  const VmPopSd = (pop ? pop.vmSd : 3) * dosingWt * cyp;
+  const KmSd = pop ? pop.kmSd : 3.5;
+  if (!pop) warn("warn", "No population Km/Vmax for infants under 6 months. Neonatal absorption and binding are unpredictable; this model is not validated there.");
+  if (cyp !== 1) warn("info", `CYP2C9 ${p.cyp === "im" ? "intermediate" : "poor"} metabolizer: population Vmax reduced to ${Math.round(cyp * 100)}%.`);
+  if (p.age < 18 && p.kmMode !== "age") warn("info", "Pediatric patient. Children usually have higher Vmax (8–14 mg/kg/day) and Km (5.7–6.8 mg/L). Consider the age-based Km.");
+  let VmPopSd80 = null;
+  if (model === "literature" && p.age >= 80) {
+    warn("warn", "No population Vmax/Km data at 80 y or older: Vmax 6.0 mg/kg/day (from 60–79 y, Bauer & Blouin 1982) is kept. Titrate on levels.");
+    VmPopSd80 = 0.35;
+  }
+
+  // Optional Cockcroft-Gault (PK.renal) to check the renal-status choice. It does not change any dose.
+  let crcl = NaN;
+  if (p.scr > 0 && p.age >= 18 && htIn > 0 && p.wt > 0) {
+    crcl = PK.renal.cockcroftGault({ age: p.age, sex: p.sex, scr: p.scr, tbw: p.wt, heightIn: htIn, preset: model === "site" ? "site" : "literature" }).crcl;
+    if (p.renal === "normal" && crcl < 25) warn("warn", `Cockcroft-Gault CrCl is about ${crcl.toFixed(0)} mL/min, but renal status is set to CrCl > 25. Below 25 mL/min binding is unpredictable. Set the renal status and use a measured free level.`);
+    if (p.renal === "mid" && crcl > 25) warn("info", `Cockcroft-Gault CrCl is about ${crcl.toFixed(0)} mL/min, above the 10–25 band you selected. Check the renal status.`);
+  }
+
+  // Binding: factor = measured total / normal-binding equivalent.
+  let factor, bindLabel, bindSrc, albEq = null;
+  if (p.bind === "free") {
+    const tot = p.freeTot > 0 ? p.freeTot : primaryLevel;
+    const fu = p.free / tot;
+    factor = 0.1 / fu;
+    bindLabel = `Free fraction ${isFinite(fu) ? fu.toFixed(3) : "—"} (free ÷ total)`;
+    if (!(fu > 0)) { factor = NaN; warn("crit", "Enter the free level and the total level from the same draw."); }
+    else if (fu < 0.05 || fu > 0.5) warn("warn", "The free fraction is outside 0.05–0.5. Check that the free and total levels come from the same sample.");
+    if (p.renal === "hd") warn("info", "Measured free level used, so the dialysis binding factor is not applied.");
+    bindSrc = "freeLevel";
+  } else if (p.bind === "vpa" && p.vpa > 20) {
+    factor = 0.1 / (0.095 + 0.001 * p.vpa);
+    bindLabel = `Valproate → free fraction ${(0.095 + 0.001 * p.vpa).toFixed(3)}`;
+    bindSrc = "vpa";
+    warn("info", "Valproate correction assumes simultaneous levels and no other binding change (no hypoalbuminemia, no renal failure).");
+  } else {
+    const a = albuminFactor({ alb: p.alb, renal: p.renal, icu: p.icu, eq: p.albEq, model });
+    factor = a.factor; bindLabel = a.label; bindSrc = a.src; albEq = a.use;
+    if (p.bind === "vpa") warn("info", "A valproic acid level at or below 20 mg/L (139 µmol/L) needs no valproate correction, so the albumin correction was used.");
+    if (p.alb < 2) warn("warn", "Albumin is below 20 g/L (2 g/dL). The albumin correction is unreliable at this level; a measured free level is preferred.");
+    if (a.use === "anderson" && (p.renal === "hd" || p.renal === "lt10")) warn("info", "Anderson's equation was not derived in ESRD.");
+  }
+  if (p.renal === "mid" && p.bind !== "free") warn(p.alb < 3.5 ? "crit" : "warn", `Binding is unpredictable at CrCl 10–25 mL/min without dialysis (Winter, Liponi 1984), so the standard albumin correction is shown, not the ESRD equation. A measured free level is recommended${p.alb < 3.5 ? " and is required with albumin below 35 g/L (3.5 g/dL)" : ""}.`);
+  const esrd = p.renal === "hd" || p.renal === "lt10";
+  if (p.bind !== "free" && esrd) warn(model === "site" ? "warn" : "crit", "Equation unreliable in ESRD: obtain a free phenytoin level (target 1–2 mg/L) and use it.");
+  if (p.bind !== "free" && p.icu && !esrd) warn("warn", 'ICU patient: albumin-based corrections are imprecise here (Montgomery 2019, Barra 2020). Send a free phenytoin level with the total and choose "Measured free level".');
+  if (p.bind !== "free" && esrd && albEq && albEq !== "soriano" && model !== "site") {
+    const sor = albuminFactor({ alb: p.alb, renal: "hd", eq: "auto", model: "literature" }).factor;
+    warn("warn", `The ${albEq === "winter" ? "Winter 0.48" : "legacy 0.1·Alb + 0.1"} ESRD equation over-predicts the free fraction by 75–200% in dialysis patients (Soriano 2017; Palumbo 2026, PMID 42557917). Soriano 0.2 would give factor ${sor.toFixed(3)}${primaryLevel > 0 ? ` (${(primaryLevel / sor).toFixed(1)} mg/L normal binding instead of ${(primaryLevel / factor).toFixed(1)})` : ""}.`);
+  }
+  if (p.renal === "lt10" && model === "site" && p.bind !== "free") warn("info", "The site workbook has only a dialysis switch, so CrCl < 10 without dialysis is corrected as non-ESRD in the site model.");
+  const popSrc = !pop ? null : pop.min >= 60 ? (model === "site" ? "elderlySite" : VmPopSd80 ? "elderly80" : "elderlyLit") : pop.min >= 18 ? "popAdult" : "popPeds";
+  const VmPopSdUsed = VmPopSd80 ? Math.max(VmPopSd, VmPopSd80 * VmPop) : VmPopSd;
+  return { alerts, model, htIn, ibw, vdWt, dosingWt, V, pop, popSrc, Km, KmSd, cyp, VmPop, VmPopSd: VmPopSdUsed, factor, bindLabel, bindSrc, albEq, crcl };
+}
+
+function vmCheck(pm, VmPerKg, warn) {
+  const pop = pm.pop;
+  if (pop && Math.abs(VmPerKg - pop.vm * pm.cyp) > 1.5 * pop.vmSd) warn("warn", `Calculated Vmax is ${VmPerKg.toFixed(1)} mg/kg/day; the population mean for this age is ${+(pop.vm * pm.cyp).toFixed(1)} (SD ${pop.vmSd}). Check adherence, sample timing, steady state, binding and interacting drugs before relying on it.`);
+}
+function predictCss(R, Vm, Km) { return R < Vm ? (Km * R) / (Vm - R) : Infinity; }
+// Time (days) to go from C1 toward steady state on constant input R, stopping at C2.
+function timeBetween(C1, C2, R, Vm, Km, V) {
+  const b = Vm - R, a = R * Km;
+  const r = (a - b * C1) / (a - b * C2);
+  if (!(b > 0) || !(r > 0)) return NaN;
+  return (V / b) * ((C1 - C2) + (Km * Vm / b) * Math.log(r));
+}
+// Level after t days with no dosing (Michaelis-Menten decline, no absorption).
+function levelAfterHold(C1, tDays, Vm, Km, V) {
+  if (tDays <= 0) return C1;
+  const t = (C) => (V / Vm) * (Km * Math.log(C1 / C) + (C1 - C));
+  let lo = 1e-6, hi = C1;
+  for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2; if (t(mid) > tDays) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+function declineDays(C1, C2, Vm, Km, V) { return (V / Vm) * (Km * Math.log(C1 / C2) + (C1 - C2)); }
+// Integrate V·dC/dt = R − Vmax·C/(Km + C) over t days (RK4).
+function simulate(C, tDays, R, Vm, Km, V) {
+  const n = Math.max(20, Math.ceil(tDays / 0.05)), h = tDays / n;
+  const f = (c) => (R - (Vm * c) / (Km + c)) / V;
+  for (let i = 0; i < n; i++) {
+    const k1 = f(C), k2 = f(C + (h * k1) / 2), k3 = f(C + (h * k2) / 2), k4 = f(C + h * k3);
+    C = Math.max(1e-9, C + (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4));
+  }
+  return C;
+}
+// Time (days) to 90% of steady state from zero (Winter Eq 14.23).
+function t90(Km, V, Vm, R) { return R < Vm ? ((Km * V) / Math.pow(Vm - R, 2)) * (2.3 * Vm - 0.9 * R) : Infinity; }
+// Time (days) from zero to a fraction f of steady state (integrated MM, spec §4.6 with C1 = 0).
+const FRACTIONS = [0.1, 0.15, 0.2, 0.5, 0.8, 0.9, 0.99];
+function timeToFraction(f, R, Vm, Km, V) { const css = predictCss(R, Vm, Km); return isFinite(css) ? timeBetween(0, f * css, R, Vm, Km, V) : Infinity; }
+
+// ---- Explicit Michaelis-Menten bolus model (Lambert W; spec §4.9, Goličnik 2011, Tang & Xiao 2007) ----
+// Exact principal-branch W(e^L), solving w + ln w = L by Newton. Working in L avoids overflow of x = e^L.
+function lambertWlog(L) {
+  if (L === Infinity) return Infinity;
+  if (!(L > -745)) return 0;
+  let w = L > 1 ? L - Math.log(L) : Math.exp(L);
+  for (let i = 0; i < 100; i++) {
+    let wn = w - (w + Math.log(w) - L) / (1 + 1 / w);
+    if (!(wn > 0)) wn = w / 2;
+    const done = Math.abs(wn - w) <= 1e-15 * Math.max(1, w);
+    w = wn;
+    if (done) break;
+  }
+  return w;
+}
+const lambertW = (x) => (x > 0 ? lambertWlog(Math.log(x)) : 0);
+// Goličnik's approximation used by the workbooks (relative error < 0.2%); kept for parity tests only.
+const lambertWo = (x) => 1.4586887 * Math.log((1.2 * x) / Math.log((2.4 * x) / Math.log(1 + 2.4 * x))) - 0.4586887 * Math.log((2 * x) / Math.log(1 + 2 * x));
+// Level tH hours after C0 with no input: Km·W((C0/Km)·e^((C0 − VmL·t)/Km)). VmL = Vmax(mg/h)/V. Wfn (optional) = W of x, e.g. lambertWo.
+function mmDecline(C0, tH, VmL, Km, Wfn) {
+  if (!(C0 > 0)) return 0;
+  if (!(tH > 0)) return C0;
+  if (Wfn) return Km * Wfn((C0 / Km) * Math.exp((C0 - VmL * tH) / Km));
+  return Km * lambertWlog(Math.log(C0 / Km) + (C0 - VmL * tH) / Km);
+}
+// Level at time t (h) after an arbitrary bolus history. events sorted [{ t, dose, S }]; prm { Km, VmL, V }.
+// A dose given exactly at t is not included (level drawn just before it). init { c0, t0 }: residual level before dose 1.
+function mmLevel(t, events, prm, init, Wfn) {
+  const { Km, VmL, V } = prm;
+  let c = 0, tc = null;
+  if (init && init.c0 > 0 && isFinite(init.t0)) { if (t < init.t0) return NaN; c = init.c0; tc = init.t0; }
+  for (const e of events) {
+    if (!(e.t < t)) break;
+    if (tc !== null) c = mmDecline(c, e.t - tc, VmL, Km, Wfn);
+    c += ((e.S ?? 1) * e.dose) / V;
+    tc = e.t;
+  }
+  return tc === null ? 0 : mmDecline(c, t - tc, VmL, Km, Wfn);
+}
+// Steady state for S·D every tau h, workbook Z form (spec §4.9; parity only, Z is an approximation of the SS peak).
+function ssMinMaxZ(SD, tau, V, VmL, Km, Wfn) {
+  const Z = SD / (V * (1 - Math.exp((SD - VmL * V * tau) / (Km * V))));
+  if (!(Z > 0) || !isFinite(Z)) return { Z, min: Infinity, max: Infinity, avg: Infinity };
+  const min = mmDecline(Z, tau, VmL, Km, Wfn);
+  return { Z, min, max: min + SD / V, avg: min + SD / V / 2 };
+}
+// Exact bolus steady state: peak P with decline(P, tau) + S·D/V = P (bisection). avg = MM Css (Km·R/(Vm − R)).
+function ssMinMax(SD, tau, V, VmL, Km) {
+  const add = SD / V;
+  if (!(SD < VmL * V * tau)) return { min: Infinity, max: Infinity, avg: Infinity };
+  const f = (P) => P - add - mmDecline(P, tau, VmL, Km);
+  let lo = add, hi = 2 * add + Km;
+  for (let i = 0; i < 200 && f(hi) < 0; i++) hi *= 2;
+  for (let i = 0; i < 200; i++) { const mid = (lo + hi) / 2; if (f(mid) < 0) lo = mid; else hi = mid; if (hi - lo < 1e-12 * hi) break; }
+  const max = (lo + hi) / 2;
+  return { min: max - add, max, avg: predictCss(SD / tau, VmL * V, Km) };
+}
+
+// ---- Deliverable doses ----
+const STRENGTHS = { cap: [100, 30], chew: [50] };
+const MAX_SMALL = 2;
+const MAX_SPREAD = { cap: 30, chew: 50 };
+function stepFor(form, inc) {
+  const n = parseFloat(inc);
+  if (isFinite(n) && n > 0) return n;
+  return STRENGTHS[form] ? null : 25;
+}
+function amounts(form, step, max) {
+  const out = new Set();
+  if (step) for (let d = step; d <= max + 1e-9; d += step) out.add(+d.toFixed(6));
+  else {
+    const [a, b] = STRENGTHS[form];
+    for (let i = 0; i * a <= max; i++) {
+      if (!b) { out.add(i * a); continue; }
+      for (let j = 0; j <= MAX_SMALL && i * a + j * b <= max; j++) out.add(i * a + j * b);
+    }
+    out.delete(0);
+  }
+  return [...out].sort((x, y) => x - y);
+}
+function dailyCandidates(form, step, max, n) {
+  if (step) return amounts(form, step, max);
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  const unit = STRENGTHS[form].reduce(gcd), out = [];
+  for (let d = unit; d <= max + 1e-9; d += unit) if (giveAs(form, step, d, n)) out.push(d);
+  return out;
+}
+function splitDaily(total, n, allowed, maxSpread) {
+  const ok = new Set(allowed);
+  let best = null;
+  const rec = (left, k, parts, min, first) => {
+    if (k === 1) {
+      if (ok.has(left) && left >= min && (!parts.length || left - first <= maxSpread)) {
+        const ps = [...parts, left], spread = left - ps[0];
+        if (!best || spread < best.spread) best = { parts: ps, spread };
+      }
+      return;
+    }
+    for (const a of allowed) {
+      if (a < min) continue;
+      if (a * k > left) break;
+      const f0 = parts.length ? first : a;
+      if (a - f0 > maxSpread) break;
+      rec(left - a, k - 1, [...parts, a], a, f0);
+    }
+  };
+  rec(total, n, [], 0, 0);
+  return best ? best.parts : null;
+}
+function unitsFor(form, d) {
+  const st = STRENGTHS[form];
+  if (!st) return "";
+  if (st.length === 1) return `${d / st[0]} × ${st[0]} mg`;
+  let bestTxt = "", bestN = Infinity;
+  for (let i = 0; i * st[0] <= d; i++) {
+    const rest = d - i * st[0];
+    if (rest % st[1] === 0 && i + rest / st[1] < bestN) {
+      bestN = i + rest / st[1];
+      bestTxt = [i ? `${i} × ${st[0]}` : "", rest ? `${rest / st[1]} × ${st[1]}` : ""].filter(Boolean).join(" + ") + " mg";
+    }
+  }
+  return bestTxt;
+}
+function distribute(total, n, unit) {
+  const base = Math.floor(total / n / unit + 1e-9) * unit;
+  const extra = Math.round((total - base * n) / unit);
+  return Array.from({ length: n }, (_, i) => +(base + (i >= n - extra ? unit : 0)).toFixed(6)).filter((x) => x > 0);
+}
+function giveAs(form, step, total, n) {
+  if (!total) return null;
+  n = Math.min(n, 4);
+  if (step) {
+    const parts = distribute(total, n, step);
+    return { parts, n: parts.length, even: parts.every((x) => x === parts[0]) };
+  }
+  const allowed = amounts(form, step, total);
+  const spread = MAX_SPREAD[form];
+  const minK = form === "cap" ? 1 : Math.min(2, n);
+  for (let k = n; k >= minK; k--) {
+    const parts = splitDaily(total, k, allowed, spread);
+    if (parts) {
+      const even = parts.every((x) => x === parts[0]);
+      if (!even && k > 2) {
+        const bid = splitDaily(total, 2, allowed, 0);
+        if (bid) return { parts: bid, n: 2, even: true, alt: { parts, n: k } };
+      }
+      return { parts, n: k, even };
+    }
+  }
+  return null;
+}
+// Choose the deliverable daily dose whose predicted level is closest to target.
+function chooseDose({ form, inc, tau, Vm, Km, T, refDaily = 0, roundUp = false }) {
+  const S = SALT[form];
+  const exact = (Vm * T) / (Km + T) / S;
+  const step = stepFor(form, inc);
+  const nDoses = Math.max(1, Math.round(24 / tau));
+  const top = Math.min(Vm / S, Math.max(exact, refDaily) * 2 + 200);
+  const scored = dailyCandidates(form, step, top, nDoses).filter((d) => S * d < Vm).map((d) => ({ d, c: predictCss(S * d, Vm, Km) }));
+  const inRange = scored.filter((x) => x.c >= 10 && x.c <= 20);
+  const pool = T >= 10 && T <= 20 && inRange.length ? inRange : scored;
+  let best = pool.length ? pool.reduce((a, b) => (Math.abs(b.c - T) < Math.abs(a.c - T) - 1e-9 ? b : a), pool[0]) : null;
+  if (roundUp) best = scored.find((x) => x.d >= exact - 1e-9) || best; // Graves 1986: round the calculated dose up
+  const rounded = best ? best.d : 0;
+  const Rr = S * rounded;
+  const CnbNew = predictCss(Rr, Vm, Km);
+  const i0 = scored.findIndex((x) => x.d === rounded);
+  const rows = scored.slice(Math.max(0, i0 - 3), i0 + 4).map((x) => ({ d: x.d, Cnb: x.c, sel: x.d === rounded, give: giveAs(form, step, x.d, nDoses) }));
+  return { form, S, exact, step, nDoses, rounded, Rr, CnbNew, rows, give: giveAs(form, step, rounded, nDoses) };
+}
+
+// Hold options when the level must come down.
+function holdOptions(Cnb, T, CnbNew, Rr, Vm, Km, V, tau) {
+  const holdDays = declineDays(Cnb, T, Vm, Km, V);
+  const need = Math.ceil((holdDays * 24) / tau - 1e-9);
+  const hold = [];
+  for (let k = 0; k <= Math.min(need + 1, 12); k++) {
+    const start = levelAfterHold(Cnb, (k * tau) / 24, Vm, Km, V);
+    const settle = isFinite(CnbNew) && Math.abs(CnbNew - start) > 0.05 ? timeBetween(start, start + 0.9 * (CnbNew - start), Rr, Vm, Km, V) : 0;
+    hold.push({ k, hours: k * tau, start, settle });
+  }
+  const ok = hold.filter((h) => h.k > 0 && h.start >= 10);
+  const holdDoses = ok.length ? ok.reduce((a, b) => (Math.abs(b.start - T) < Math.abs(a.start - T) ? b : a)).k : 0;
+  return { holdDays, hold, holdDoses };
+}
+
+// Recheck schedule after a dose change. Day 0 = first dose of the new regimen.
+function recheckPlan({ Cnb, CnbNew, Rr, Vm, rounded, current, pctChange, settle, wt, holdHrs, ssLeft, ssTotal, highNow }) {
+  const recheck = [];
+  const saturation = Rr / Vm;
+  const ssNew = isFinite(CnbNew) ? ((115 + 35 * CnbNew) * CnbNew) / ((Rr * 70) / wt) : Infinity;
+  if (highNow) {
+    recheck.push({ day: holdHrs ? 0 : 1, when: holdHrs ? `End of the hold (${holdHrs} h)` : "Within 24 h",
+      why: "The level is above range. A level before restarting confirms it has fallen; skip it if there are no signs of toxicity and the hold is short." });
+  }
+  if (rounded === current) {
+    recheck.push(ssLeft > 0
+      ? { day: ssLeft, when: `Day ${ssLeft}`, why: `No dose change. The current regimen may not be at steady state yet (Winter's conservative estimate is day ${Math.round(ssTotal)} of therapy), so confirm the level then.` }
+      : { day: null, when: "No change", why: "The nearest deliverable dose is the current one. Recheck per routine monitoring below, or sooner if the clinical picture changes." });
+  } else {
+    const tight = saturation > 0.85 || pctChange > 15 || CnbNew > 18;
+    const reasons = [];
+    if (saturation > 0.85) reasons.push(`the new dose is ${Math.round(saturation * 100)}% of Vmax, where small errors in Vmax move the level a lot`);
+    if (pctChange > 15) reasons.push(`the dose rises ${Math.round(pctChange)}%`);
+    if (CnbNew > 18) reasons.push("the predicted level is near the top of the range");
+    const d = tight ? 3 : 5;
+    recheck.push({ day: d, when: `Day ${d}`,
+      why: tight ? `Early check because ${reasons.join(" and ")}. A level already above the prediction means Vmax was overestimated.`
+        : "Early check of the trend. It won't be at steady state yet; compare it with the trajectory, not the target." });
+    if (isFinite(settle) && settle > 0) {
+      const d2 = Math.max(Math.ceil(settle), 7);
+      recheck.push({ day: d2, when: `Day ${d2}`,
+        why: `Model estimate for reaching 90% of the new steady state${isFinite(ssNew) && ssNew > d2 * 1.5 ? `. Winter's conservative estimate is day ${Math.round(ssNew)}; if this level is still changing, repeat it then` : ""}. Use this level to confirm the dose.` });
+    }
+  }
+  recheck.push({ day: null, when: "Then", why: "Once two steady-state levels agree: weekly while in hospital, then every 3–12 months. Also recheck after starting or stopping an interacting drug, a change in albumin or renal function, a change of product, or new seizures or toxicity." });
+  return recheck;
+}
+
+// Shared "new dose from Km and Vmax" step used by several tabs.
+function newDosePlan({ p, pm, warn, L, Tn, TU, form, tau, Vm, Km, Cnb, T, current, days, R, roundUp = false }) {
+  const ch = chooseDose({ form, inc: p.inc, tau, Vm, Km, T, refDaily: current, roundUp });
+  const out = { ...ch, T };
+  out.measuredNew = ch.CnbNew * pm.factor;
+  out.freeNew = ch.CnbNew * 0.1;
+  out.change = ch.rounded - current;
+  out.pctChange = current ? (out.change / current) * 100 : 0;
+  if (!ch.rounded) warn("crit", "No deliverable dose stays below Vmax. Check the inputs.");
+  if (isFinite(ch.CnbNew) && Math.abs(ch.CnbNew - Cnb) > 0.05) out.t90change = timeBetween(Cnb, Cnb + 0.9 * (ch.CnbNew - Cnb), ch.Rr, Vm, Km, pm.V);
+  out.t90zero = t90(Km, pm.V, Vm, ch.Rr);
+  if (T < Cnb) Object.assign(out, holdOptions(Cnb, T, ch.CnbNew, ch.Rr, Vm, Km, pm.V, tau));
+  const holding = out.hold && ch.CnbNew < Cnb && out.holdDoses > 0;
+  out.holdHrs = holding ? out.holdDoses * tau : 0;
+  if (R) {
+    out.ssTotal = ((115 + 35 * Cnb) * Cnb) / ((R * 70) / p.wt);
+    out.ssLeft = days > 0 ? Math.ceil(out.ssTotal - days) : 0;
+  }
+  if (Cnb > 20) warn(Cnb > 30 ? "crit" : "warn", `Normal-binding level ${L(Cnb)} is above ${Tn(20)} ${TU}. Nystagmus is common above ${Tn(20)}, ataxia above ${Tn(30)}, mental status change above ${Tn(40)} ${TU}. Assess for toxicity before choosing a new dose.`);
+  if (out.pctChange > 25) warn("warn", `This is a ${out.pctChange.toFixed(0)}% increase. Because metabolism saturates, small dose increases can raise the level disproportionately; recheck a level in 3–5 days.`);
+  if (ORAL[form] && form !== "cap" && tau > 12) warn("info", "Chewable tablets and suspension are prompt release. Give them in divided doses (every 8–12 h), not once daily.");
+  out.recheck = recheckPlan({ Cnb, CnbNew: ch.CnbNew, Rr: ch.Rr, Vm, rounded: ch.rounded, current, pctChange: out.pctChange,
+    settle: holding ? out.hold[out.holdDoses].settle : out.t90change, wt: p.wt, holdHrs: out.holdHrs, ssLeft: out.ssLeft || 0, ssTotal: out.ssTotal, highNow: Cnb > 20 });
+  return out;
+}
+function fmtCtx(p) { return { L: p.L || defaultL, Tn: p.T || ((x) => x), TU: p.TU || "mg/L" }; }
+
+// ---- Tab: adjust from one level ----
+function adjustCalc(p, pm) {
+  const alerts = [...pm.alerts], warn = (lvl, text) => alerts.push({ lvl, text });
+  const { L, Tn, TU } = fmtCtx(p);
+  const form = p.a_form, S = SALT[form];
+  const dailyProduct = (p.a_dose * 24) / p.a_tau, R = S * dailyProduct;
+  const out = { alerts, S, form, tau: p.a_tau, dailyProduct, R };
+  let Cnb = p.a_level / pm.factor;
+  out.CnbMeasured = Cnb;
+  if (p.a_trough) { const add = ((ORAL[form] ? 0.25 : 0.5) * S * p.a_dose) / pm.V; out.troughAdd = add; Cnb += add; }
+  out.Cnb = Cnb;
+  if (!(Cnb > 0) || !(R > 0)) { out.invalid = true; return out; }
+  const T = p.a_target;
+  // Methods: 'map' one-level Bayesian (literature default); 'km' Km assumed (Winter Eq 14.30; site default); 'gc' Graves 1986 (optional).
+  // 'default' or missing → literature 'map', site 'km'. Km 4 (Winter) is always computed as a cross-check.
+  const method = ["map", "km", "gc"].includes(p.a_method) ? p.a_method : pm.model === "site" ? "km" : "map";
+  const kmA = { Km: pm.Km, Vm: (R * (pm.Km + Cnb)) / Cnb };
+  const winter4 = { Km: 4, Vm: (R * (4 + Cnb)) / Cnb };
+  winter4.exact = (winter4.Vm * T) / (4 + T) / S;
+  const map = mapSS({ R, C: Cnb, Km0: pm.Km, KmSd: pm.KmSd, Vm0: pm.VmPop, VmSd: pm.VmPopSd });
+  const gc = { Rnew: gravesCloyd(R, Cnb, T), implied: gcImplied(R, Cnb, T) };
+  gc.product = gc.Rnew / S;
+  out.methods = { km: kmA, map, gc, winter4 };
+  let { Km, Vm } = kmA;
+  if (method === "map" && map.Vm > R) ({ Km, Vm } = map);
+  else if (method === "gc") {
+    if (gc.implied) ({ Km, Vm } = gc.implied);
+    else warn("info", "Graves-Cloyd needs a target at least 5% away from the current level; the assumed-Km result is shown instead.");
+    warn("info", "Graves-Cloyd (Graves 1986) is an empiric one-level equation that under-predicts on average, so the dose is rounded up. Timing and hold estimates use the Km and Vmax implied by the current level and the Graves dose.");
+  }
+  out.method = method;
+  Object.assign(out, { Km, Vm, VmPerKg: Vm / pm.dosingWt });
+  vmCheck(pm, out.VmPerKg, warn);
+  out.plan = newDosePlan({ p, pm, warn, L, Tn, TU, form, tau: p.a_tau, Vm, Km, Cnb, T, current: dailyProduct, days: p.a_days, R, roundUp: method === "gc" && !!gc.implied });
+  winter4.rounded = chooseDose({ form, inc: p.inc, tau: p.a_tau, Vm: winter4.Vm, Km: 4, T, refDaily: dailyProduct }).rounded;
+  winter4.CnbAtChosen = predictCss(S * out.plan.rounded, winter4.Vm, 4);
+  if (p.a_days > 0 && out.plan.ssTotal > p.a_days) warn("warn", `The patient has been on this regimen ${p.a_days} days; Winter's conservative estimate for steady state at this level is ${out.plan.ssTotal.toFixed(0)} days. If the level is still rising, Vmax is overestimated and the new dose will overshoot.`);
+  if (T > Cnb) {
+    const step = Cnb < 7 ? 100 : Cnb < 12 ? 50 : 30;
+    out.empiric = { step, daily: dailyProduct + step, Cnb: predictCss(S * (dailyProduct + step), Vm, Km) };
+    if (dailyProduct < 300) warn("info", "Empiric increments assume the patient already takes at least 300 mg/day.");
+  }
+  return out;
+}
+
+// ---- Tab: start therapy ----
+function ivRate(route, p, slow) {
+  const kid = p.age < 18;
+  if (route === "fos") return kid ? Math.min(3 * p.wt, 150) : 150;
+  return kid ? Math.min(1 * p.wt, 50) : slow ? 25 : 50;
+}
+function loadDose({ route, form, V, Cfrom, Cto, p, slow }) {
+  const S = route === "oral" ? SALT[form] : 0.92;
+  const exact = (V * (Cto - Cfrom)) / S;
+  const out = { route, S, exact };
+  if (!(exact > 0)) { out.none = true; return out; }
+  if (route === "oral") {
+    const unit = form === "cap" ? 100 : form === "chew" ? 50 : 25;
+    const total = Math.max(unit, PK.round.roundTo(exact, unit));
+    const n = Math.ceil(total / 400 - 1e-9);
+    out.total = total;
+    out.parts = distribute(total, n, unit).reverse();
+    out.peak = Cfrom + (0.5 * S * total) / V;
+    out.expected = Cfrom + (S * total) / V;
+  } else {
+    const total = Math.max(50, PK.round.roundTo(exact, 50));
+    out.total = total;
+    out.rate = ivRate(route, p, slow);
+    out.minutes = total / out.rate;
+    out.expected = Cfrom + (S * total) / V;
+  }
+  out.perKg = out.total / p.wt;
+  return out;
+}
+function startCalc(p, pm) {
+  const alerts = [...pm.alerts], warn = (lvl, text) => alerts.push({ lvl, text });
+  const out = { alerts };
+  const form = p.s_form, S = SALT[form];
+  if (p.s_load !== "none") {
+    const loadForm = ORAL[form] ? form : "cap";
+    out.load = loadDose({ route: p.s_load, form: loadForm, V: pm.V, Cfrom: 0, Cto: p.s_loadTarget, p, slow: p.s_slow });
+    out.load.form = loadForm;
+    if (out.load.perKg > 20.5) warn("warn", `The loading dose is ${out.load.perKg.toFixed(1)} mg/kg, above the usual 15–20 mg/kg. Check weight and the load target.`);
+    if (p.s_load === "iv" && !p.s_slow && p.age >= 65) warn("info", "Over 65: consider the slower IV phenytoin rate (25 mg/min).");
+  }
+  const Km = pm.Km, Vm = pm.VmPop;
+  Object.assign(out, { Km, Vm, VmPerKg: Vm / pm.dosingWt });
+  const ch = chooseDose({ form, inc: p.inc, tau: p.s_tau, Vm, Km, T: p.s_target });
+  out.plan = { ...ch, T: p.s_target, measuredNew: ch.CnbNew * pm.factor, freeNew: ch.CnbNew * 0.1 };
+  out.plan.mgkg = ch.rounded / pm.dosingWt;
+  const C0 = out.load && !out.load.none ? out.load.expected : 0;
+  out.C0 = C0;
+  out.plan.settle = C0 > 0 && Math.abs(ch.CnbNew - C0) > 0.05 ? timeBetween(C0, C0 + 0.9 * (ch.CnbNew - C0), ch.Rr, Vm, Km, pm.V)
+    : t90(Km, pm.V, Vm, ch.Rr);
+  out.plan.fractions = FRACTIONS.map((f) => ({ f, days: timeToFraction(f, ch.Rr, Vm, Km, pm.V) }));
+  if (pm.pop) {
+    const [lo, hi] = pm.pop.mkd;
+    if (out.plan.mgkg < lo * 0.9 || out.plan.mgkg > hi * 1.1) warn("info", `This is ${out.plan.mgkg.toFixed(1)} mg/kg/day; the usual range for this age is ${lo}–${hi} mg/kg/day.`);
+  }
+  if (ORAL[form] && form !== "cap" && p.s_tau > 12) warn("info", "Chewable tablets and suspension are prompt release. Give them in divided doses (every 8–12 h), not once daily.");
+  warn("info", "Population Km varies widely (adult SD about 3.5 mg/L), so the first levels matter more than this prediction. Small Km differences change the steady-state level a lot.");
+  const r = [];
+  if (out.load && !out.load.none) {
+    const when = p.s_load === "iv" ? "2 h after the infusion ends" : p.s_load === "fos" ? "4 h after the dose" : "24 h after the last load dose";
+    r.push({ day: null, when: "Post-load level", why: `${when[0].toUpperCase() + when.slice(1)}. Expect about ${(p.L || defaultL)(p.s_load === "oral" ? out.load.peak : out.load.expected)} (normal binding). If it is well below, use the top-up load on the Load or switch tab.` });
+  }
+  r.push({ day: 3, when: "Day 2–3", why: "First level on maintenance. Use the Adjust from a level tab, but remember it is not at steady state yet; the Two levels tab handles a second non-steady-state level." });
+  r.push({ day: 7, when: "Day 5–7", why: "Second level, 3–5 days after the first, to see the trend." });
+  const ssd = Math.max(Math.ceil(out.plan.settle), 7);
+  if (isFinite(ssd) && ssd > 7) r.push({ day: ssd, when: `Day ${ssd}`, why: "Model estimate for 90% of steady state on this dose. Confirm the dose with this level." });
+  r.push({ day: null, when: "Then", why: "Weekly while in hospital, then every 3–12 months once stable, and after any interacting drug, binding change, product change, or new seizures or toxicity." });
+  out.recheck = r;
+  return out;
+}
+
+// ---- Tab: two levels ----
+// Concentration MAP (this tool's original objective): ((C2 − C2pred)/(0.1·C2))² + ((Km − Km0)/KmSd)² + ((Vm − Vm0)/VmSd)²,
+// C2pred by RK4. Now minimised with PK.fit.map (Levenberg-Marquardt, log parameters) instead of a grid search.
+function bayesFit({ C1, C2, t, R, V, Km0, KmSd, Vm0, VmSd }) {
+  const r = PK.fit.map({ predict: (th) => simulate(C1, t, R, th.Vm, th.Km, V), obs: [{ t, c: C2 }],
+    params: [{ name: "Km", mean: Km0, cv: KmSd / Km0 }, { name: "Vm", mean: Vm0, cv: VmSd / Vm0 }], error: { type: "proportionalObs", cv: 0.1 } });
+  return { Km: r.params.Km, Vm: r.params.Vm, f: r.objective, pred: r.predictions[0].pred, converged: r.converged };
+}
+// Site workbook "Bayesian 2NonSteadyStateLevels" (spec §4.10a): fit the TIME between two levels.
+// OBJ = ((Tobs − Tpred)/(0.1·Tobs))² + ((Vm − Vm0)/(cv·Vm0))² + ((Km − Km0)/(cv·Km0))², Tpred = closed-form time between levels (§4.6).
+function bayesTimeSpec({ C1, C2, tDays, R, V, Km0, Vm0, cv = 0.4 }) {
+  return { predict: (th) => timeBetween(C1, C2, R, th.Vm, th.Km, V), obs: [{ t: 0, c: tDays }],
+    params: [{ name: "Km", mean: Km0, cv }, { name: "Vm", mean: Vm0, cv }], error: { type: "proportionalObs", cv: 0.1 } };
+}
+function bayesTimeFit(o) {
+  const spec = bayesTimeSpec(o);
+  // Start where the workbook does (Km prior, mass-balance Vmax) plus a few points along the mass-balance line; keep valid ones.
+  const avg = (o.C1 + o.C2) / 2, elim = o.R - ((o.C2 - o.C1) * o.V) / o.tDays;
+  const starts = [1, 0.5, 1.5, 2.5].map((m) => ({ Km: o.Km0 * m, Vm: (elim * (o.Km0 * m + avg)) / avg }))
+    .concat([{ Km: o.Km0, Vm: o.Vm0 }]).filter((s) => s.Vm > 0 && isFinite(PK.fit.objective(spec, s)) && PK.fit.objective(spec, s) < 1e100);
+  if (!starts.length) return { invalid: true };
+  const r = PK.fit.map({ ...spec, starts });
+  const tPred = r.predictions[0].pred;
+  if (!isFinite(tPred)) return { invalid: true };
+  return { Km: r.params.Km, Vm: r.params.Vm, f: r.objective, tPred, converged: r.converged, objective: (Km, Vm) => PK.fit.objective(spec, { Km, Vm }) };
+}
+// One steady-state level, MAP on Km and Vmax with population priors (orbit-graph equivalent; lit 1c recommends MAP for one level).
+function mapSS({ R, C, Km0, KmSd, Vm0, VmSd }) {
+  const vmAt = (Km) => (R * (Km + C)) / C;
+  const starts = [1, 0.5, 2].map((m) => ({ Km: Km0 * m, Vm: vmAt(Km0 * m) }));
+  const r = PK.fit.map({ predict: (th) => predictCss(R, th.Vm, th.Km), obs: [{ t: 0, c: C }], starts,
+    params: [{ name: "Km", mean: Km0, cv: KmSd / Km0 }, { name: "Vm", mean: Vm0, cv: VmSd / Vm0 }], error: { type: "proportionalObs", cv: 0.1 } });
+  return { Km: r.params.Km, Vm: r.params.Vm, f: r.objective, pred: r.predictions[0].pred };
+}
+// Graves NM, Leppik IE et al. Ther Drug Monit 1986 (PMID 3824428): new dose = old dose × (Cnew/Cold)^0.2, rounded up.
+// Bauer's textbook form (Dold/Cold)·Cnew^0.199·Cold^0.804 is the same equation with unrounded exponents (reference only).
+function gravesCloyd(Rold, Cold, Cnew) { return Rold * Math.pow(Cnew / Cold, 0.2); }
+function gravesCloydBauer(Rold, Cold, Cnew) { return (Rold / Cold) * Math.pow(Cnew, 0.199) * Math.pow(Cold, 0.804); }
+// Km and Vmax of the MM curve through (Rold, Cold) and the Graves-Cloyd point (Rnew, Cnew), by Ludden. null if not solvable.
+function gcImplied(Rold, Cold, Cnew) {
+  if (!(Cold > 0 && Cnew > 0 && Rold > 0) || Math.abs(Cnew - Cold) < 0.05 * Cold) return null;
+  const Rnew = gravesCloyd(Rold, Cold, Cnew);
+  const Km = (Rnew - Rold) / (Rold / Cold - Rnew / Cnew), Vm = (Rold * (Km + Cold)) / Cold;
+  return Km > 0 && Vm > Math.max(Rold, Rnew) ? { Rnew, Km, Vm } : null;
+}
+function twoCalc(p, pm) {
+  const alerts = [...pm.alerts], warn = (lvl, text) => alerts.push({ lvl, text });
+  const { L, Tn, TU } = fmtCtx(p);
+  const out = { alerts, mode: p.t_mode };
+  const f = pm.factor;
+  if (p.t_mode === "ss") {
+    const S1 = SALT[p.t_form1], S2 = SALT[p.t_form2];
+    const R1 = (S1 * p.t_dose1 * 24) / p.t_tau1, R2 = (S2 * p.t_dose2 * 24) / p.t_tau2;
+    const C1 = p.t_lvl1 / f, C2 = p.t_lvl2 / f;
+    Object.assign(out, { R1, R2, C1, C2, form: p.t_form2, tau: p.t_tau2, dailyProduct: (p.t_dose2 * 24) / p.t_tau2 });
+    if (!(R1 > 0 && R2 > 0 && C1 > 0 && C2 > 0)) { out.invalid = true; return out; }
+    if (Math.abs(R1 - R2) < 1e-6) { warn("crit", "The two regimens deliver the same amount of drug, so Km can't be solved. Enter two different doses."); out.invalid = true; return out; }
+    const Km = (R2 - R1) / (R1 / C1 - R2 / C2);
+    const Vm = (R1 * (Km + C1)) / C1;
+    Object.assign(out, { Km, Vm, VmPerKg: Vm / pm.dosingWt });
+    if (!(Km > 0) || !(Vm > Math.max(R1, R2))) {
+      warn("crit", "These levels don't fit saturable kinetics: the level must rise more than proportionally with the dose. Check adherence, that both were at steady state, sample timing and binding.");
+      out.invalid = true; return out;
+    }
+    if (Km < 1 || Km > 20) warn("warn", `Calculated Km is ${Km.toFixed(1)} mg/L, outside the usual 1–20 mg/L. Small errors in either level change Km a lot.`);
+    vmCheck(pm, out.VmPerKg, warn);
+    out.plan = newDosePlan({ p, pm, warn, L, Tn, TU, form: p.t_form2, tau: p.t_tau2, Vm, Km, Cnb: C2, T: p.t_target, current: out.dailyProduct, days: 0, R: R2 });
+  } else {
+    const S = SALT[p.t_form], R = (S * p.t_dose * 24) / p.t_tau;
+    const C1 = p.t_c1 / f, C2 = p.t_c2 / f, t = p.t_days;
+    Object.assign(out, { R, C1, C2, t, form: p.t_form, tau: p.t_tau, dailyProduct: (p.t_dose * 24) / p.t_tau });
+    if (!(R > 0 && C1 > 0 && C2 > 0 && t > 0)) { out.invalid = true; return out; }
+    if (t < 3) warn("warn", "Levels less than 3 days apart make mass balance unreliable (Winter).");
+    if (C2 > C1 && C2 > 2 * C1) warn("warn", "The level more than doubled; Winter advises C2 ≤ 2 × C1 for a rising level.");
+    if (C2 < C1 && C2 < 0.5 * C1) warn("warn", "The level fell by more than half; Winter advises C2 ≥ ½ × C1 for a falling level.");
+    const avg = (C1 + C2) / 2;
+    const elim = R - ((C2 - C1) * pm.V) / t;
+    const mb = { elim, Km: pm.Km, Vm: (elim * (pm.Km + avg)) / avg };
+    out.mb = mb;
+    out.bayes = bayesFit({ C1, C2, t, R, V: pm.V, Km0: pm.Km, KmSd: pm.KmSd, Vm0: pm.VmPop, VmSd: pm.VmPopSd });
+    // Site workbook prior: Vmax 7 mg/kg/day × dosing weight, hard-coded (spec §3.3); literature: age-group population Vmax.
+    out.bayesTimeVm0 = pm.model === "site" ? 7 * pm.dosingWt : pm.VmPop;
+    out.bayesTime = bayesTimeFit({ C1, C2, tDays: t, R, V: pm.V, Km0: pm.Km, Vm0: out.bayesTimeVm0, cv: 0.4 });
+    const isFit = p.t_method === "bayes" || p.t_method === "bayesTime";
+    if (p.t_method === "bayesTime" && out.bayesTime.invalid) {
+      warn("crit", "The time-based fit found no Km and Vmax that connect these two levels on this dose. Check the dose, the times and adherence, or use mass balance.");
+      out.invalid = true; return out;
+    }
+    const use = p.t_method === "bayes" ? out.bayes : p.t_method === "bayesTime" ? out.bayesTime : mb;
+    if (!(use.Vm > R)) {
+      warn("crit", isFit ? "The fit puts Vmax at or below the current dose, so this regimen never reaches steady state. Reduce the dose and recheck." : "Mass balance puts Vmax at or below the current dose, so the regimen never reaches steady state. Reduce the dose, or try the Bayesian fit.");
+      if (!(use.Vm > 0)) { out.invalid = true; return out; }
+    }
+    Object.assign(out, { Km: use.Km, Vm: use.Vm, VmPerKg: use.Vm / pm.dosingWt });
+    vmCheck(pm, out.VmPerKg, warn);
+    out.ssPred = predictCss(R, use.Vm, use.Km);
+    out.plan = newDosePlan({ p, pm, warn, L, Tn, TU, form: p.t_form, tau: p.t_tau, Vm: use.Vm, Km: use.Km, Cnb: C2, T: p.t_target, current: out.dailyProduct, days: 0, R: 0 });
+  }
+  return out;
+}
+
+// ---- Tab: after stopping ----
+function stopCalc(p, pm) {
+  const alerts = [...pm.alerts], warn = (lvl, text) => alerts.push({ lvl, text });
+  const { L, Tn, TU } = fmtCtx(p);
+  const f = pm.factor;
+  const C1 = p.x_c1 / f, C2 = p.x_c2 > 0 ? p.x_c2 / f : NaN, t = p.x_hours / 24;
+  const out = { alerts, C1, C2, Km: pm.Km };
+  if (!(C1 > 0)) { out.invalid = true; return out; }
+  let Vm, Cnow;
+  if (C2 > 0) {
+    if (!(t > 0)) { warn("crit", "Enter the hours between the two levels."); out.invalid = true; return out; }
+    if (C2 >= C1) { warn("crit", "The later level isn't lower. Absorption may still be going on (common after large oral doses or with extended capsules). Wait for a falling pair of levels."); out.invalid = true; return out; }
+    if (p.x_hours < 12) warn("warn", "Levels less than 12 h apart magnify assay error in the fitted Vmax.");
+    Vm = (pm.V * (pm.Km * Math.log(C1 / C2) + (C1 - C2))) / t;
+    Cnow = C2;
+    out.source = "levels";
+  } else {
+    Vm = pm.VmPop;
+    Cnow = C1;
+    out.source = "population";
+    warn("info", "Only one level, so population Vmax is used. A second level 12–24 h later lets the calculator use the patient's own decline.");
+  }
+  Object.assign(out, { Vm, VmPerKg: Vm / pm.dosingWt });
+  vmCheck(pm, out.VmPerKg, warn);
+  const since = p.x_since > 0 ? p.x_since / 24 : 0;
+  out.Cnow = levelAfterHold(Cnow, since, Vm, pm.Km, pm.V);
+  const T = p.x_target;
+  out.T = T;
+  out.daysToTarget = out.Cnow > T ? declineDays(out.Cnow, T, Vm, pm.Km, pm.V) : 0;
+  // Decline table every 12 h.
+  const rows = [];
+  for (let h = 0; h <= 24 * 10; h += 12) {
+    const c = levelAfterHold(out.Cnow, h / 24, Vm, pm.Km, pm.V);
+    rows.push({ h, c });
+    if (c < T * 0.85 || rows.length > 16) break;
+  }
+  out.decline = rows;
+  if (out.Cnow > 20) warn(out.Cnow > 30 ? "crit" : "warn", `Estimated level now ${L(out.Cnow)} (normal binding) is above ${Tn(20)} ${TU}. Ataxia is common above ${Tn(30)}, mental status change above ${Tn(40)} ${TU}.`);
+  // Restart maintenance.
+  const ch = chooseDose({ form: p.x_form, inc: p.inc, tau: p.x_tau, Vm, Km: pm.Km, T });
+  out.plan = { ...ch, T, measuredNew: ch.CnbNew * f, freeNew: ch.CnbNew * 0.1 };
+  out.plan.settle = Math.abs(ch.CnbNew - T) > 0.05 ? timeBetween(T, T + 0.9 * (ch.CnbNew - T), ch.Rr, Vm, pm.Km, pm.V) : 0;
+  const restartDay = out.daysToTarget;
+  out.restartDay = restartDay;
+  const r = [];
+  if (restartDay > 0) r.push({ day: 0, when: "Before restarting", why: `Optional level when the model expects ${L(T)}. Worth doing if toxicity persists or the decline is uncertain (one level only, or ongoing absorption).` });
+  r.push({ day: 5, when: "Day 5", why: "Early check on the restarted dose. Compare with the predicted trajectory." });
+  const ssd = Math.max(Math.ceil(out.plan.settle || 0), 7);
+  r.push({ day: ssd, when: `Day ${ssd}`, why: "Model estimate for 90% of steady state on the restart dose. Confirm the dose with this level." });
+  r.push({ day: null, when: "Then", why: "Weekly while in hospital, then every 3–12 months once stable." });
+  out.recheck = r;
+  return out;
+}
+
+// ---- Tab: load or switch ----
+function loadCalc(p, pm) {
+  const alerts = [...pm.alerts], warn = (lvl, text) => alerts.push({ lvl, text });
+  const { L, Tn, TU } = fmtCtx(p);
+  const out = { alerts, mode: p.l_mode };
+  if (p.l_mode === "load") {
+    const Cnb = p.l_level / pm.factor;
+    out.Cnb = Cnb;
+    if (!(Cnb >= 0) || !(p.l_desired > 0)) { out.invalid = true; return out; }
+    const route = p.l_route === "cap" || p.l_route === "susp" ? "oral" : p.l_route;
+    const form = p.l_route === "susp" ? "susp" : "cap";
+    out.load = loadDose({ route, form, V: pm.V, Cfrom: Cnb, Cto: p.l_desired, p, slow: p.l_slow });
+    out.load.form = form;
+    out.T = p.l_desired;
+    if (out.load.none) warn("info", `The level (${L(Cnb)} normal binding) is already at or above the desired level, so no load is needed.`);
+    if (Cnb < 10) warn("info", "A low level often reflects missed doses. Check adherence and timing before topping up and raising the maintenance dose.");
+    return out;
+  }
+  const Sf = SALT[p.l_from], St = SALT[p.l_to];
+  const daily = (p.l_fromDose * 24) / p.l_fromTau;
+  const acid = Sf * daily;
+  const equiv = acid / St;
+  Object.assign(out, { daily, acid, equiv, from: p.l_from, to: p.l_to, tau: p.l_toTau });
+  if (!(daily > 0)) { out.invalid = true; return out; }
+  const step = stepFor(p.l_to, p.inc);
+  const n = Math.max(1, Math.round(24 / p.l_toTau));
+  if (p.l_curLevel > 0) {
+    const Cnb = p.l_curLevel / pm.factor;
+    const Vm = (acid * (pm.Km + Cnb)) / Cnb;
+    Object.assign(out, { Cnb, Vm, Km: pm.Km });
+    const ch = chooseDose({ form: p.l_to, inc: p.inc, tau: p.l_toTau, Vm, Km: pm.Km, T: Cnb, refDaily: equiv });
+    out.plan = { ...ch, T: Cnb, measuredNew: ch.CnbNew * pm.factor, freeNew: ch.CnbNew * 0.1 };
+    out.plan.settle = Math.abs(ch.CnbNew - Cnb) > 0.05 ? timeBetween(Cnb, Cnb + 0.9 * (ch.CnbNew - Cnb), ch.Rr, Vm, pm.Km, pm.V) : 0;
+    out.naive = { d: equiv, Cnb: predictCss(St * equiv, Vm, pm.Km) };
+    out.mgForMg = { d: daily, Cnb: predictCss(St * daily, Vm, pm.Km) };
+  } else {
+    const cands = dailyCandidates(p.l_to, step, equiv * 1.5 + 100, n);
+    const best = cands.reduce((a, b) => (Math.abs(b - equiv) < Math.abs(a - equiv) ? b : a), cands[0]);
+    out.plan = { rounded: best, give: giveAs(p.l_to, step, best, n), form: p.l_to, S: St, rows: [] };
+  }
+  if (Sf !== St) warn("warn", `${FORM_NAME[p.l_from]} and ${FORM_NAME[p.l_to]} differ in salt content (S ${Sf} vs ${St}). Giving the same mg would change the amount of phenytoin by ${(((St / Sf) - 1) * 100).toFixed(0)}%, which can move the level a lot.`);
+  if (ORAL[p.l_to] && p.l_to !== "cap" && p.l_toTau > 12) warn("info", "Chewable tablets and suspension are prompt release. Give them in divided doses (every 8–12 h).");
+  if (p.l_to === "susp") warn("info", "Suspension: shake well and measure with an oral syringe. With enteral feeds, absorption can drop sharply; many centres hold feeds around doses and monitor levels closely.");
+  if (!ORAL[p.l_from] && ORAL[p.l_to]) warn("info", "IV to oral: oral absorption is slower, so levels can dip in the first days. Recheck in 3–5 days.");
+  out.recheck = [
+    { day: 5, when: "Day 5", why: "Early check after the switch. Products are not interchangeable, and absorption differs between them." },
+    { day: 14, when: "Day 14", why: "Steady-state check on the new product." },
+    { day: null, when: "Then", why: "Routine monitoring, every 3–12 months once stable." },
+  ];
+  return out;
+}
+
+// ---- Tab: interpret ----
+function interpCalc(p, pm) {
+  const alerts = [...pm.alerts], warn = (lvl, text) => alerts.push({ lvl, text });
+  const { L, Tn, TU } = fmtCtx(p);
+  const out = { alerts };
+  const Cnb = p.i_level / pm.factor;
+  if (!(Cnb > 0)) { out.invalid = true; return out; }
+  out.Cnb = Cnb;
+  out.range = [10 * pm.factor, 20 * pm.factor];
+  out.free = p.bind === "free" ? p.free : Cnb * 0.1;
+  out.freeMeasured = p.bind === "free";
+  const h = p.i_hours;
+  if (p.i_route === "iv" && h < 2) warn("warn", "Drawn less than 2 h after IV phenytoin; distribution is incomplete and the level overstates what will persist.");
+  if (p.i_route === "fos" && h < 4) warn("warn", "Drawn less than 4 h after fosphenytoin; conversion and distribution may be incomplete. Fosphenytoin can also cross-react in some immunoassays.");
+  if (p.i_route === "oralload" && h < 24) warn("info", "Oral loads peak around 24 h (up to 30 h for large doses), so this level may still be rising.");
+  if (p.i_route === "maint") warn("info", "For maintenance dosing, troughs (just before a dose) are preferred. Extended capsules peak 3–12 h after a dose; with divided doses timing matters less.");
+  if (Cnb > 20) warn(Cnb > 30 ? "crit" : "warn", `Normal-binding level ${L(Cnb)} is above ${Tn(20)} ${TU}. Nystagmus is common above ${Tn(20)}, ataxia above ${Tn(30)}, mental status change above ${Tn(40)} ${TU}.`);
+  else if (Cnb < 5) warn("warn", `Below ${Tn(5)} ${TU} is unlikely to be effective. Check adherence, timing, interacting inducers and absorption (e.g., enteral feeds).`);
+  else if (Cnb < 10) warn("info", `Between ${Tn(5)} and ${Tn(10)} ${TU} can be therapeutic for some patients; judge by seizure control.`);
+  if (p.i_eff > 0) {
+    const S = SALT[p.i_form];
+    const removed = out.free * p.i_eff * 24;
+    out.crrt = { removed, product: removed / S, form: p.i_form };
+  }
+  return out;
+}
+
+// ---- Tab: dose history (explicit Lambert W model + MAP fit of peaks/troughs; spec §4.9, §4.10b) ----
+const HIST_PRIOR_CV = 0.4;   // workbook priors on Km, Vmax/V and Vd (spec §3.3; the Trough sheet's 0.3/fitted-Vd quirks are not copied)
+const HIST_LEVEL_CV = 0.1;   // level error 0.1 × observed for peaks and troughs (the workbook's peak row was #REF!)
+// Dose events in hours from dose 1. p.h_events [{ t, dose, form }] (arbitrary history) or a regular regimen: optional load, then dose every tau.
+function historyEvents(p) {
+  if (Array.isArray(p.h_events)) return p.h_events.map((e) => ({ t: e.t, dose: e.dose, form: e.form || p.h_form, S: SALT[e.form || p.h_form] ?? 1 })).sort((a, b) => a.t - b.t);
+  const S = SALT[p.h_form], n = Math.min(Math.max(0, Math.floor(p.h_n) || 0), 400), ev = [];
+  for (let i = 0; i < n; i++) ev.push({ t: i * p.h_tau, dose: i === 0 && p.h_load > 0 ? p.h_load : p.h_dose, form: p.h_form, S });
+  return ev;
+}
+// Observed levels, hours from dose 1, converted to normal binding BEFORE fitting (spec §10 fix).
+function historyObs(p, factor) {
+  const raw = Array.isArray(p.h_levels) ? p.h_levels : [1, 2, 3, 4].map((i) => ({ t: p[`h_t${i}`], c: p[`h_c${i}`] }));
+  return raw.filter((o) => o.c > 0 && isFinite(o.t)).map((o) => ({ t: o.t, measured: o.c, c: o.c / factor })).sort((a, b) => a.t - b.t);
+}
+function historyCalc(p, pm) {
+  const alerts = [...pm.alerts], warn = (lvl, text) => alerts.push({ lvl, text });
+  const { L, Tn, TU } = fmtCtx(p);
+  const f = pm.factor, form = p.h_form, S = SALT[form], tau = p.h_tau;
+  const events = historyEvents(p);
+  const out = { alerts, events, form, tau };
+  if (!events.length || !events.every((e) => e.dose > 0 && isFinite(e.t)) || !(tau > 0) || !(p.h_dose > 0)) { out.invalid = true; return out; }
+  const init = p.h_pre > 0 ? { c0: p.h_pre / f, t0: -(p.h_preH > 0 ? p.h_preH : 0) } : null;
+  let obs = historyObs(p, f);
+  const early = obs.filter((o) => o.t <= events[0].t);
+  if (early.length) { warn("warn", "A level at or before the first dose can't be fitted here. Enter it as the level before dose 1."); obs = obs.filter((o) => o.t > events[0].t); }
+  const V0 = pm.V, Km0 = pm.Km, VmL0 = pm.VmPop / 24 / V0;
+  const fitVd = p.h_fit === "kmvmvd";
+  const pop = { Km: Km0, VmL: VmL0, V: V0 };
+  const pred = (th, t) => mmLevel(t, events, th, init);
+  let th = pop, fit = null;
+  if (obs.length) {
+    const hasPeak = obs.some((o) => { const prev = events.filter((e) => e.t < o.t).pop(); return prev && o.t - prev.t <= 4; });
+    if (fitVd && !hasPeak) warn("warn", "Fitting Vd without a peak (a level within about 4 h of a dose) is not recommended. Troughs alone barely inform Vd.");
+    fit = PK.fit.map({ predict: pred, obs: obs.map((o) => ({ t: o.t, c: o.c })), error: { type: "proportionalObs", cv: HIST_LEVEL_CV },
+      params: [{ name: "Km", mean: Km0, cv: HIST_PRIOR_CV }, { name: "VmL", mean: VmL0, cv: HIST_PRIOR_CV }, { name: "V", mean: V0, cv: HIST_PRIOR_CV, fit: fitVd }] });
+    th = fit.params;
+    const names = { Km: "Km", VmL: "Vmax", V: "Vd" };
+    for (const k of fitVd ? ["Km", "VmL", "V"] : ["Km", "VmL"]) {
+      if (th[k] < 0.2 * pop[k] || th[k] > 1.8 * pop[k]) warn("warn", `Fitted ${names[k]} is outside 0.2–1.8 × the population value (the workbook's Solver bounds). Check doses, times, adherence and binding before relying on it.`);
+    }
+  } else warn("info", "No levels entered, so this is a population prediction. Add one or more levels with their times to fit Km and Vmax.");
+  const Km = th.Km, V = th.V, VmL = th.VmL, Vm = VmL * V * 24;
+  Object.assign(out, { Km, V, VmL, Vm, VmPerKg: Vm / pm.dosingWt, fit, obs, init, fitVd, pop });
+  out.predictions = obs.map((o) => ({ ...o, pred: pred(th, o.t), popPred: pred(pop, o.t) }));
+  out.doses = events.map((e) => { const tr = pred(th, e.t); return { t: e.t, dose: e.dose, trough: tr, peak: tr + (e.S * e.dose) / V }; });
+  const tNow = events[events.length - 1].t + tau;
+  out.tNow = tNow;
+  out.Cnb = pred(th, tNow);
+  const daily = (p.h_dose * 24) / tau, R = S * daily;
+  Object.assign(out, { dailyProduct: daily, R, ssCurrent: predictCss(R, Vm, Km), ssExplicit: ssMinMax(S * p.h_dose, tau, V, VmL, Km) });
+  if (obs.length) vmCheck(pm, out.VmPerKg, warn);
+  if (ORAL[form]) warn("info", "Doses are modelled as instant (bolus) input, as in the workbook. Oral and extended-release absorption is slower, so levels drawn soon after an oral dose read lower than predicted. Fit troughs.");
+  out.plan = newDosePlan({ p, pm: { ...pm, V }, warn, L, Tn, TU, form, tau, Vm, Km, Cnb: out.Cnb, T: p.h_target, current: daily, days: 0, R: 0 });
+  const pl = out.plan;
+  if (pl.rounded && pl.give) out.planExplicit = ssMinMax((S * pl.rounded) / pl.give.n, 24 / pl.give.n, V, VmL, Km);
+  // Curve: just before and after each dose, plus 8 points per interval, to tNow (and the last level if later).
+  const tEnd = Math.max(tNow, ...obs.map((o) => o.t)), tStart = init ? init.t0 : events[0].t, curve = [];
+  const marks = [...events.map((e) => e.t), tEnd];
+  if (init) curve.push({ t: init.t0, c: init.c0 });
+  for (let i = 0; i < marks.length - 1; i++) {
+    const a = marks[i], b = marks[i + 1];
+    if (a > tEnd) break;
+    curve.push({ t: a, c: pred(th, a) });
+    if (i < events.length) curve.push({ t: a, c: out.doses[i].peak });
+    for (let j = 1; j <= 8; j++) { const t = a + ((b - a) * j) / 8; curve.push({ t, c: pred(th, t) }); }
+  }
+  out.curve = curve.filter((q) => q.t >= tStart && isFinite(q.c));
+  return out;
+}
+// CALC-END
+
+// ===================== UI =====================
+const $ = (id) => document.getElementById(id);
+
+// Units per quantity. toBase converts the shown unit into the model's unit.
+const Q = {
+  phen: { units: ["µmol/L", "mg/L"], toBase: { "mg/L": 1, "µmol/L": 252.27 / 1000 }, dec: { "mg/L": 1, "µmol/L": 0 } },
+  phenFree: { units: ["µmol/L", "mg/L"], toBase: { "mg/L": 1, "µmol/L": 252.27 / 1000 }, dec: { "mg/L": 2, "µmol/L": 1 } },
+  vpa: { units: ["µmol/L", "mg/L"], toBase: { "mg/L": 1, "µmol/L": 144.21 / 1000 }, dec: { "mg/L": 0, "µmol/L": 0 } },
+  alb: { units: ["g/L", "g/dL"], toBase: { "g/dL": 1, "g/L": 0.1 }, dec: { "g/dL": 1, "g/L": 0 } },
+  ht: { units: ["cm", "in"], toBase: { in: 1, cm: 1 / 2.54 }, dec: { in: 1, cm: 0 } },
+  wt: { units: ["kg", "lb"], toBase: { kg: 1, lb: 0.45359237 }, dec: { kg: 1, lb: 0 } },
+  scr: { units: ["µmol/L", "mg/dL"], toBase: { "mg/dL": 1, "µmol/L": 1 / PK.body.SCR_UMOL_PER_MGDL }, dec: { "mg/dL": 2, "µmol/L": 0 } },
+};
+const COUNTRY = {
+  ca: { phen: "µmol/L", phenFree: "µmol/L", vpa: "µmol/L", alb: "g/L", ht: "cm", wt: "kg", scr: "µmol/L" },
+  us: { phen: "mg/L", phenFree: "mg/L", vpa: "mg/L", alb: "g/dL", ht: "in", wt: "kg", scr: "mg/dL" },
+  uk: { phen: "mg/L", phenFree: "mg/L", vpa: "mg/L", alb: "g/L", ht: "cm", wt: "kg", scr: "µmol/L" },
+};
+let country = "ca";
+let RU = "µmol/L"; // unit for levels in the results
+const unitFields = () => [...document.querySelectorAll("input[data-q]")];
+const unitOf = (el) => el.dataset.unit || COUNTRY[country][el.dataset.q];
+function setFieldUnit(el, unit, convert) {
+  const q = Q[el.dataset.q], from = unitOf(el);
+  if (convert && from !== unit && el.value !== "") {
+    const base = parseFloat(el.value) * q.toBase[from];
+    if (isFinite(base)) el.value = +(base / q.toBase[unit]).toFixed(q.dec[unit]);
+  }
+  el.dataset.unit = unit;
+  const b = document.querySelector(`button.ub[data-for="${el.id}"]`);
+  if (b) { b.textContent = unit; b.title = `Switch ${unit} to ${q.units.find((u) => u !== unit)}`; }
+}
+function applyCountry(c, convert) {
+  country = c;
+  for (const el of unitFields()) setFieldUnit(el, COUNTRY[c][el.dataset.q], convert);
+  RU = COUNTRY[c].phen;
+  document.querySelectorAll("[data-country]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.country === c ? "true" : "false"));
+}
+
+// Result formatting in the results unit.
+const rf = () => Q.phen.toBase[RU];
+const fmt = (x, d = 1) => (isFinite(x) ? x.toFixed(d) : "—");
+const fmtMg = (x) => (isFinite(x) ? Math.round(x).toLocaleString() : "—");
+const Lv = (x, d) => (isFinite(x) ? (x / rf()).toFixed(d ?? Q.phen.dec[RU]) : "—");
+const L = (x, d) => `${Lv(x, d)} ${RU}`;
+const Lf = (x) => L(x, Q.phenFree.dec[RU]);
+const Tn = (x) => (RU === "µmol/L" ? Math.round(x / rf() / 5) * 5 : x);
+
+const TABS = ["adjust", "start", "two", "hist", "stop", "load", "interp"];
+let activeTab = "adjust";
+let showOpts = false, showWork = false, currentNote = "";
+
+const SHORT_FORM = { cap: "ER capsules", chew: "chewable 50 mg", susp: "suspension", inj: "IV phenytoin", fos: "fosphenytoin (PE)" };
+const FORM_DEFAULTS = { h_form: "cap", a_form: "cap", s_form: "cap", t_form1: "susp", t_form2: "susp", t_form: "cap", x_form: "cap", l_from: "cap", l_to: "susp", i_form: "inj" };
+const TAU_DEFAULTS = { h_tau: 6, a_tau: 8, s_tau: 12, t_tau1: 12, t_tau2: 12, t_tau: 24, x_tau: 12, l_fromTau: 8, l_toTau: 8 };
+document.querySelectorAll(".form-select").forEach((sel) => {
+  sel.innerHTML = Object.keys(SHORT_FORM).map((k) => `<option value="${k}">${SHORT_FORM[k]}</option>`).join("");
+  sel.value = FORM_DEFAULTS[sel.id] || "cap";
+});
+document.querySelectorAll(".tau-select").forEach((sel) => {
+  sel.innerHTML = [[24, "daily (q24h)"], [12, "q12h"], [8, "q8h"], [6, "q6h"]].map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
+  sel.value = String(TAU_DEFAULTS[sel.id] || 12);
+});
+const inputs = () => [...document.querySelectorAll("#patientPanel input, #patientPanel select, .tabpanel input, .tabpanel select")];
+
+function read() {
+  const p = {};
+  for (const el of inputs()) {
+    if (el.type === "checkbox") p[el.id] = el.checked;
+    else if (el.type === "number") p[el.id] = el.value === "" ? NaN : parseFloat(el.value);
+    else if (el.classList.contains("tau-select")) p[el.id] = parseFloat(el.value);
+    else p[el.id] = el.value;
+  }
+  for (const el of unitFields()) p[el.id] *= Q[el.dataset.q].toBase[unitOf(el)];
+  p.htu = "in";
+  p.L = (x) => L(x); p.T = Tn; p.TU = RU;
+  return p;
+}
+
+// ---- Order text ----
+const DRUG = { cap: "phenytoin sodium ER", chew: "phenytoin chewable", susp: "phenytoin suspension 125 mg/5 mL", inj: "phenytoin", fos: "fosphenytoin" };
+const ROUTE = { cap: "PO", chew: "PO", susp: "PO", inj: "IV", fos: "IV" };
+const FREQ = { 1: "daily", 2: "q12h", 3: "q8h", 4: "q6h" };
+const amt = (form, d) => (form === "fos" ? `${fmtMg(d)} mg PE` : form === "susp" ? `${fmtMg(d)} mg (${+(d / 25).toFixed(1)} mL)` : `${fmtMg(d)} mg`);
+function orderText(form, g) {
+  if (!g) return "—";
+  const even = g.parts.every((x) => x === g.parts[0]);
+  return even ? `${DRUG[form]} ${amt(form, g.parts[0])} ${ROUTE[form]} ${FREQ[g.n] || ""}`
+    : `${DRUG[form]} ${ROUTE[form]} ${FREQ[g.n] || ""}: ${g.parts.map((d) => amt(form, d)).join(", ")}`;
+}
+function unitsLine(form, g) {
+  if (!g || !STRENGTHS[form]) return "";
+  const uniq = [...new Set(g.parts)];
+  const kind = form === "cap" ? "capsules" : "tablets";
+  if (uniq.length === 1) return `${unitsFor(form, uniq[0])} ${kind}`;
+  return `${kind}: ` + uniq.map((d) => `${d} = ${unitsFor(form, d).replace(/ mg$/, "")}`).join(", ");
+}
+function regimenNow(form, dose, tau) { return `${DRUG[form]} ${amt(form, dose)} ${ROUTE[form]} ${FREQ[Math.round(24 / tau)] || `q${tau}h`}`; }
+
+// ---- Shared builders ----
+// Provenance badge for a key in SRC (this page) or PK.sources (shared library). Unverified or off-site values show "verify".
+function badge(key) {
+  const s = SRC[key] || (PK.sources && PK.sources[key]);
+  if (!s) return "";
+  const t = PKUI.esc(`${s.label} (${s.ref})`);
+  return s.verify ? `<span class="src verify" title="${t}">verify</span>` : `<span class="src" title="${t}">src</span>`;
+}
+const curModel = () => ($("model").value === "site" ? "site" : "literature");
+function levelPill(c) {
+  if (!isFinite(c)) return '<span class="pill crit">No steady state</span>';
+  if (c < 10) return `<span class="pill warn">Below ${Tn(10)}</span>`;
+  if (c <= 20) return '<span class="pill ok">In range</span>';
+  return `<span class="pill ${c > 30 ? "crit" : "warn"}">Above ${Tn(20)}</span>`;
+}
+function interval(tau) { const m = { 24: "once daily", 12: "every 12 h", 8: "every 8 h", 6: "every 6 h" }; return m[tau] || `every ${+(+tau).toFixed(1)} h`; }
+function giveText(g, form, long) {
+  if (!g) return "—";
+  const units = (d) => (STRENGTHS[form] ? ` (${unitsFor(form, d)})` : "");
+  const one = (parts, n) => parts.every((x) => x === parts[0]) ? `${fmtMg(parts[0])} mg ${interval(24 / n)}${long ? units(parts[0]) : ""}` : `${parts.map(fmtMg).join(" + ")} mg, ${interval(24 / n)}`;
+  let txt = one(g.parts, g.n);
+  if (long && g.alt) txt += `, or ${one(g.alt.parts, g.alt.n)}`;
+  return txt;
+}
+const hours = (h) => (h < 48 ? `${fmt(h, 0)} h` : `${fmt(h / 24, 1)} days`);
+const dateFrom = (offsetHrs) => (d) => new Date(Date.now() + (offsetHrs || 0) * 3600e3 + d * 86400e3).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function recheckDates(items, offsetHrs) {
+  const df = dateFrom(offsetHrs);
+  const dated = items.filter((r) => r.day !== null && r.day !== undefined);
+  return dated.length ? dated.map((r) => (r.day === 0 ? `end of hold` : df(r.day))).join(" · ") : "Routine";
+}
+function flagsText(alerts) {
+  const crit = alerts.filter((a) => a.lvl === "crit").length, warn = alerts.filter((a) => a.lvl === "warn").length;
+  if (crit) return `<span class="flag-crit">${crit} critical${warn ? `, ${warn} warning${warn > 1 ? "s" : ""}` : ""}</span>`;
+  if (warn) return `<span class="flag-warn">${warn} warning${warn > 1 ? "s" : ""}</span>`;
+  return "None";
+}
+function changeText(change, pct) { return change === 0 ? "no change" : `${change > 0 ? "+" : "−"}${fmtMg(Math.abs(change))} mg/day (${change > 0 ? "+" : "−"}${fmt(Math.abs(pct), 0)}%)`; }
+const ruButton = () => `<button type="button" class="ub" data-ru title="Switch result units">${RU}</button>`;
+
+function orderCard({ lines, sub, right, info, opts = true, copyLabel = "Copy order and note" }) {
+  return `<section class="card order">
+    <div class="top">
+      <div class="lines">${lines.map((l) => `<div class="oline"><span class="tag">${l.tag}</span><span class="rx">${l.text}</span></div>`).join("")}
+        ${sub ? `<div class="subl">${sub}</div>` : ""}</div>
+      ${right ? `<div class="right"><span class="lbl">${right.label}</span><span><span class="val">${right.value}</span> ${ruButton()}</span><span>${right.pill || ""}</span></div>` : ""}
+    </div>
+    ${(info = [...(info || []), ["Model", MODELS[curModel()]]]).length ? `<div class="info">${info.map(([k, v]) => `<div><span class="lbl">${k}</span>${v}</div>`).join("")}</div>` : ""}
+    <div class="actions">
+      <button type="button" class="primary" data-act="copy">${copyLabel}</button>
+      ${opts ? `<button type="button" data-act="opts" aria-pressed="${showOpts}">Other doses</button>` : ""}
+      <button type="button" data-act="work" aria-pressed="${showWork}">Show working</button>
+      <span class="copied" id="copied"></span>
+    </div>
+  </section>`;
+}
+function alertsHTML(alerts) { return `<section class="alerts">${alerts.map((a) => `<div class="alert ${a.lvl === "crit" ? "crit" : a.lvl === "info" ? "info" : ""}">${a.text}</div>`).join("")}</section>`; }
+function recheckHTML(items, offsetHrs, hint) {
+  const df = (d) => new Date(Date.now() + (offsetHrs || 0) * 3600e3 + d * 86400e3).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return `<section class="card"><h2>When to recheck levels</h2><ol class="recheck">${items.map((r) => `<li><div class="when">${r.when}${r.day !== null && r.day !== undefined ? `<small>${df(r.day)}</small>` : ""}</div><div class="why">${r.why}</div></li>`).join("")}</ol><p class="hint">${hint}</p></section>`;
+}
+function workHTML(rows) { return `<section class="card"><h2>Working</h2><dl class="calc">${rows.map(([k, v]) => (k ? `<dt>${k}</dt><dd>${v}</dd>` : `<dd class="full">${v}</dd>`)).join("")}</dl></section>`; }
+function optionsHTML(rows, form, factor, current, currentGive, hint) {
+  const all = current ? [current, ...rows] : rows;
+  return `<section class="card"><h2>Daily dose options</h2><div class="tablewrap"><table>
+    <thead><tr><th>Daily dose</th><th>Give as</th><th>Normal binding</th><th>Reported</th><th>Free</th><th></th></tr></thead><tbody>
+    ${all.map((r) => `<tr class="${r.sel ? "sel" : r.cur ? "cur" : ""}"><td>${fmtMg(r.d)} mg${r.cur ? " (current)" : ""}</td><td>${r.cur ? currentGive : giveText(r.give, form, false)}</td><td>${Lv(r.Cnb)}</td><td>${Lv(r.Cnb * factor)}</td><td>${Lv(r.Cnb * 0.1, Q.phenFree.dec[RU])}</td><td>${levelPill(r.Cnb)}</td></tr>`).join("")}
+    </tbody></table></div><p class="hint">${hint}</p></section>`;
+}
+const stepText = (o) => (o.step ? `multiples of ${o.step} mg/day` : o.form === "cap" ? "totals made from 100 mg and 30 mg capsules" : "whole 50 mg chewable tablets");
+function holdHTML(plan, tau, V, vdWt) {
+  return `<section class="card"><h2>Holding doses before the new dose</h2><div class="tablewrap"><table>
+    <thead><tr><th>Doses held</th><th>Hold length</th><th>Level at restart</th><th>Then days to settle</th><th></th></tr></thead><tbody>
+    ${plan.hold.map((h) => `<tr class="${h.k === plan.holdDoses ? "sel" : ""}"><td>${h.k === 0 ? "None" : h.k}</td><td>${h.k === 0 ? "—" : hours(h.hours)}</td><td>${Lv(h.start)}</td><td>${fmt(h.settle, 1)}</td><td>${h.start < 10 ? `<span class="pill warn">Below ${Tn(10)}</span>` : h.k === plan.holdDoses ? '<span class="pill ok">Suggested</span>' : levelPill(h.start)}</td></tr>`).join("")}
+    </tbody></table></div><p class="hint">Levels in ${RU}, normal binding. One held dose = ${tau} h. Vd ${fmt(V, 1)} L (${fmt(vdWt, 1)} kg); a larger Vd means a slower fall. Assumes no further absorption, so real levels fall somewhat more slowly. Holding is most useful when there are signs of toxicity.</p></section>`;
+}
+function noteHTML(text) { return `<section class="card"><h2>Chart note</h2><textarea class="note" id="noteText" readonly aria-label="Chart note">${text.replace(/</g, "&lt;")}</textarea></section>`; }
+function chartSVG({ form, S, Vm, Km, points }) {
+  const W = 460, H = 250, Lm = 44, Rm = 14, Tp = 12, B = 34;
+  const ticks = RU === "µmol/L" ? [0, 40, 80, 120, 160] : [0, 10, 20, 30, 40];
+  const ymax = ticks[4] * rf();
+  const capDose = ((Vm * ymax) / (Km + ymax)) / S;
+  const xmax = Math.ceil(Math.max(capDose, ...points.map((q) => q.d * 1.1)) / 50) * 50;
+  const x = (d) => Lm + (d / xmax) * (W - Lm - Rm);
+  const y = (c) => Tp + (1 - Math.min(c, ymax) / ymax) * (H - Tp - B);
+  let path = "";
+  for (let i = 0; i <= 120; i++) {
+    const d = (xmax * i) / 120, c = predictCss(S * d, Vm, Km);
+    if (!isFinite(c) || c > ymax) { path += `L${x(Vm / S).toFixed(1)},${y(ymax).toFixed(1)}`; break; }
+    path += `${i ? "L" : "M"}${x(d).toFixed(1)},${y(c).toFixed(1)}`;
+  }
+  const step = xmax > 600 ? 200 : 100, xt = [];
+  for (let d = 0; d <= xmax; d += step) xt.push(d);
+  const pt = (q) => (isFinite(q.c) && q.c <= ymax ? `<circle cx="${x(q.d)}" cy="${y(q.c)}" r="5" style="fill:${q.color};stroke:var(--surface);stroke-width:2"></circle>` : "");
+  return `<section class="card"><h2>Dose vs steady-state level</h2><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Predicted steady-state level versus daily dose">
+    <rect x="${Lm}" y="${y(20)}" width="${W - Lm - Rm}" height="${y(10) - y(20)}" style="fill:var(--band)"></rect>
+    ${ticks.map((t) => `<line x1="${Lm}" x2="${W - Rm}" y1="${y(t * rf())}" y2="${y(t * rf())}" style="stroke:var(--line)"></line><text x="${Lm - 6}" y="${y(t * rf()) + 4}" text-anchor="end">${t}</text>`).join("")}
+    ${xt.map((t) => `<text x="${x(t)}" y="${H - B + 16}" text-anchor="middle">${t}</text>`).join("")}
+    <text x="${(Lm + W - Rm) / 2}" y="${H - 4}" text-anchor="middle">${FORM_NAME[form]}, mg/day</text>
+    <text x="12" y="${(Tp + H - B) / 2}" text-anchor="middle" transform="rotate(-90 12 ${(Tp + H - B) / 2})">${RU}</text>
+    <line x1="${x(Vm / S)}" x2="${x(Vm / S)}" y1="${Tp}" y2="${H - B}" style="stroke:var(--crit);stroke-dasharray:3 3"></line>
+    <path d="${path}" style="fill:none;stroke:var(--accent);stroke-width:2"></path>
+    ${points.map(pt).join("")}
+  </svg><p class="hint">Normal binding. Band 10–20 mg/L (40–80 µmol/L); dashed line is Vmax. ${points.map((q) => q.label).filter(Boolean).join("; ")}.</p></section>`;
+}
+const bindRows = (pm) => [[`Binding factor${badge(pm.bindSrc)}${pm.albEq && pm.albEq !== "winter" ? badge("albClamp") : ""}`, fmt(pm.factor, 3)], ["", pm.bindLabel]];
+function patientRows(pm) {
+  return [
+    [`Assumed Km${pm.Km === 4 ? badge("winterKm") : ""}`, `${pm.Km} mg/L${RU === "µmol/L" ? ` (${(pm.Km / rf()).toFixed(1)} µmol/L)` : ""}`],
+    [`IBW / Vd weight${badge("devine")}${badge("vdObese")}`, `${fmt(pm.ibw, 1)} / ${fmt(pm.vdWt, 1)} kg`],
+    [`Vd = ${pm.pop ? pm.pop.vd : 0.65} L/kg${pm.pop && pm.pop.vd === 1 ? badge("vdInfant") : ""}`, `${fmt(pm.V, 1)} L`],
+    [`Population Vmax for age${pm.popSrc ? badge(pm.popSrc) : ""}${pm.cyp !== 1 ? badge("cyp2c9") : ""}`, pm.pop ? `${+(pm.pop.vm * pm.cyp).toFixed(1)} ± ${pm.pop.vmSd} mg/kg/day` : "n/a"],
+    ...(isFinite(pm.crcl) ? [[`CrCl, Cockcroft-Gault${badge("crcl")}`, `${fmt(pm.crcl, 0)} mL/min`]] : []),
+  ];
+}
+function invalidHTML(msg) { return `<section class="card order"><p class="hint" style="font-size:.9rem">${msg}</p></section>`; }
+function extrasHTML({ opts, work }) { return (showOpts && opts ? opts : "") + (showWork && work ? work : ""); }
+
+// Standard result for tabs that end in a new maintenance dose.
+function doseResult(o, pm, { from, nowText, workRows, noteLines, chartPoints, currentGive, extraInfo = [] }) {
+  const pl = o.plan;
+  const holding = pl.hold && pl.CnbNew < o.Cnb && pl.holdDoses > 0;
+  const lines = [];
+  if (holding) lines.push({ tag: "Hold", text: `phenytoin × ${pl.holdDoses} dose${pl.holdDoses === 1 ? "" : "s"} (${pl.holdHrs} h)` });
+  lines.push({ tag: holding ? "Then" : "Order", text: orderText(pl.form, pl.give) });
+  const alt = pl.give && pl.give.alt ? ` · or ${pl.give.alt.parts.map(fmtMg).join(" + ")} mg ${FREQ[pl.give.alt.n]}` : "";
+  const sub = [unitsLine(pl.form, pl.give), `${fmtMg(pl.rounded)} mg/day`, `${from} ${changeText(pl.change, pl.pctChange)}`].filter(Boolean).join(" · ") + alt;
+  const first = holding ? `Hold ${pl.holdDoses} dose${pl.holdDoses === 1 ? "" : "s"} (${pl.holdHrs} h) → ~${L(pl.hold[pl.holdDoses].start)}` : pl.change === 0 ? "No change needed" : "Start with the next dose";
+  let html = orderCard({ lines, sub, right: { label: "Predicted, normal binding", value: Lv(pl.CnbNew), pill: levelPill(pl.CnbNew) },
+    info: [["First", first], ["Recheck troughs", recheckDates(pl.recheck, pl.holdHrs)], [nowText[0], nowText[1]], ["Flags", flagsText(o.alerts)], ...extraInfo] });
+  html += alertsHTML(o.alerts);
+  const opts = optionsHTML(pl.rows, pl.form, pm.factor, { d: o.dailyProduct, Cnb: o.ssCurrent ?? o.Cnb, cur: true }, currentGive,
+    `Levels in ${RU}. Options are ${stepText(pl)}; the highlighted row is closest to target without going above range. No ${FORM_NAME[pl.form]} dose at or above ${fmtMg(o.Vm / pl.S)} mg/day reaches steady state.`);
+  let work = recheckHTML(pl.recheck, pl.holdHrs, `Day 0 is the first dose of ${fmtMg(pl.rounded)} mg/day${pl.holdHrs ? `, after the ${pl.holdHrs} h hold` : ""}. Draw troughs just before a dose.`);
+  if (holding) work += holdHTML(pl, o.tau, pm.V, pm.vdWt);
+  const note = [...lines.map((l) => `${l.tag}: ${l.text}`), ...noteLines,
+    `Predicted normal-binding level ${L(pl.CnbNew)}; expected reported total ${L(pl.measuredNew)}, free ${Lf(pl.freeNew)}.`,
+    `Recheck troughs: ${pl.recheck.filter((r) => r.day !== null).map((r) => r.when.toLowerCase()).join("; ")}; then routine monitoring.`].join("\n");
+  currentNote = note;
+  work += `<div class="two">${chartSVG({ form: pl.form, S: pl.S, Vm: o.Vm, Km: o.Km, points: chartPoints })}${workHTML(workRows)}</div>` + noteHTML(note);
+  return html + extrasHTML({ opts, work });
+}
+
+// ---- Tab renderers ----
+function renderAdjust(p) {
+  const pm = patientModel(p, p.a_level);
+  const o = adjustCalc(p, pm);
+  if (o.invalid) return alertsHTML(o.alerts) + invalidHTML("Enter the dose, interval and level to calculate.");
+  const pl = o.plan;
+  const work = [["Salt factor S × F", `${o.S} × 1`], ["Current dose, as acid (R)", `${fmt(o.R, 0)} mg/day`], ...bindRows(pm), ["Level, normal binding", L(o.CnbMeasured)]];
+  if (o.troughAdd) work.push([`+ trough → average${badge("troughAdj")}`, `${Lv(o.troughAdd)} → ${L(o.Cnb)}`]);
+  const mt = o.methods, T = p.a_target, perDay = (m) => (m && m.Vm > 0 ? `${fmtMg((m.Vm * T) / (m.Km + T) / o.S)} mg/day` : "—");
+  const METHOD = { km: "Km assumed (Winter Eq 14.30)", map: "Bayesian, population priors", gc: "Graves 1986 (rounded up)" };
+  work.push([`Method${badge(o.method === "km" ? "oneLevel" : o.method === "map" ? "mapSS" : "gravesCloyd")}`, METHOD[o.method]],
+    [`Km assumed${badge("oneLevel")}`, `Km ${fmt(mt.km.Km, 2)}, Vmax ${fmt(mt.km.Vm, 0)} → ${perDay(mt.km)}`],
+    [`Bayesian, one level${badge("mapSS")}`, `Km ${fmt(mt.map.Km, 2)}, Vmax ${fmt(mt.map.Vm, 0)} → ${perDay(mt.map)}`],
+    [`Graves 1986${badge("gravesCloyd")}`, `${fmtMg(mt.gc.product)} mg/day for ${Lv(T)} ${RU}`],
+    [`Cross-check, Km 4 (Winter)${badge("winterKm")}`, `Vmax ${fmt(mt.winter4.Vm, 0)} → ${fmtMg(mt.winter4.exact)} mg/day (deliverable ${fmtMg(mt.winter4.rounded)}); chosen dose would give ${L(mt.winter4.CnbAtChosen)}`]);
+  work.push(["Vmax used", `${fmt(o.Vm, 0)} mg/day (Km ${fmt(o.Km, 2)} mg/L)`], [`Vmax per kg (of ${fmt(pm.dosingWt, 1)} kg)`, `${fmt(o.VmPerKg, 1)} mg/kg/day`], ...patientRows(pm),
+    [`Steady state reached by (Eq 14.24)${badge("ssCheck")}`, `${fmt(pl.ssTotal, 0)} days`], [`t90 from zero on new dose${badge("t90")}`, `${fmt(pl.t90zero, 0)} days`]);
+  if (o.empiric) work.push([`Empiric: +${o.empiric.step} mg/day → ${fmtMg(o.empiric.daily)}`, L(o.empiric.Cnb)]);
+  return doseResult(o, pm, {
+    from: "from current", nowText: ["Now, normal binding", `${L(o.Cnb)} ${levelPill(o.Cnb)}`], workRows: work, currentGive: `${p.a_dose} mg ${interval(p.a_tau)}`,
+    extraInfo: [["Method", METHOD[o.method]], ...(o.method === "km" && o.Km === 4 ? [] : [["Cross-check, Km 4 (Winter)", `${fmtMg(mt.winter4.rounded)} mg/day; chosen dose → ${L(mt.winter4.CnbAtChosen)}`]])],
+    noteLines: [`Current: ${regimenNow(o.form, p.a_dose, p.a_tau)}. Total level ${L(p.a_level)}; normal-binding ${L(o.Cnb)} (${pm.bindLabel}).`, `${{ km: "Assumed", map: "Bayesian (one level)", gc: "Graves 1986 implied" }[o.method]} Km ${fmt(o.Km, 2)} mg/L → Vmax ${fmt(o.Vm, 0)} mg/day (${fmt(o.VmPerKg, 1)} mg/kg/day). Model: ${MODELS[pm.model]}.`],
+    chartPoints: [{ d: o.dailyProduct, c: o.Cnb, color: "var(--muted)", label: "Grey: current" }, { d: pl.rounded, c: pl.CnbNew, color: "var(--accent)", label: "teal: new dose" }],
+  });
+}
+
+function loadLine(ld) {
+  if (ld.route === "oral") return `${DRUG[ld.form]} ${ROUTE[ld.form]} q2h × ${ld.parts.length}: ${ld.parts.map((d) => amt(ld.form, d)).join(", ")}`;
+  if (ld.route === "fos") return `fosphenytoin ${fmtMg(ld.total)} mg PE IV once, ≤ ${fmt(ld.rate, 0)} mg PE/min (≥ ${Math.ceil(ld.minutes)} min), or IM`;
+  return `phenytoin ${fmtMg(ld.total)} mg IV once, ≤ ${fmt(ld.rate, 0)} mg/min (≥ ${Math.ceil(ld.minutes)} min)`;
+}
+function renderStart(p) {
+  const pm = patientModel(p, NaN);
+  const o = startCalc(p, pm);
+  const pl = o.plan;
+  const loaded = o.load && !o.load.none;
+  const lines = [];
+  if (loaded) lines.push({ tag: "Load", text: loadLine(o.load) });
+  lines.push({ tag: loaded ? "Then" : "Order", text: orderText(pl.form, pl.give) });
+  const sub = [loaded ? `load ${fmt(o.load.perKg, 1)} mg/kg` : "", unitsLine(pl.form, pl.give), `${fmtMg(pl.rounded)} mg/day (${fmt(pl.mgkg, 1)} mg/kg/day)`, loaded ? "start 12–24 h after the load" : ""].filter(Boolean).join(" · ");
+  const postLoad = loaded ? (p.s_load === "iv" ? "2 h after the infusion" : p.s_load === "fos" ? "4 h after the dose" : "24 h after the last dose") : "";
+  let html = orderCard({ lines, sub, right: { label: "Predicted steady state", value: Lv(pl.CnbNew), pill: levelPill(pl.CnbNew) },
+    info: [["First level", loaded ? `${postLoad} (expect ~${L(p.s_load === "oral" ? o.load.peak : o.load.expected)})` : "Day 2–3"], ["Recheck troughs", recheckDates(o.recheck.filter((r) => r.when !== "Post-load level"), 0)], ["Steady state", `~${fmt(pl.settle, 0)} days`], ["Flags", flagsText(o.alerts)]] });
+  html += alertsHTML(o.alerts);
+  const work = [["Population Vmax", `${fmt(o.Vm, 0)} mg/day (${fmt(o.VmPerKg, 1)} mg/kg/day)`], ...bindRows(pm), ...patientRows(pm),
+    [`Time from zero to 50% / 90% / 99% of SS${badge("t90")}`, pl.fractions.filter((x) => [0.5, 0.9, 0.99].includes(x.f)).map((x) => fmt(x.days, 1)).join(" / ") + " d"]];
+  if (loaded) work.unshift(["Loading dose = V × C ÷ S", `${fmt(pm.V, 1)} × ${Lv(p.s_loadTarget)} ${RU} ÷ ${o.load.S}`]);
+  const note = [...lines.map((l) => `${l.tag}: ${l.text}`), `Population Km ${o.Km} mg/L, Vmax ${fmt(o.Vm, 0)} mg/day; predicted steady state ${L(pl.CnbNew)}.`,
+    `Levels: ${o.recheck.filter((r) => r.when !== "Then").map((r) => r.when.toLowerCase()).join("; ")}.`].join("\n");
+  currentNote = note;
+  const opts = optionsHTML(pl.rows, pl.form, pm.factor, null, "", `Levels in ${RU}, from population parameters. Options are ${stepText(pl)}.`);
+  const workH = recheckHTML(o.recheck, 0, "Day 0 is the first maintenance dose. Draw troughs just before a dose.") +
+    `<div class="two">${chartSVG({ form: pl.form, S: pl.S, Vm: o.Vm, Km: o.Km, points: [{ d: pl.rounded, c: pl.CnbNew, color: "var(--accent)", label: "Teal: starting dose" }] })}${workHTML(work)}</div>` + noteHTML(note);
+  return html + extrasHTML({ opts, work: workH });
+}
+
+function renderTwo(p) {
+  document.querySelectorAll(".t-ss").forEach((e) => (e.hidden = p.t_mode !== "ss"));
+  document.querySelectorAll(".t-nss").forEach((e) => (e.hidden = p.t_mode !== "nss"));
+  const pm = patientModel(p, p.t_mode === "ss" ? p.t_lvl2 : p.t_c2);
+  const o = twoCalc(p, pm);
+  if (o.invalid) return alertsHTML(o.alerts) + invalidHTML("Enter both regimens and levels to calculate.");
+  o.Cnb = o.C2;
+  if (p.t_mode === "ss") {
+    const work = [["Regimen 1 as acid (R1)", `${fmt(o.R1, 0)} mg/day → ${L(o.C1)}`], ["Regimen 2 as acid (R2)", `${fmt(o.R2, 0)} mg/day → ${L(o.C2)}`], ...bindRows(pm),
+      ["Km = (R2 − R1)/(R1/C1 − R2/C2)", `${fmt(o.Km, 2)} mg/L`], ["Vmax = R1(Km + C1)/C1", `${fmt(o.Vm, 0)} mg/day`], [`Vmax per kg (of ${fmt(pm.dosingWt, 1)} kg)`, `${fmt(o.VmPerKg, 1)} mg/kg/day`], ...patientRows(pm).slice(1)];
+    return doseResult(o, pm, {
+      from: "from current", nowText: ["Patient Km / Vmax", `${fmt(o.Km, 2)} mg/L · ${fmt(o.Vm, 0)} mg/day`], workRows: work, currentGive: `${p.t_dose2} mg ${interval(p.t_tau2)}`,
+      noteLines: [`Steady-state levels: ${regimenNow(p.t_form1, p.t_dose1, p.t_tau1)} → ${L(o.C1)}; ${regimenNow(p.t_form2, p.t_dose2, p.t_tau2)} → ${L(o.C2)} (normal binding).`, `Patient Km ${fmt(o.Km, 2)} mg/L, Vmax ${fmt(o.Vm, 0)} mg/day.`],
+      chartPoints: [{ d: ((p.t_dose1 * 24) / p.t_tau1) * SALT[p.t_form1] / SALT[p.t_form2], c: o.C1, color: "var(--muted)", label: "Grey: measured regimens" }, { d: o.dailyProduct, c: o.C2, color: "var(--muted)" }, { d: o.plan.rounded, c: o.plan.CnbNew, color: "var(--accent)", label: "teal: new dose" }],
+    });
+  }
+  o.ssCurrent = o.ssPred;
+  const work = [["Dose as acid (R)", `${fmt(o.R, 0)} mg/day`], ...bindRows(pm), ["Levels, normal binding", `${Lv(o.C1)} → ${L(o.C2)} in ${fmt(o.t, 1)} d`],
+    ["Mass balance: eliminated/day", `${fmt(o.mb.elim, 0)} mg/day`], ["Mass balance Vmax (Km assumed)", `${fmt(o.mb.Vm, 0)} mg/day`],
+    [`Bayesian fit, levels${badge("concBayes")}`, `Km ${fmt(o.bayes.Km, 2)}, Vmax ${fmt(o.bayes.Vm, 0)}`], ["", `Bayesian predicted second level ${L(o.bayes.pred)}`],
+    [`Bayesian fit, time${badge("timeBayes")}`, o.bayesTime.invalid ? "no valid fit" : `Km ${fmt(o.bayesTime.Km, 2)}, Vmax ${fmt(o.bayesTime.Vm, 0)}`],
+    ...(o.bayesTime.invalid ? [] : [["", `predicted time between levels ${fmt(o.bayesTime.tPred, 2)} d (observed ${fmt(o.t, 2)}); Vmax prior ${fmt(o.bayesTimeVm0, 0)} mg/day`]]),
+    ["Using", { bayes: "Bayesian fit, levels", bayesTime: "Bayesian fit, time between levels", mb: "Mass balance" }[p.t_method] || "Mass balance"], ["Current dose would settle at", L(o.ssPred)], ...patientRows(pm).slice(1)];
+  return doseResult(o, pm, {
+    from: "from current", nowText: ["Current dose would settle at", `${L(o.ssPred)} ${levelPill(o.ssPred)}`], workRows: work, currentGive: `${p.t_dose} mg ${interval(p.t_tau)}`,
+    noteLines: [`Current: ${regimenNow(o.form, p.t_dose, p.t_tau)}. Levels ${L(o.C1)} → ${L(o.C2)} over ${fmt(o.t, 1)} days (normal binding).`, `${{ bayes: "Bayesian fit (levels)", bayesTime: "Bayesian fit (time between levels)" }[p.t_method] || "Mass balance (assumed Km)"}: Km ${fmt(o.Km, 2)} mg/L, Vmax ${fmt(o.Vm, 0)} mg/day.`],
+    chartPoints: [{ d: o.dailyProduct, c: o.ssPred, color: "var(--muted)", label: "Grey: where the current dose settles" }, { d: o.plan.rounded, c: o.plan.CnbNew, color: "var(--accent)", label: "teal: new dose" }],
+  });
+}
+
+function histChartSVG(o) {
+  const W = 460, H = 230, Lm = 44, Rm = 14, Tp = 12, B = 34;
+  const pts = o.curve, obs = o.predictions;
+  const t0 = Math.min(...pts.map((q) => q.t)), t1 = Math.max(...pts.map((q) => q.t), ...obs.map((q) => q.t));
+  const cmax = Math.max(20, ...pts.map((q) => q.c), ...obs.map((q) => q.c)) * 1.1;
+  const x = (t) => Lm + ((t - t0) / (t1 - t0 || 1)) * (W - Lm - Rm), y = (c) => Tp + (1 - Math.min(c, cmax) / cmax) * (H - Tp - B);
+  const path = pts.map((q, i) => `${i ? "L" : "M"}${x(q.t).toFixed(1)},${y(q.c).toFixed(1)}`).join("");
+  const yt = [0, 0.25, 0.5, 0.75, 1].map((k) => k * cmax);
+  const xs = 24 * Math.max(1, Math.ceil((t1 - t0) / 24 / 6)), xt = [];
+  for (let t = Math.ceil(t0 / xs) * xs; t <= t1; t += xs) xt.push(t);
+  return `<section class="card"><h2>Fitted level over time</h2><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Fitted phenytoin level over the dose history">
+    <rect x="${Lm}" y="${y(20)}" width="${W - Lm - Rm}" height="${y(10) - y(20)}" style="fill:var(--band)"></rect>
+    ${yt.map((c) => `<line x1="${Lm}" x2="${W - Rm}" y1="${y(c)}" y2="${y(c)}" style="stroke:var(--line)"></line><text x="${Lm - 6}" y="${y(c) + 4}" text-anchor="end">${Lv(c, 0)}</text>`).join("")}
+    ${xt.map((t) => `<text x="${x(t)}" y="${H - B + 16}" text-anchor="middle">${t}</text>`).join("")}
+    <text x="${(Lm + W - Rm) / 2}" y="${H - 4}" text-anchor="middle">hours from dose 1</text>
+    <path d="${path}" style="fill:none;stroke:var(--accent);stroke-width:1.6"></path>
+    ${obs.map((q) => `<circle cx="${x(q.t)}" cy="${y(q.c)}" r="5" style="fill:var(--crit);stroke:var(--surface);stroke-width:2"></circle>`).join("")}
+  </svg><p class="hint">Normal binding, ${RU}. Band 10–20 mg/L. Red dots: measured levels (binding-corrected). Doses modelled as instant boluses.</p></section>`;
+}
+function renderHist(p) {
+  const pm = patientModel(p, p.h_c1);
+  const o = historyCalc(p, pm);
+  if (o.invalid) return alertsHTML(o.alerts) + invalidHTML("Enter the dose, interval and number of doses to calculate.");
+  const fitTxt = o.fit ? (o.fitVd ? "Km, Vmax and Vd fitted" : "Km and Vmax fitted") : "population only";
+  const work = [...bindRows(pm), [`Model${badge("lambertW")}`, "Explicit MM bolus model, exact Lambert W"], [`Fit${badge("explicitMap")}`, fitTxt],
+    ["Km (population → fitted)", `${fmt(o.pop.Km, 2)} → ${fmt(o.Km, 2)} mg/L`],
+    ["Vmax (population → fitted)", `${fmt(o.pop.VmL * o.pop.V * 24, 0)} → ${fmt(o.Vm, 0)} mg/day (${fmt(o.VmPerKg, 1)} mg/kg/day)`],
+    ["Vd", `${fmt(o.V, 1)} L${o.fitVd ? ` (population ${fmt(o.pop.V, 1)})` : ""}`],
+    ...(o.fit ? [["MAP objective", fmt(o.fit.objective, 4)]] : []),
+    ...o.predictions.map((q) => [`Level at ${fmt(q.t, 1)} h`, `obs ${Lv(q.c)} · fit ${Lv(q.pred)} · pop ${Lv(q.popPred)}`]),
+    [`Current regimen, bolus SS trough / peak`, `${Lv(o.ssExplicit.min)} / ${L(o.ssExplicit.max)}`],
+    ...(o.planExplicit ? [["New regimen, bolus SS trough / peak", `${Lv(o.planExplicit.min)} / ${L(o.planExplicit.max)}`]] : []),
+    ...patientRows(pm).slice(1)];
+  const html = doseResult(o, pm, {
+    from: "from current", nowText: [`Next trough (${fmt(o.tNow, 0)} h)`, `${L(o.Cnb)} ${levelPill(o.Cnb)}`], workRows: work, currentGive: `${p.h_dose} mg ${interval(p.h_tau)}`,
+    noteLines: [`Dose history: ${o.events.length} doses of ${regimenNow(o.form, p.h_dose, p.h_tau)}${p.h_load > 0 ? ` after a ${fmtMg(p.h_load)} mg first dose` : ""}. Levels (normal binding): ${o.predictions.map((q) => `${Lv(q.c)} at ${fmt(q.t, 0)} h`).join(", ") || "none"}.`,
+      `Explicit MM fit (${fitTxt}): Km ${fmt(o.Km, 2)} mg/L, Vmax ${fmt(o.Vm, 0)} mg/day, Vd ${fmt(o.V, 1)} L.`],
+    chartPoints: [{ d: o.dailyProduct, c: o.ssCurrent, color: "var(--muted)", label: "Grey: where the current dose settles" }, { d: o.plan.rounded, c: o.plan.CnbNew, color: "var(--accent)", label: "teal: new dose" }],
+  });
+  return html + (showWork && o.curve.length > 1 ? histChartSVG(o) : "");
+}
+
+function renderStop(p) {
+  const pm = patientModel(p, p.x_c2 > 0 ? p.x_c2 : p.x_c1);
+  const o = stopCalc(p, pm);
+  if (o.invalid) return alertsHTML(o.alerts) + invalidHTML("Enter at least one level to calculate.");
+  const pl = o.plan;
+  const when = new Date(Date.now() + o.daysToTarget * 86400e3).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const lines = [];
+  if (o.daysToTarget > 0) lines.push({ tag: "Hold", text: `phenytoin until ~${when} (${fmt(o.daysToTarget * 24, 0)} h)` });
+  lines.push({ tag: o.daysToTarget > 0 ? "Then" : "Order", text: orderText(pl.form, pl.give) });
+  let html = orderCard({ lines, sub: [unitsLine(pl.form, pl.give), `${fmtMg(pl.rounded)} mg/day`].filter(Boolean).join(" · "),
+    right: { label: "Predicted steady state", value: Lv(pl.CnbNew), pill: levelPill(pl.CnbNew) },
+    info: [["Now, normal binding", `${L(o.Cnow)} ${levelPill(o.Cnow)}`], ["Vmax", `${fmt(o.Vm, 0)} mg/day (${o.source === "levels" ? "from levels" : "population"})`], ["Recheck troughs", recheckDates(o.recheck, o.daysToTarget * 24)], ["Flags", flagsText(o.alerts)]] });
+  html += alertsHTML(o.alerts);
+  const decl = `<section class="card"><h2>Predicted fall with no dosing</h2><div class="tablewrap"><table><thead><tr><th>From now</th><th>Normal binding</th><th>Reported</th><th></th></tr></thead><tbody>
+    ${o.decline.map((r) => `<tr class="${o.daysToTarget > 0 && Math.abs(r.h / 24 - o.daysToTarget) < 0.25 ? "sel" : ""}"><td>${r.h ? hours(r.h) : "Now"}</td><td>${Lv(r.c)}</td><td>${Lv(r.c * pm.factor)}</td><td>${levelPill(r.c)}</td></tr>`).join("")}
+    </tbody></table></div><p class="hint">Levels in ${RU}. Km ${o.Km} mg/L, Vd ${fmt(pm.V, 1)} L; assumes absorption has finished.</p></section>`;
+  const work = [...bindRows(pm), ["Levels, normal binding", `${Lv(o.C1)}${o.C2 > 0 ? ` → ${Lv(o.C2)}` : ""} ${RU}`], ["Vmax = V[Km·ln(C1/C2) + C1 − C2]/t", `${fmt(o.Vm, 0)} mg/day`], [`Vmax per kg (of ${fmt(pm.dosingWt, 1)} kg)`, `${fmt(o.VmPerKg, 1)} mg/kg/day`], ...patientRows(pm)];
+  const note = [...lines.map((l) => `${l.tag}: ${l.text}`), `Levels ${Lv(o.C1)}${o.C2 > 0 ? ` → ${Lv(o.C2)} ${RU} over ${p.x_hours} h` : ` ${RU}`} (normal binding); Vmax ${fmt(o.Vm, 0)} mg/day (${o.source}), Km ${o.Km} mg/L.`,
+    `Predicted steady state on restart ${L(pl.CnbNew)}. Recheck: ${o.recheck.filter((r) => r.when !== "Then").map((r) => r.when.toLowerCase()).join("; ")}.`].join("\n");
+  currentNote = note;
+  const opts = optionsHTML(pl.rows, pl.form, pm.factor, null, "", `Restart options, levels in ${RU}. Options are ${stepText(pl)}.`);
+  const workH = recheckHTML(o.recheck, o.daysToTarget * 24, "Day 0 is the restart. Draw troughs just before a dose.") + `<div class="two">${decl}${workHTML(work)}</div>` + noteHTML(note);
+  return html + extrasHTML({ opts, work: workH });
+}
+
+function renderLoad(p) {
+  document.querySelectorAll(".l-load").forEach((e) => (e.hidden = p.l_mode !== "load"));
+  document.querySelectorAll(".l-switch").forEach((e) => (e.hidden = p.l_mode !== "switch"));
+  const pm = patientModel(p, p.l_mode === "load" ? p.l_level : p.l_curLevel);
+  const o = loadCalc(p, pm);
+  if (o.invalid) return alertsHTML(o.alerts) + invalidHTML("Enter the values above to calculate.");
+  if (o.mode === "load") {
+    const ld = o.load;
+    if (ld.none) { currentNote = ""; return orderCard({ lines: [{ tag: "Order", text: "No load needed" }], sub: `Level ${L(o.Cnb)} (normal binding) is already at or above the goal.`, opts: false }) + alertsHTML(o.alerts); }
+    const sample = ld.route === "iv" ? "2 h after the infusion" : ld.route === "fos" ? "4 h after the dose" : "~24 h after the last dose";
+    const lines = [{ tag: "Load", text: loadLine(ld) }];
+    let html = orderCard({ lines, sub: `${fmt(ld.perKg, 1)} mg/kg · then continue maintenance`, right: { label: ld.route === "oral" ? "Expected peak" : "Expected after", value: Lv(ld.route === "oral" ? ld.peak : ld.expected), pill: levelPill(ld.route === "oral" ? ld.peak : ld.expected) },
+      info: [["Now, normal binding", `${L(o.Cnb)} ${levelPill(o.Cnb)}`], ["Check a level", sample], ["Flags", flagsText(o.alerts)]], opts: false });
+    html += alertsHTML(o.alerts);
+    const note = [`Load: ${loadLine(ld)} (${fmt(ld.perKg, 1)} mg/kg).`, `Level ${L(p.l_level)} (normal binding ${L(o.Cnb)}) → goal ${L(o.T)}. Check level ${sample}.`].join("\n");
+    currentNote = note;
+    return html + extrasHTML({ work: workHTML([["LD = V × (Cgoal − Cnow) ÷ S", `${fmt(pm.V, 1)} × (${Lv(o.T)} − ${Lv(o.Cnb)}) ÷ ${ld.S}`], ...bindRows(pm), ...patientRows(pm).slice(1, 3)]) + noteHTML(note) });
+  }
+  const pl = o.plan;
+  const lines = [{ tag: "Stop", text: regimenNow(o.from, p.l_fromDose, p.l_fromTau) }, { tag: "Start", text: orderText(o.to, pl.give) }];
+  let html = orderCard({ lines, sub: [unitsLine(o.to, pl.give), `${fmtMg(pl.rounded)} mg/day (same phenytoin: ${fmt(o.equiv, 0)} mg/day)`].filter(Boolean).join(" · "),
+    right: o.Cnb ? { label: "Predicted on new product", value: Lv(pl.CnbNew), pill: levelPill(pl.CnbNew) } : null,
+    info: o.Cnb ? [["Now, normal binding", L(o.Cnb)], ["If given mg for mg", `${L(o.mgForMg.Cnb)} ${levelPill(o.mgForMg.Cnb)}`], ["Recheck troughs", recheckDates(o.recheck, 0)], ["Flags", flagsText(o.alerts)]] : [["Recheck troughs", recheckDates(o.recheck, 0)], ["Flags", flagsText(o.alerts)]], opts: !!o.Cnb });
+  html += alertsHTML(o.alerts);
+  const note = [...lines.map((l) => `${l.tag}: ${l.text}`), `Equivalent phenytoin ${fmt(o.equiv, 0)} mg/day.${o.Cnb ? ` Current level ${L(o.Cnb)}; predicted on new product ${L(pl.CnbNew)}.` : ""}`, "Recheck troughs: day 5; day 14."].join("\n");
+  currentNote = note;
+  let workH = recheckHTML(o.recheck, 0, "Day 0 is the first dose of the new product.");
+  if (o.Cnb) workH += `<div class="two">${chartSVG({ form: o.to, S: pl.S, Vm: o.Vm, Km: o.Km, points: [{ d: o.equiv, c: o.Cnb, color: "var(--muted)", label: "Grey: current level" }, { d: pl.rounded, c: pl.CnbNew, color: "var(--accent)", label: "teal: new product" }] })}${workHTML([["New = current × S_old ÷ S_new", `${fmtMg(o.daily)} × ${SALT[o.from]} ÷ ${SALT[o.to]}`], ["Vmax from current level", `${fmt(o.Vm, 0)} mg/day`], ...bindRows(pm), ...patientRows(pm).slice(0, 1)])}</div>`;
+  workH += noteHTML(note);
+  const opts = o.Cnb ? optionsHTML(pl.rows, o.to, pm.factor, null, "", `Levels in ${RU}, aiming to keep the current level. Options are ${stepText(pl)}.`) : "";
+  return html + extrasHTML({ opts, work: workH });
+}
+
+function renderInterp(p) {
+  const pm = patientModel(p, p.i_level);
+  const o = interpCalc(p, pm);
+  if (o.invalid) return alertsHTML(o.alerts) + invalidHTML("Enter a level to interpret.");
+  const lines = [{ tag: "Range", text: `${Lv(o.range[0])}–${L(o.range[1])} reported total` }];
+  if (o.crrt) lines.push({ tag: "Add", text: `${DRUG[o.crrt.form]} ${amt(o.crrt.form, Math.round(o.crrt.product / 5) * 5)} ${ROUTE[o.crrt.form]} daily for CRRT losses` });
+  let html = orderCard({ lines, sub: `Patient-specific range equivalent to 10–20 mg/L for this binding${o.crrt ? ` · CRRT removes ~${fmt(o.crrt.removed, 0)} mg/day` : ""}`,
+    right: { label: "Normal-binding equivalent", value: Lv(o.Cnb), pill: levelPill(o.Cnb) },
+    info: [["Measured total", L(p.i_level)], [o.freeMeasured ? "Measured free" : "Estimated free", `${Lf(o.free)} (goal ${Lv(1, Q.phenFree.dec[RU])}–${Lf(2)})`], ["Binding factor", fmt(pm.factor, 3)], ["Flags", flagsText(o.alerts)]], opts: false, copyLabel: "Copy note" });
+  html += alertsHTML(o.alerts);
+  const note = [`Phenytoin total ${L(p.i_level)}; normal-binding equivalent ${L(o.Cnb)} (${pm.bindLabel}). Patient-specific reported range ${Lv(o.range[0])}–${L(o.range[1])}. ${o.freeMeasured ? "Measured" : "Estimated"} free ${Lf(o.free)}.`,
+    ...(o.crrt ? [`CRRT removal ~${fmt(o.crrt.removed, 0)} mg/day; supplement ${fmt(o.crrt.product, 0)} mg/day ${FORM_NAME[o.crrt.form]}.`] : [])].join("\n");
+  currentNote = note;
+  return html + extrasHTML({ work: workHTML([...bindRows(pm), ["Normal binding = total ÷ factor", L(o.Cnb)], ["Range = 10–20 mg/L × factor", `${Lv(o.range[0])}–${L(o.range[1])}`]]) + noteHTML(note) });
+}
+
+// ---- Patient strip ----
+function chip(label, value) { return `<span class="chip">${label}${value !== undefined ? ` <b>${value}</b>` : ""}</span>`; }
+function renderStrip(p) {
+  const f = (id) => { const el = $(id); return el.value === "" ? "—" : `${el.value}`; };
+  const u = (id) => unitOf($(id));
+  const parts = [
+    chip(p.sex === "F" ? "F" : "M", `${f("age")} y`), chip("", `${f("wt")} ${u("wt")}`), chip("", `${f("ht")} ${u("ht")}`),
+    chip("Alb", `${f("alb")} ${u("alb")}`), chip({ normal: "CrCl &gt; 25", mid: "CrCl 10–25", lt10: "CrCl &lt; 10", hd: "Hemodialysis" }[p.renal]),
+  ];
+  if (p.bind === "free") parts.push(chip("Free", `${f("free")} ${u("free")}`));
+  if (p.bind === "vpa") parts.push(chip("VPA", `${f("vpa")} ${u("vpa")}`));
+  if (p.cyp !== "normal") parts.push(chip("CYP2C9", p.cyp === "im" ? "IM" : "PM"));
+  parts.push(chip("Km", p.kmMode === "custom" ? p.km : p.kmMode === "winter" ? 4 : (popFor(p.age, p.model) || { km: 4.3 }).km));
+  if (p.icu) parts.push(chip("ICU"));
+  if (p.scr > 0 && p.age >= 18) { const pm = patientModel(p, NaN); if (isFinite(pm.crcl)) parts.push(chip("CrCl", Math.round(pm.crcl))); }
+  parts.splice(0, 0, `<span class="chip model">${p.model === "site" ? "Site model" : "Literature model"}</span>`);
+  const open = !$("patientPanel").hidden;
+  parts.push(`<button type="button" class="chip edit" id="editPatient" aria-expanded="${open}" aria-controls="patientPanel">${open ? "Done" : "Edit patient"}</button>`);
+  $("strip").innerHTML = parts.join("");
+}
+
+const RENDER = { adjust: renderAdjust, start: renderStart, two: renderTwo, hist: renderHist, stop: renderStop, load: renderLoad, interp: renderInterp };
+function render() {
+  const p = read();
+  $("freeRow").hidden = $("freeTotRow").hidden = p.bind !== "free";
+  $("vpaRow").hidden = p.bind !== "vpa";
+  $("km").disabled = p.kmMode !== "custom";
+  if (p.kmMode !== "custom") $("km").value = p.kmMode === "winter" ? 4 : (popFor(p.age, p.model) || { km: 4.3 }).km;
+  $("albEqRow").hidden = p.bind === "free";
+  renderStrip(p);
+  if (!(p.wt > 0) || !(p.ht > 0)) { $("result").innerHTML = invalidHTML("Enter the patient's weight and height (Edit patient)."); return; }
+  try { $("result").innerHTML = RENDER[activeTab](p); }
+  catch (e) { $("result").innerHTML = invalidHTML("Something in the inputs can't be calculated. Check for blank or zero values."); console.error(e); }
+}
+
+function setTab(tab, push) {
+  if (!TABS.includes(tab)) tab = "adjust";
+  activeTab = tab;
+  for (const t of TABS) { $(`tab-${t}`).setAttribute("aria-selected", t === tab ? "true" : "false"); $(`panel-${t}`).hidden = t !== tab; }
+  if (push) { try { history.replaceState(null, "", `#${tab}`); } catch (e) {} }
+  save(); render();
+}
+document.querySelector("nav.seg").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) setTab(b.dataset.tab, true); });
+document.querySelector("nav.seg").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  const i = TABS.indexOf(activeTab) + (e.key === "ArrowRight" ? 1 : -1), t = TABS[(i + TABS.length) % TABS.length];
+  setTab(t, true); $(`tab-${t}`).focus();
+});
+
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-country]");
+  if (c) { applyCountry(c.dataset.country, true); save(); render(); return; }
+  const ub = e.target.closest("button.ub[data-for]");
+  if (ub) {
+    const el = $(ub.dataset.for), q = Q[el.dataset.q];
+    const next = q.units[(q.units.indexOf(unitOf(el)) + 1) % q.units.length];
+    setFieldUnit(el, next, true); save(); render(); return;
+  }
+  if (e.target.closest("button[data-ru]")) { RU = RU === "µmol/L" ? "mg/L" : "µmol/L"; save(); render(); return; }
+  if (e.target.closest("#editPatient")) { $("patientPanel").hidden = !$("patientPanel").hidden; render(); if (!$("patientPanel").hidden) $("age").focus(); return; }
+  const act = e.target.closest("button[data-act]");
+  if (!act) return;
+  if (act.dataset.act === "opts") { showOpts = !showOpts; save(); render(); }
+  else if (act.dataset.act === "work") { showWork = !showWork; save(); render(); }
+  else if (act.dataset.act === "copy") {
+    const done = () => { const m = $("copied"); if (m) { m.textContent = "Copied"; setTimeout(() => (m.textContent = ""), 1800); } };
+    const fallback = () => { showWork = true; render(); const t = $("noteText"); if (t) { t.focus(); t.select(); } const m = $("copied"); if (m) m.textContent = "Press Ctrl+C to copy"; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(currentNote).then(done, fallback);
+    else fallback();
+  }
+});
+
+const KEY = "pk-suite-phenytoin-v1";
+function save() {
+  try {
+    const s = { _tab: activeTab, _country: country, _ru: RU, _opts: showOpts, _work: showWork, _units: {} };
+    for (const el of inputs()) s[el.id] = el.type === "checkbox" ? el.checked : el.value;
+    for (const el of unitFields()) s._units[el.id] = unitOf(el);
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch (e) {}
+}
+let savedTab = null;
+applyCountry("ca", false);
+try {
+  const s = JSON.parse(localStorage.getItem(KEY) || "null");
+  if (s) {
+    for (const el of inputs()) if (el.id in s) { if (el.type === "checkbox") el.checked = s[el.id]; else el.value = s[el.id]; }
+    if (s._country) applyCountry(s._country, false);
+    for (const el of unitFields()) if (s._units && s._units[el.id]) setFieldUnit(el, s._units[el.id], false);
+    if (s._ru) RU = s._ru;
+    showOpts = !!s._opts; showWork = !!s._work;
+    savedTab = s._tab;
+  }
+} catch (e) {}
+document.addEventListener("input", (e) => { if (!e.target.closest("#patientPanel, .tabpanel")) return; render(); save(); });
+document.addEventListener("submit", (e) => e.preventDefault());
+const hashTab = (location.hash || "").slice(1);
+setTab(TABS.includes(hashTab) ? hashTab : savedTab || "adjust", false);
+</script>
+</body>
+</html>

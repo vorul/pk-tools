@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Acyclovir IV Dosing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+/* Page-specific additions only; tokens and components come from lib/pk.css. */
+.head-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.head-right small { font-size: .74rem; color: var(--muted); }
+.credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+.credit a { color: var(--accent); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+textarea.note { width: 100%; min-height: 9em; font: .82rem var(--font-data); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+#copied { font-size: .8rem; color: var(--ok); }
+details.card summary { list-style-position: inside; }
+.policy-note { font-size: .76rem; color: var(--muted); }
+@media (max-width: 480px) { h1 { font-size: 1.35rem; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Acyclovir IV Dosing</h1>
+    <div class="head-right">
+      <small>Model</small>
+      <div class="seg" id="modelSeg" role="group" aria-label="Parameter set">
+        <button data-value="literature" aria-pressed="true" title="Label, IDSA and literature values (default)">Literature</button>
+        <button data-value="site" aria-pressed="false" title="Reproduces pkineticdrugdosing.com choices">Site</button>
+      </div>
+      <button type="button" class="ub" id="themeBtn" style="border:1px solid var(--line);border-radius:4px;padding:5px 8px" aria-label="Colour theme">Auto</button>
+    </div>
+  </header>
+  <p class="credit">Adult intermittent IV acyclovir. Built from the acyclovir page of Marshall Pierce, PharmD, at <a href="https://pkineticdrugdosing.com/documents/acyclovir.html" target="_blank" rel="noopener">pkineticdrugdosing.com</a>, cross-checked against the current FDA label and IDSA guidance.</p>
+
+  <div class="strip" id="strip" aria-label="Patient summary"></div>
+
+  <section class="card">
+    <h2>Indication</h2>
+    <div class="fields">
+      <label class="wide">Indication
+        <select id="indication">
+          <option value="hse">HSV encephalitis</option>
+          <option value="hsvImm">HSV mucocutaneous, immunocompromised</option>
+          <option value="genital">Herpes genitalis, initial episode (severe)</option>
+          <option value="vzvImm">VZV (zoster), immunocompromised</option>
+          <option value="vzvEnc">VZV encephalitis</option>
+          <option value="custom">Other: enter mg/kg</option>
+        </select>
+      </label>
+      <label id="vzvRow" hidden>VZV encephalitis dose
+        <select id="vzvDose"><option value="10">10 mg/kg q8h (default)</option><option value="15">15 mg/kg q8h</option></select>
+      </label>
+      <label id="mgkgRow" hidden>Dose <span class="ig"><input id="mgkg" type="number" min="1" max="20" step="any" value="10"><button type="button" class="ub" tabindex="-1" disabled>mg/kg</button></span></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Patient</h2>
+    <div class="fields">
+      <label>Age <span class="ig"><input id="age" type="number" min="0" step="any" value="55"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="178"><button class="ub" id="htU"></button></span></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
+      <label>Renal function from
+        <select id="crclMode">
+          <option value="cg">SCr (Cockcroft-Gault)</option>
+          <option value="entered">Enter CrCl</option>
+        </select>
+      </label>
+      <label id="scrRow">SCr <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button class="ub" id="scrU"></button></span></label>
+      <label id="crclRow" hidden>CrCl <span class="ig"><input id="crcl" type="number" min="0" step="any" value="90"><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
+      <label>Dialysis
+        <select id="dialysis">
+          <option value="none">None</option>
+          <option value="hd">Intermittent hemodialysis</option>
+          <option value="pd">Peritoneal dialysis</option>
+          <option value="crrt">CRRT</option>
+        </select>
+      </label>
+      <label class="check" id="severeRow" hidden><input type="checkbox" id="r_severe"> Severe infection (CRRT high dose)</label>
+    </div>
+    <h2 style="margin-top:12px">Nephrotoxicity and neurotoxicity risk factors</h2>
+    <div class="checks">
+      <label class="check"><input type="checkbox" id="r_vanco"> Vancomycin</label>
+      <label class="check"><input type="checkbox" id="r_nsaid"> NSAID</label>
+      <label class="check"><input type="checkbox" id="r_nephro"> Other nephrotoxins</label>
+      <label class="check"><input type="checkbox" id="r_dehyd"> Dehydration / low urine output</label>
+      <label class="check"><input type="checkbox" id="r_ckd"> Known CKD</label>
+      <label class="check"><input type="checkbox" id="r_dm"> Diabetes</label>
+      <label class="check"><input type="checkbox" id="r_neuro"> Underlying neurologic disease</label>
+      <label class="check"><input type="checkbox" id="r_aki"> AKI or unstable SCr</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Dosing policy</h2>
+    <div class="fields">
+      <label class="wide">Dosing weight
+        <select id="policy"></select>
+        <span class="policy-note" id="policyNote"></span>
+        <span class="actions"><button type="button" id="ibwBtn" title="Label: obese patients are dosed on ideal body weight">Use IBW (label)</button><button type="button" id="defBtn">Model default</button></span>
+      </label>
+      <label>AdjBW factor
+        <select id="adjFactor"><option value="0.4">0.4 (site, suite)</option><option value="0.3">0.3 (Wurtz)</option></select>
+      </label>
+      <label id="bpRow" hidden>BMI breakpoint
+        <select id="bp"><option value="25">25 (site)</option><option value="30">30 (U Mich, Stanford)</option><option value="35">35</option><option value="40">40</option></select>
+      </label>
+      <label>Infusion time
+        <select id="infusionH"><option value="">Model default</option><option value="1">1 h (label minimum)</option><option value="1.5">1.5 h</option><option value="2">2 h (site)</option></select>
+      </label>
+      <label>Bag volume
+        <select id="volume"><option value="">Auto</option><option value="100">100 mL</option><option value="250">250 mL</option><option value="500">500 mL</option><option value="1000">1000 mL</option></select>
+      </label>
+      <label>Round dose to
+        <select id="roundInc"><option value="25">Nearest 25 mg</option><option value="50">Nearest 50 mg</option><option value="10">Nearest 10 mg</option><option value="5">Nearest 5 mg</option></select>
+      </label>
+      <label>Renal band CrCl
+        <select id="bandBasis"><option value="">Model default</option><option value="per173">mL/min/1.73 m² (label units)</option><option value="absolute">mL/min (absolute)</option></select>
+      </label>
+      <label>Exposure volume
+        <select id="vdModel"><option value="">Model default</option><option value="perKg">0.6 L/kg × dosing weight (literature)</option><option value="blum48">48 L/1.73 m² × BSA (site workbook)</option></select>
+      </label>
+      <label>Urine flow (urine level) <span class="ig"><input id="urineFlow" type="number" min="1" step="any" value="100"><button type="button" class="ub" tabindex="-1" disabled>mL/h</button></span></label>
+      <label>Fraction excreted unchanged
+        <select id="fe"><option value="0.9">0.9 (workbook default)</option><option value="0.8">0.8</option><option value="0.7">0.7</option><option value="0.6">0.6</option></select>
+      </label>
+    </div>
+  </section>
+
+  <div class="alerts" id="alerts" aria-live="polite"></div>
+  <div id="result" aria-live="polite"></div>
+
+  <section class="card">
+    <details id="detWeights">
+      <summary>Dosing weight under each policy</summary>
+      <div class="body" style="max-width:none"><div class="tablewrap" id="policyTable"></div></div>
+    </details>
+  </section>
+  <section class="card">
+    <details id="detRenal">
+      <summary>Renal dose table</summary>
+      <div class="body" style="max-width:none"><div class="tablewrap" id="renalTable"></div></div>
+    </details>
+  </section>
+  <section class="card">
+    <details id="detExposure">
+      <summary>Predicted exposure</summary>
+      <div class="body" id="exposure"></div>
+    </details>
+  </section>
+  <section class="card">
+    <details>
+      <summary>Methods and sources</summary>
+      <div class="body">
+        <p><b>Model setting.</b> <i>Literature</i> (default) applies the clinician-approved sign-off decisions (DECISIONS.md, decisions/acyclovir-infusions.md, 2026-10-23) to the current FDA label (DailyMed setid ae921e4e, 7/2023) and IDSA 2008. Dosing weight is AdjBW (IBW + 0.4 × excess) when TBW &gt; 1.2 × IBW or BMI ≥ 30, otherwise TBW, with a one-click IBW (label) option. Renal bands are compared per 1.73 m² (label units), with absolute mL/min shown beside them. IHD is 2.5–5 mg/kg q24h after HD. CRRT is 10 mg/kg q12h for CNS, VZV or severe infection, otherwise 5–7.5 mg/kg q24h. Other choices: 1 h minimum infusion, smallest bag at or below 7 mg/mL, HSV encephalitis 14–21 days, VZV encephalitis 10 mg/kg (15 mg/kg option) for 10–14 days. <i>Site</i> reproduces pkineticdrugdosing.com: AdjBW (f 0.4) for everyone above IBW, 2 h infusion, 250 mL for 10 mg/kg doses or doses over 500 mg, HSV encephalitis 10 days (label duration). Both use the label renal table, the label 20 mg/kg q8h maximum and nearest-25 mg rounding.</p>
+        <p><b>Weights.</b> Devine IBW <code>50 (M) or 45.5 (F) + 2.3 kg/in over 60 in</code>; AdjBW <code>IBW + f·(TBW − IBW)</code>, f 0.4 (site) or 0.3; BMI; DuBois BSA. All from <code>PK.body</code>. Where a policy picks IBW and TBW is lower, TBW is used. The label says obese patients are dosed on IBW. Evidence on IBW vs AdjBW is mixed (Turner 2016 PK favours AdjBW; Saad 2025 shows the least AKI with IBW; Zelnicek 2023 the reverse). TBW is never appropriate in obesity (TBW &gt; 1.2 × IBW or BMI ≥ 30).</p>
+        <p><b>Breakpoint discontinuity.</b> With an "AdjBW above a BMI breakpoint, TBW below" rule, a patient must weigh <code>ΔW = (W<sub>bp</sub> − IBW)·(1/f − 1)</code> more than the breakpoint weight before the dose matches (32.8 kg at BMI 30 for a 70 in male).</p>
+        <p><b>Renal adjustment</b> (label Table 5, CrCl mL/min/1.73 m²): &gt; 50 100% q8h; 25–50 100% q12h; 10–&lt;25 100% q24h; &lt; 10 50% q24h. Hemodialysis: 50% q24h, with the dose given after each dialysis (label: HD t½ about 5 h, a 6 h run lowers levels about 60%, an additional dose after each dialysis). Peritoneal dialysis: 50% q24h, no supplement. Those are the Site-model rules. The Literature model uses the approved rules instead. IHD: 2.5–5 mg/kg q24h (half the indication mg/kg), given after HD on dialysis days (Heintz 2009; Krasny 1982). CRRT (not in label; Heintz 2009, Trotman 2005, Li 2020; assumes effluent 1–2 L/h): 10 mg/kg q12h for CNS, VZV or severe infection, otherwise 5–7.5 mg/kg q24h. In Site mode CRRT shows the indication mg/kg (capped at 10) q12h. When the per-1.73 m² and absolute CrCl fall in different bands, a warning is shown. CrCl is Cockcroft-Gault from <code>PK.renal.cockcroftGault</code> (literature preset: AdjBW if TBW &gt; 1.2 × IBW, otherwise the lesser of IBW and TBW; site preset: lesser of IBW and TBW; no SCr floor), or entered directly.</p>
+        <p><b>Administration.</b> Label: constant-rate infusion over at least 1 h, never bolus; final concentration about 7 mg/mL or lower; adequate hydration. The site prefers 2 h and 250 mL bags; concentrations above 5 mg/mL get a soft warning (suite preference). Urine output target 100–150 mL/h (about 1.5 mL/kg/h) and IV fluids over 2 L/day are site and Kim 2015 guidance.</p>
+        <p><b>Exposure</b> (estimate only). Blum 1982: <code>CL (L/h/1.73 m²) = 0.2022·CrCl<sub>1.73</sub> + 1.722</code>, scaled by BSA/1.73. The coefficients could not be checked against the full text; the intercept matches the label's anuric CL (29 mL/min/1.73 m²). Volume: Literature default 0.6 L/kg × dosing weight (site page text); Site model 48 L/1.73 m² × BSA/1.73 (Blum Vss, as the site workbook and spec §5 use); either can be chosen under Dosing policy. One-compartment steady-state peak, trough and AUC24 from <code>PK.one.ss</code>. On HD or PD the interdialytic CL is the anuric intercept. Spector (<code>0.091·CrCl + 7.52</code>) and Fletcher (<code>0.178·CrCl + 2.92</code>) are Pierce's own LINEST fits to the tabulated patients in those continuous-infusion papers (Spector with CG-recomputed CrCl), not published equations, and are shown for comparison only. Predicted urine concentration (site workbook method): hourly amount <code>fe·V·(C(t) − C(t+1))</code> ÷ urine flow, mean during the infusion <code>fe·(dose − V·(Cmax − Cmin))/T'</code> ÷ flow, and continuous <code>fe·rate</code> ÷ flow; defaults fe 0.9 and 100 mL/h; flagged above the 1.3 mg/mL solubility (Hintz 1982). Renal band at exactly CrCl 10: the label's ranges overlap; the Literature model gives 100% q24h, the Site model 50% q24h as the workbook does. MW 225.2: 1 µmol/L = 0.225 mg/L.</p>
+        <p><b>Durations.</b> HSV mucocutaneous (immunocompromised) 7 d; initial genital herpes 5 d; VZV immunocompromised 7 d (label). HSV encephalitis 14–21 d (IDSA, Tunkel 2008; label 10 d). VZV encephalitis 10–15 mg/kg q8h for 10–14 d (IDSA, not verified this cycle).</p>
+        <p><b>Warnings.</b> Crystal nephropathy in 10–48% (onset 24–72 h); risk rises with dehydration, rapid infusion, concentrated bags, CKD, diabetes, obesity (OR 3.2), vancomycin (OR 4.7), NSAIDs (OR 2.6) and higher daily doses (Barber 2019). Neurotoxicity in about 1% of IV patients (label): confusion, tremor, hallucinations, seizures; more likely with renal impairment, unadjusted doses, obesity dosed on TBW, older age and underlying neurologic disease. TTP/HUS has been fatal in immunocompromised patients (label).</p>
+        <p><b>Shared library.</b> Weights, BSA, CrCl, steady-state math and rounding come from <code>lib/pkcore.js</code>. Acyclovir-specific rules (the institutional BMI and %IBW weight policies, the breakpoint ΔW, the label renal table and the Blum/Spector/Fletcher clearances) are local to this page.</p>
+        <p><b>Sources.</b> Acyclovir sodium injection label, DailyMed setid ae921e4e-b8ae-4a45-acc1-32e5e719812b. Tunkel AR et al. CID 2008;47:303 (PMID 18582201). Blum MR et al. Am J Med 1982;73(1A):186 (PMID 7048911). Spector SA et al. Am J Med 1982;73(1A):275 (PMID 6285719). Fletcher CV et al. AAC 1989;33:1375 (PMID 2552909). Turner RB et al. AAC 2016;60:1830 (PMID 26824940). Barber KE et al. OFID 2019;6:ofz121 (PMID 31024972). Saad MO et al. Ann Pharmacother 2025;59:801 (PMID 39956984). Zelnicek TD et al. IJAA 2023;62:106871 (PMID 37257520). Aboelezz A, Mahmoud SH. JAPhA 2024;64:102040 (PMID 38364888). Heintz BH et al. Pharmacotherapy 2009;29:562 (PMID 19397464). Trotman RL et al. CID 2005;41:1159 (PMID 16163635). Li L et al. Front Pharmacol 2020;11:786 (PMID 32547394). Krasny HC et al. Am J Med 1982;73(1A):202 (PMID 7102703). Laskin OL et al. Clin Pharmacol Ther 1982;31:594 (PMID 7075109). Kim 2015 (PMID 25504951). Marshall Pierce, PharmD, <a href="https://pkineticdrugdosing.com/documents/acyclovir.html" target="_blank" rel="noopener">acyclovir dosing page</a>.</p>
+      </div>
+    </details>
+  </section>
+
+  <footer>Educational and clinical decision-support use by trained clinicians only. Not a substitute for clinical judgment, the product label or local protocols. Values marked "verify" come from outside the label or could not be checked against their primary source. Confirm the dose, hydration plan and renal function before every order, and recheck SCr daily during therapy.</footer>
+</div>
+
+<script src="lib/pkcore.js"></script>
+<script src="lib/pk-ui.js"></script>
+<script>
+// CALC-START
+// Pure acyclovir math. Uses globalThis.PK (lib/pkcore.js) for weights, BSA, CrCl, one-compartment math and rounding. No DOM.
+const MW = 225.21;               // g/mol; 1 µmol/L = 0.225 mg/L
+const MAX_MGKG = 20;             // label: 20 mg/kg q8h must not be exceeded
+const SOFT_MGKG = 15;            // usual adult max (soft warning)
+const MAX_CONC = 7;              // label: about 7 mg/mL or lower
+const SOFT_CONC = 5;             // site/suite preference
+const BAGS = [100, 250, 500, 1000];
+const VD_PER_KG = 0.6;           // site page text, L/kg × dosing weight (literature default)
+const VSS_PER_173 = 48;          // L/1.73 m², Blum Vss as stated by the site workbook and spec §5 step 10 (site model)
+const FE_DEFAULT = 0.9;          // site workbook default fraction excreted unchanged (input range 0.6–0.9)
+const URINE_FLOW_DEFAULT = 100;  // mL/h, site workbook default urine flow
+const URINE_SOLUBILITY = 1.3;    // mg/mL, acyclovir urine solubility (Hintz 1982)
+const isNum = (x) => typeof x === "number" && isFinite(x);
+
+// Provenance for acyclovir-specific values. verify: true → visible "verify" badge.
+const SRC = {
+  label: { label: "Acyclovir sodium injection label (DailyMed ae921e4e, 7/2023)", ref: "lit A1", verify: false },
+  labelRenal: { label: "Label Table 5 renal adjustment, CrCl in mL/min/1.73 m²", ref: "lit A4", verify: false },
+  labelHD: { label: "Label: HD t½ ≈ 5 h; give an additional dose after each dialysis", ref: "lit A5, A7", verify: false },
+  labelPD: { label: "Label: PD, no supplemental dose after interval adjustment", ref: "lit A6", verify: false },
+  crrt: { label: "CRRT 5–10 mg/kg q12–24h: common practice, not in label (institution-defined)", ref: "spec §4.4; lit sign-off 3", verify: true },
+  crrtLit: { label: "CRRT (Heintz 2009; Trotman 2005; Li 2020): 10 mg/kg q12h for CNS/VZV/severe infection, else 5–7.5 mg/kg q24h. Not in label; assumes effluent 1–2 L/h", ref: "DECISIONS.md; decisions/acyclovir-infusions.md Q3 (approved)", verify: true },
+  hdLit: { label: "IHD 2.5–5 mg/kg q24h, dosed after HD on HD days (Heintz 2009; Krasny 1982; label: additional dose after each dialysis)", ref: "decisions/acyclovir-infusions.md Q3 (approved; Heintz row via secondary table)", verify: true },
+  adjObese: { label: "AdjBW (IBW + 0.4·excess) when TBW > 1.2 × IBW or BMI ≥ 30, else TBW (Turner 2016; Aboelezz 2024/2025; Barber 2019)", ref: "DECISIONS.md; decisions/acyclovir-infusions.md Q1 (approved; evidence conflicting)", verify: false },
+  bands173: { label: "Bands compared in label units (CrCl normalised per 1.73 m²); absolute mL/min shown alongside", ref: "decisions/acyclovir-infusions.md Q2; renal-body.md Q6 (approved)", verify: false },
+  labelMax: { label: "Label: maximum 20 mg/kg q8h for any patient", ref: "lit A21", verify: false },
+  labelConc: { label: "Label: final concentration ≈ 7 mg/mL or lower", ref: "lit A9", verify: false },
+  labelInf: { label: "Label: constant rate over at least 1 h; no bolus", ref: "lit A10", verify: false },
+  site2h: { label: "Site: infuse over 2 h, 250 mL for 10 mg/kg (expert opinion)", ref: "spec §4.5", verify: false },
+  labelObese: { label: "Label: obese patients dosed on ideal body weight", ref: "lit A16", verify: false },
+  siteWeight: { label: "Site: AdjBW (f 0.4) for everyone above IBW", ref: "spec §4.2", verify: false },
+  institution: { label: "Institutional policy from the site's survey", ref: "spec §4.2", verify: true },
+  idsa: { label: "IDSA 2008 (Tunkel): HSV encephalitis 10 mg/kg q8h for 14–21 days", ref: "lit A2; decisions Q4 (IDSA A-I, full text read); PMID 18582201", verify: false },
+  vzvEnc: { label: "IDSA 2008: VZV encephalitis 10–15 mg/kg q8h for 10–14 days (B-III); default 10, 15 mg/kg option", ref: "decisions Q4 (approved); PMID 18582201", verify: false },
+  blum: { label: "Blum 1982 CL = 0.2022·CrCl + 1.722 L/h/1.73 m², display only, not used for dosing (coefficients unverified; reproduces label Table 2 at 3 of 4 points; the site workbook states it as 3.37·CrCl + 28.7 mL/min/1.73 m², r 0.58)", ref: "lit A11; decisions Q5; PMID 7048911; workbook check A4", verify: true },
+  spector: { label: "Pierce's own fit, not a published equation: LINEST on the 16 tabulated Spector 1982 continuous-infusion patients with CG-recomputed CrCl/1.73 m², CL = 0.091·CrCl + 7.52 (the paper's CrCl gives 0.0693·CrCl + 11.66)", ref: "lit A12; site workbook hidden sheet (workbook check A4)", verify: true },
+  fletcher: { label: "Pierce's own fit, not a published equation: LINEST on 13 Fletcher 1989 continuous-infusion patients, CL = 0.178·CrCl + 2.92 (R² entered as 0.94², the paper's r)", ref: "lit A13; site workbook hidden sheet (workbook check A4)", verify: true },
+  vd: { label: "Vd 0.6 L/kg × dosing weight (site page text; literature default)", ref: "spec §3", verify: false },
+  vss48: { label: "Vss 48 L/1.73 m² × BSA/1.73 (Blum Vss as stated by the site workbook; spec §5 step 10). About 0.74 L/kg at 70 kg, 70 in", ref: "spec §5; workbook check A3", verify: true },
+  urine: { label: "Predicted urine concentration, site workbook method: fe·V·(C(T') − C(T'+1)) per hour ÷ urine flow; continuous infusion fe·rate ÷ flow. Workbook defaults fe 0.9, urine flow 100 mL/h. Estimate only", ref: "workbook check A3", verify: true },
+  urineSol: { label: "Acyclovir urine solubility about 1.3 mg/mL (Hintz 1982)", ref: "lit A14", verify: true },
+  wb10: { label: "Site workbook: CrCl exactly 10 mL/min/1.73 m² dosed 5 mg/kg (50%) q24h; the label ranges 10–25 and 0–10 overlap at 10", ref: "workbook check A3", verify: false },
+  hydration: { label: "Label: adequate hydration. Site/Kim 2015: IV fluids > 2 L/day, urine 100–150 mL/h", ref: "lit A22; spec §4.5", verify: false },
+  rounding: { label: "Nearest 25 mg (suite convention; no rule on site or label)", ref: "spec §6", verify: true },
+};
+
+const INDICATIONS = {
+  hse: { label: "HSV encephalitis", mgkg: 10, cns: true, src: "label",
+    days: { literature: "14–21 days", site: "10 days" }, daysSrc: { literature: "idsa", site: "label" },
+    footnote: { literature: "Label duration is 10 days; relapse has been reported after 10-day courses." } },
+  hsvImm: { label: "HSV mucocutaneous, immunocompromised", mgkg: 5, immuno: true, src: "label", days: { literature: "7 days", site: "7 days" } },
+  genital: { label: "Herpes genitalis, initial episode (severe)", mgkg: 5, src: "label", days: { literature: "5 days", site: "5 days" } },
+  vzvImm: { label: "VZV (zoster), immunocompromised", mgkg: 10, immuno: true, src: "label", days: { literature: "7 days", site: "7 days" } },
+  vzvEnc: { label: "VZV encephalitis", mgkg: 10, range: [10, 15], cns: true, src: "vzvEnc", days: { literature: "10–14 days", site: "10–14 days" } },
+  custom: { label: "Prescriber-specified", mgkg: null, src: null, days: { literature: "per prescriber", site: "per prescriber" } },
+};
+
+const MODELS = {
+  literature: { label: "Literature", weightPolicy: "adjObese", infusionH: 1, volumeRule: "label", roundInc: 25, crclPreset: "literature", bandBasis: "per173", adjFactor: 0.4, dialysisRules: "literature", vdModel: "perKg", boundary10: "label" },
+  site: { label: "Site", weightPolicy: "adjIfOver", infusionH: 2, volumeRule: "site", roundInc: 25, crclPreset: "site", bandBasis: "absolute", adjFactor: 0.4, dialysisRules: "site", vdModel: "blum48", boundary10: "workbook" },
+};
+
+// Exposure volume options. Literature default 0.6 L/kg × dosing weight; Site (workbook) 48 L/1.73 m² × BSA/1.73.
+const VD_MODELS = {
+  perKg: { label: "0.6 L/kg × dosing weight", src: "vd" },
+  blum48: { label: "48 L/1.73 m² × BSA/1.73 (Blum Vss)", src: "vss48" },
+};
+function volumeL(vdModel, { bsa, weight, vdPerKg = VD_PER_KG }) {
+  return vdModel === "blum48" ? (VSS_PER_173 * bsa) / 1.73 : vdPerKg * weight;
+}
+
+const OBESE_RATIO = PK.policies.obesityRatio; // 1.2 (suite-wide threshold)
+const WEIGHT_POLICIES = {
+  adjObese: { label: "AdjBW if obese (TBW > 1.2 × IBW or BMI ≥ 30), else TBW", note: "Approved literature default. Never TBW in obesity.", src: "adjObese" },
+  ibw: { label: "IBW (label)", note: "Label: obese patients should be dosed using ideal body weight. TBW is used if below IBW.", src: "labelObese" },
+  labelObese: { label: "TBW, or IBW if BMI ≥ 30", note: "Label wording applied with BMI ≥ 30 as 'obese'.", src: "labelObese" },
+  adjIfOver: { label: "AdjBW if TBW > IBW, else TBW", note: "Site recommendation (also Nebraska Medicine).", src: "siteWeight" },
+  tbw: { label: "TBW", note: "Package-insert default for non-obese patients. Never when BMI ≥ 30.", src: "label" },
+  bmi30AdjIbw: { label: "BMI > 30 → AdjBW, else IBW", note: "Wake Forest.", src: "institution" },
+  bmiBpAdjTbw: { label: "BMI > breakpoint → AdjBW, else TBW", note: "Breakpoint 25 (site), 30 (U Mich, Stanford), 35 (asp.nm.org).", src: "institution" },
+  pct120: { label: "TBW > 120% IBW → AdjBW, else TBW", note: "UCSF.", src: "institution" },
+  toledo: { label: "> 190% IBW → AdjBW; 130–190% → IBW; else TBW", note: "University of Toledo.", src: "institution" },
+  uw: { label: "BMI > 40 + life-threatening → AdjBW; BMI > 30 → IBW; else TBW", note: "HMC/UWMC. Encephalitis counts as life-threatening.", src: "institution" },
+};
+
+// Body size. IBW is clamped at 0 for very short patients.
+function weights({ sex, heightCm, tbw, adjFactor = 0.4 }) {
+  const heightIn = PK.body.cmToIn(heightCm);
+  const ibwRaw = PK.body.ibw(sex, heightIn);
+  const ibw = Math.max(ibwRaw, 0);
+  return { heightIn, heightCm, tbw, sex, adjFactor, ibwRaw, ibw, adjbw: PK.body.adjustedBW(ibw, tbw, adjFactor),
+    bmi: PK.body.bmi(tbw, heightCm), bsa: PK.body.bsa(tbw, heightCm), pctIbw: ibw > 0 ? tbw / ibw : Infinity };
+}
+
+const isObese = (w) => w.pctIbw > OBESE_RATIO || w.bmi >= 30;
+// Dosing weight by policy. Wherever a rule picks IBW and TBW is lower, TBW is used.
+function dosingWeight(policy, w, { bp = 25, lifeThreatening = false } = {}) {
+  const { tbw, ibw, adjbw, bmi, pctIbw } = w;
+  const IBW = tbw < ibw ? [tbw, "TBW"] : [ibw, "IBW"];
+  const ADJ = tbw > ibw ? [adjbw, "AdjBW"] : [tbw, "TBW"];
+  const TBW = [tbw, "TBW"];
+  let r;
+  switch (policy) {
+    case "ibw": { const d = PK.body.dosingWeight({ policy: "minIbwTbw", tbw, ibw }); r = [d.weight, d.basis]; break; }
+    case "adjIfOver": { const d = PK.body.dosingWeight({ policy: "adjIfOver", tbw, ibw, adjFactor: w.adjFactor }); r = [d.weight, d.basis]; break; }
+    case "tbw": r = TBW; break;
+    case "adjObese": r = isObese(w) ? ADJ : TBW; break;
+    case "labelObese": r = bmi >= 30 ? IBW : TBW; break;
+    case "bmi30AdjIbw": r = bmi > 30 ? ADJ : IBW; break;
+    case "bmiBpAdjTbw": r = bmi > bp ? ADJ : TBW; break;
+    case "pct120": r = pctIbw > 1.2 ? ADJ : TBW; break;
+    case "toledo": r = pctIbw > 1.9 ? ADJ : pctIbw >= 1.3 ? IBW : TBW; break;
+    case "uw": r = bmi > 40 && lifeThreatening ? ADJ : bmi > 30 ? IBW : TBW; break;
+    default: throw new Error(`Unknown weight policy: ${policy}`);
+  }
+  return { weight: r[0], basis: r[1], policy };
+}
+
+// Extra TBW needed above the breakpoint weight before an AdjBW-dosed patient gets the breakpoint patient's TBW dose (spec §4.1, sex-specific IBW).
+function breakpointDeltaW({ bp, heightCm, ibw, adjFactor = 0.4 }) {
+  const wbp = bp * Math.pow(heightCm / 100, 2);
+  return { wbp, deltaW: (wbp - ibw) * (1 / adjFactor - 1) };
+}
+
+// Label Table 5 bands (CrCl mL/min/1.73 m²) and dialysis rows.
+const RENAL_TABLE = [
+  { band: "> 50", min: 50, minIncl: false, pct: 1, tau: 8 },
+  { band: "25–50", min: 25, minIncl: true, pct: 1, tau: 12 },
+  { band: "10–<25", min: 10, minIncl: true, pct: 1, tau: 24 },
+  { band: "< 10", min: -Infinity, minIncl: true, pct: 0.5, tau: 24 },
+];
+// Literature dialysis rules (approved): IHD 2.5–5 mg/kg q24h after HD; CRRT 10 mg/kg q12h (CNS/VZV/severe) else 5–7.5 mg/kg q24h.
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+// Band lookup. boundary "label": exactly 10 → 10–<25 (100% q24h). "workbook" (site): CrCl ≤ 10 → 50% q24h, as the site workbook doses CrCl 10.
+function renalRow(crcl, boundary = "label") {
+  if (boundary === "workbook" && crcl <= 10) return { ...RENAL_TABLE[3], band: "≤ 10" };
+  const row = RENAL_TABLE.find((r) => (r.minIncl ? crcl >= r.min : crcl > r.min));
+  if (boundary === "workbook" && row === RENAL_TABLE[2]) return { ...row, band: "> 10–<25" };
+  return row;
+}
+function renalRegimen(crcl, dialysis = "none", { rules = "site", severe = false, boundary = "label" } = {}) {
+  if (rules === "literature" && dialysis === "hd") return { band: "Hemodialysis", pct: 1, tau: 24, postHD: true, src: "hdLit",
+    mgkgFn: (m) => clamp(m / 2, 2.5, 5), text: "2.5–5 mg/kg q24h (half the indication mg/kg); on dialysis days give the dose after dialysis." };
+  if (rules === "literature" && dialysis === "crrt") return severe
+    ? { band: "CRRT", pct: 1, tau: 12, src: "crrtLit", mgkgFn: () => 10, text: "10 mg/kg q12h (CNS, VZV or severe infection). Not in the label; assumes effluent 1–2 L/h." }
+    : { band: "CRRT", pct: 1, tau: 24, src: "crrtLit", mgkgFn: (m) => clamp(m, 5, 7.5), text: "5–7.5 mg/kg q24h (non-severe infection). Not in the label; assumes effluent 1–2 L/h." };
+  if (dialysis === "hd") return { band: "Hemodialysis", pct: 0.5, tau: 24, postHD: true, src: "labelHD",
+    text: "50% of the dose q24h; on dialysis days give the dose after dialysis (label: an additional dose after each dialysis)." };
+  if (dialysis === "pd") return { band: "Peritoneal dialysis", pct: 0.5, tau: 24, src: "labelPD", text: "50% of the dose q24h; no supplemental dose." };
+  if (dialysis === "crrt") return { band: "CRRT", pct: 1, tau: 12, mgkgCap: 10, src: "crrt",
+    text: "Not in the label. Common practice 5–10 mg/kg q12–24h; shown as indication mg/kg (max 10) q12h. Institution-defined." };
+  const row = renalRow(crcl, boundary);
+  return { band: row.band, pct: row.pct, tau: row.tau, src: boundary === "workbook" && crcl === 10 ? "wb10" : "labelRenal", text: `${row.pct === 1 ? "100%" : "50%"} of the dose q${row.tau}h.` };
+}
+
+// Clearance regressions, L/h/1.73 m² from CrCl mL/min/1.73 m².
+const clBlum = (crcl173) => 0.2022 * crcl173 + 1.722;
+const clSpector = (crcl173) => 0.091 * crcl173 + 7.52;
+const clFletcher = (crcl173) => 0.178 * crcl173 + 2.92;
+
+// Predicted urine concentration (mg/mL), site workbook method. Amount excreted in an hour = fe·V·ΔC (post-infusion decline),
+// divided by urine flow (mL/h). Also: mass-balance mean during the infusion fe·(dose − V·(Cmax − Cmin))/T' (the workbook's
+// "excreted during infusion" cell omits fe and is not ported), instantaneous end-of-infusion fe·CL·Cmax/flow, and the
+// continuous infusion of the same daily dose fe·rate/flow.
+function urineConc({ ss, CL, V, dose, tau, tinf, fe = FE_DEFAULT, urineFlow = URINE_FLOW_DEFAULT }) {
+  const h = Math.min(1, tau - tinf);
+  const hour1 = h > 0 ? (fe * V * (ss.at(tinf) - ss.at(tinf + h))) / h / urineFlow : NaN;
+  const duringInfusion = tinf > 0 ? (fe * (dose - V * (ss.cmax - ss.cmin))) / tinf / urineFlow : NaN;
+  const peak = (fe * CL * ss.cmax) / urineFlow;
+  const continuous = (fe * dose) / tau / urineFlow;
+  const intermittentMax = Math.max(hour1, isNum(duringInfusion) ? duringInfusion : -Infinity);
+  return { fe, urineFlow, hour1, duringInfusion, peak, continuous, intermittentMax,
+    over: intermittentMax > URINE_SOLUBILITY, peakOver: peak > URINE_SOLUBILITY, continuousOver: continuous > URINE_SOLUBILITY };
+}
+
+// Predicted steady-state exposure: Blum CL scaled to BSA; V by vdModel ("perKg" 0.6 L/kg × dosing weight, "blum48" 48 L/1.73 m²
+// × BSA/1.73) unless V is given.
+function predictExposure({ crcl, bsa, dialysis = "none", dose, tau, tinf, weight, vdPerKg = VD_PER_KG, vdModel = "perKg", V, fe, urineFlow }) {
+  if (dialysis === "crrt") return { available: false, reason: "No validated clearance model for CRRT; depends on effluent rate." };
+  const anuric = dialysis === "hd" || dialysis === "pd";
+  const crcl173 = anuric ? 0 : PK.renal.normalizeTo173(Math.max(crcl, 0), bsa);
+  const scale = bsa / 1.73;
+  const CL = clBlum(crcl173) * scale;
+  const vPerKg = volumeL("perKg", { bsa, weight, vdPerKg }), vBlum48 = volumeL("blum48", { bsa, weight });
+  const Vd = isNum(V) ? V : vdModel === "blum48" ? vBlum48 : vPerKg;
+  const ss = PK.one.ss({ dose, tau, tinf }, { CL, V: Vd });
+  const rateMgH = (dose * 24) / tau / 24;
+  const urine = anuric ? null : urineConc({ ss, CL, V: Vd, dose, tau, tinf, fe: isNum(fe) ? fe : FE_DEFAULT, urineFlow: urineFlow > 0 ? urineFlow : URINE_FLOW_DEFAULT });
+  return { available: true, anuric, crcl173, CL, V: Vd, vdModel: isNum(V) ? "given" : vdModel, vPerKg, vBlum48, k: ss.k, thalf: PK.one.halfLife(ss.k), cmax: ss.cmax, cmin: ss.cmin,
+    auc24: ss.auc24, auc24TrapLog: PK.one.auc24TrapLog(ss.cmax, ss.cmin, ss.k, tinf, tau), cssContinuous: rateMgH / CL,
+    clSpector: clSpector(crcl173) * scale, clFletcher: clFletcher(crcl173) * scale,
+    cmaxUmol: ss.cmax / (MW / 1000), cminUmol: ss.cmin / (MW / 1000), urine };
+}
+
+// Continuous-infusion steady state: Css = rate / CL.
+const continuousCss = (rateMgH, CL) => rateMgH / CL;
+
+// Bag selection. Site: 250 mL for 10 mg/kg or > 500 mg, else 100 mL. Label: smallest bag at ≤ 7 mg/mL.
+function chooseVolume(dose, mgkg, rule, override) {
+  if (isNum(override) && override > 0) return { volume: override, rule: "chosen" };
+  const start = rule === "site" && (mgkg >= 10 || dose > 500) ? 250 : 100;
+  const v = BAGS.find((b) => b >= start && dose / b <= MAX_CONC + 1e-9);
+  return { volume: isNum(v) ? v : BAGS[BAGS.length - 1], rule };
+}
+
+function calc(inp) {
+  const model = MODELS[inp.model] ? inp.model : "literature";
+  const M = MODELS[model];
+  const alerts = [];
+  const add = (lvl, text, code) => alerts.push({ lvl, text, code });
+  const indKey = INDICATIONS[inp.indication] ? inp.indication : "hse";
+  const ind = INDICATIONS[indKey];
+  const dialysis = ["hd", "pd", "crrt"].includes(inp.dialysis) ? inp.dialysis : "none";
+
+  if (!(inp.tbw > 0) || !(inp.heightCm > 0) || !(inp.sex === "M" || inp.sex === "F")) return { ok: false, error: "Enter sex, height and weight." };
+  const adjFactor = isNum(inp.adjFactor) ? inp.adjFactor : M.adjFactor;
+  const w = weights({ sex: inp.sex, heightCm: inp.heightCm, tbw: inp.tbw, adjFactor });
+
+  // Renal function
+  let crcl = NaN, cg = null;
+  if (inp.crclMode === "entered") crcl = inp.crcl;
+  else if (isNum(inp.age) && inp.scr > 0) {
+    cg = PK.renal.cockcroftGault({ age: inp.age, sex: inp.sex, scr: inp.scr, tbw: inp.tbw, heightCm: inp.heightCm, preset: M.crclPreset });
+    crcl = cg.crcl;
+    cg.flags.filter((f) => f.code !== "age<18").forEach((f) => add(f.lvl, `CrCl: ${f.text}`, `cg.${f.code}`));
+  }
+  if (!isNum(crcl) && (dialysis === "none" || dialysis === "crrt")) return { ok: false, error: "Enter age and SCr, or a CrCl." };
+  const crcl173 = isNum(crcl) ? PK.renal.normalizeTo173(crcl, w.bsa) : NaN;
+  const bandBasis = inp.bandBasis || M.bandBasis;
+  const crclBand = bandBasis === "per173" ? crcl173 : crcl;
+  const severe = !!(ind.cns || indKey === "vzvImm" || indKey === "vzvEnc" || inp.r_severe);
+  const boundary = M.boundary10;
+  const reg = renalRegimen(crclBand, dialysis, { rules: M.dialysisRules, severe, boundary });
+  const bandAbs = dialysis === "none" && isNum(crcl) ? renalRegimen(crcl, "none", { boundary }).band : null;
+  const band173 = dialysis === "none" && isNum(crcl173) ? renalRegimen(crcl173, "none", { boundary }).band : null;
+  const bandsDiffer = !!(bandAbs && band173 && bandAbs !== band173);
+
+  // Dosing weight
+  const policy = inp.weightPolicy || M.weightPolicy;
+  const bp = isNum(inp.bp) ? inp.bp : 25;
+  const dw = dosingWeight(policy, w, { bp, lifeThreatening: !!ind.cns });
+
+  // mg/kg
+  let mgkgReq = ind.mgkg;
+  if (ind.mgkg === null || (ind.range && isNum(inp.customMgkg))) mgkgReq = inp.customMgkg;
+  if (!(mgkgReq > 0)) return { ok: false, error: "Enter a dose in mg/kg." };
+  if (ind.range && (mgkgReq < ind.range[0] || mgkgReq > ind.range[1])) add("warn", `${ind.label}: usual range ${ind.range[0]}–${ind.range[1]} mg/kg q8h.`, "outOfRange");
+  let mgkg = mgkgReq, capped = false;
+  if (mgkg > MAX_MGKG) { add("crit", `${mgkgReq} mg/kg exceeds the label maximum of 20 mg/kg q8h. Capped at 20 mg/kg.`, "capMgkg"); mgkg = MAX_MGKG; capped = true; }
+  const mgkgIndication = mgkg;
+  if (reg.mgkgCap && mgkg > reg.mgkgCap) { add("info", `CRRT: mg/kg limited to ${reg.mgkgCap}.`, "crrtCap"); mgkg = reg.mgkgCap; }
+  if (reg.mgkgFn) mgkg = reg.mgkgFn(mgkg);
+
+  // Dose
+  const fullDose = mgkg * dw.weight;
+  const exact = fullDose * reg.pct;
+  const inc = isNum(inp.roundInc) && inp.roundInc > 0 ? inp.roundInc : M.roundInc;
+  let dose = PK.round.roundTo(exact, inc);
+  const capDose = MAX_MGKG * dw.weight;
+  if (dose > capDose + 1e-9) { dose = PK.round.roundTo(capDose, inc, "down"); capped = true; }
+  if (!(dose > 0)) dose = exact;
+  const daily = (dose * 24) / reg.tau;
+  const mgkgGiven = dose / dw.weight;
+
+  // Administration
+  const infusionH = isNum(inp.infusionH) && inp.infusionH > 0 ? inp.infusionH : M.infusionH;
+  const vol = chooseVolume(dose, mgkg, M.volumeRule, inp.volume);
+  const conc = dose / vol.volume;
+  const rateMlH = vol.volume / infusionH;
+  const urineTarget = Math.max(100, 1.5 * dw.weight);
+
+  // Exposure
+  const vdModel = VD_MODELS[inp.vdModel] ? inp.vdModel : M.vdModel;
+  const fe = isNum(inp.fe) && inp.fe > 0 && inp.fe <= 1 ? inp.fe : FE_DEFAULT;
+  const urineFlow = isNum(inp.urineFlow) && inp.urineFlow > 0 ? inp.urineFlow : URINE_FLOW_DEFAULT;
+  const exposure = isNum(crcl) || dialysis === "hd" || dialysis === "pd"
+    ? predictExposure({ crcl, bsa: w.bsa, dialysis, dose, tau: reg.tau, tinf: infusionH, weight: dw.weight, vdModel, fe, urineFlow })
+    : { available: false, reason: "No CrCl." };
+
+  // Duration
+  const days = ind.days[model];
+  const daysSrc = (ind.daysSrc && ind.daysSrc[model]) || ind.src;
+  const footnote = ind.footnote && ind.footnote[model];
+
+  // ---------- Warnings ----------
+  const obese = w.bmi >= 30;
+  const obeseAny = isObese(w);
+  if (bandsDiffer) add("warn", `Renal bands disagree: CrCl ${crcl173.toFixed(0)} mL/min/1.73 m² is band ${band173}, absolute ${crcl.toFixed(0)} mL/min is band ${bandAbs}. Using ${bandBasis === "per173" ? "the label-unit (per 1.73 m²)" : "the absolute"} band; confirm.`, "bandsDiffer");
+  if (isNum(inp.age) && inp.age < 18) add("crit", "Adult tool: pediatric and neonatal dosing are out of scope.", "age");
+  if (w.heightIn < 60) add("warn", `Height under 60 in: Devine IBW extrapolates (${w.ibwRaw.toFixed(1)} kg${w.ibwRaw <= 0 ? ", clamped to 0" : ""}).`, "short");
+  if (inp.heightCm < 122 || inp.heightCm > 229) add("warn", "Height outside 122–229 cm: check the entry.", "htRange");
+  if (inp.tbw < 30 || inp.tbw > 300) add("warn", "Weight outside 30–300 kg: check the entry.", "wtRange");
+  if (dw.basis === "TBW" && obeseAny && dw.weight > w.ibw) add("crit", `BMI ${w.bmi.toFixed(1)}, ${Math.round(w.pctIbw * 100)}% of IBW, with a TBW dosing weight. TBW should never be used in obesity (overdose, AKI and neurotoxicity risk).`, "tbwObese");
+  if (obeseAny) add("info", `Obesity: the label says obese patients should be dosed using ideal body weight (${w.ibw.toFixed(1)} kg; one click: "Use IBW (label)"). The approved default is AdjBW (${w.adjbw.toFixed(1)} kg); evidence is mixed.`, "obeseLabel");
+  if (policy === "bmiBpAdjTbw" && bp >= 30) {
+    const d = breakpointDeltaW({ bp, heightCm: inp.heightCm, ibw: w.ibw, adjFactor });
+    add("warn", `BMI breakpoint ${bp}: doses are not monotonic with weight. Just below BMI ${bp} a patient gets 15–20% more than heavier patients; ${d.deltaW.toFixed(1)} kg above the breakpoint weight is needed to match.`, "breakpoint");
+  }
+  if (capped && !alerts.some((a) => a.code === "capMgkg")) add("crit", "Dose limited to the label maximum of 20 mg/kg q8h.", "capDose");
+  if (mgkgGiven > SOFT_MGKG + 1e-9) add("warn", `${mgkgGiven.toFixed(1)} mg/kg per dose is above the usual adult maximum of 15 mg/kg.`, "soft15");
+  if (dose > 1000) add("warn", `Single dose ${Math.round(dose)} mg is above 1000 mg: double-check the dosing weight.`, "dose1000");
+  if (daily > 3000) add("warn", `Daily dose ${Math.round(daily)} mg is above 3000 mg/day: higher daily doses are linked to nephrotoxicity.`, "daily3000");
+  if (conc > MAX_CONC + 1e-9) add("crit", `Concentration ${conc.toFixed(2)} mg/mL exceeds the label limit of 7 mg/mL. Use a larger volume.`, "conc7");
+  else if (conc > SOFT_CONC + 1e-9) add("warn", `Concentration ${conc.toFixed(2)} mg/mL is above 5 mg/mL (above physiological solubility); a larger bag is preferred.`, "conc5");
+  if (infusionH < 1) add("crit", "Infuse over at least 1 hour. Never give as a bolus.", "inf1h");
+  if (inp.r_aki) add("crit", "AKI or unstable SCr: the CrCl estimate is unreliable. Reassess renal function daily and re-dose as it changes.", "aki");
+  if (dialysis === "hd") add("info", "Hemodialysis: label says HD t½ is about 5 h and a 6 h run lowers levels about 60%; give a dose after each dialysis.", "hd");
+  if (dialysis === "crrt") add("warn", `CRRT dosing is not in the label${M.dialysisRules === "literature" ? (severe ? " (high-dose track: CNS, VZV or severe infection)" : " (standard track; tick Severe infection for 10 mg/kg q12h)") : ""}. Confirm against the institutional protocol and the effluent rate.`, "crrt");
+  if (dialysis === "none" && isNum(crclBand) && Math.abs(crclBand - 10) < 0.5) add("info", boundary === "workbook"
+    ? `CrCl ${crclBand.toFixed(1)}: band boundary. The label's ranges (10–25 and 0–10) overlap at 10; the Site model follows the site workbook (CrCl ≤ 10 → 50% q24h). The Literature model gives 100% q24h at 10 or more.`
+    : `CrCl ${crclBand.toFixed(1)}: band boundary. The label's ranges (10–25 and 0–10) overlap at 10; this model gives 100% q24h at 10 or more and 50% below 10. The site workbook halves the dose at exactly 10.`, "bandBoundary");
+  if (dialysis === "none" && isNum(crclBand) && crclBand <= 50) add("info", `CrCl ${crclBand.toFixed(0)} ${bandBasis === "per173" ? "mL/min/1.73 m²" : "mL/min"}: interval extended to q${reg.tau}h${reg.pct < 1 ? " and dose halved" : ""} per the label.`, "renalAdj");
+
+  // Nephrotoxicity
+  const risks = [];
+  if (inp.r_vanco) risks.push("vancomycin (OR 4.7)");
+  if (inp.r_nsaid) risks.push("NSAID (OR 2.6)");
+  if (inp.r_nephro) risks.push("other nephrotoxins");
+  if (inp.r_dehyd) risks.push("dehydration or low urine output");
+  if (inp.r_ckd || (isNum(crcl) && crcl < 50) || dialysis !== "none") risks.push("CKD or reduced CrCl");
+  if (inp.r_dm) risks.push("diabetes");
+  if (obese) risks.push("obesity (OR 3.2)");
+  if (daily > 2000) risks.push("high daily dose");
+  if (conc > SOFT_CONC) risks.push("concentrated bag");
+  if (infusionH < 2 && risks.length) risks.push("1 h infusion (consider 2 h)");
+  add(risks.length >= 2 ? "warn" : "info",
+    `Crystal nephropathy (10–48%, onset 24–72 h). ${risks.length ? `Risk factors present: ${risks.join(", ")}.` : "No listed risk factors selected."} Monitor SCr daily; stop or reduce, hydrate, and consider a loop diuretic if SCr rises.`, "nephro");
+  add("info", `Hydration: label requires adequate hydration. Aim for IV fluids over 2 L/day and urine output 100–150 mL/h (about ${Math.round(urineTarget)} mL/h for this patient).`, "hydration");
+
+  // Neurotoxicity
+  const neuro = [];
+  if (dialysis !== "none" || (isNum(crcl) && crcl < 50)) neuro.push("renal impairment");
+  if (dw.basis === "TBW" && obese) neuro.push("obese patient dosed on TBW");
+  if (isNum(inp.age) && inp.age >= 65) neuro.push("age 65 or over");
+  if (inp.r_neuro) neuro.push("underlying neurologic disease");
+  if (inp.r_aki) neuro.push("AKI");
+  add(neuro.length ? "warn" : "info",
+    `Neurotoxicity in about 1% (label): confusion, tremor, myoclonus, hallucinations, seizures.${neuro.length ? ` Present: ${neuro.join(", ")}.` : ""} Hold or reduce and check renal dosing if symptoms appear${ind.cns ? "; distinguish from the encephalitis itself" : ""}.`, "neuro");
+  // Urine solubility (predicted, display only)
+  const u = exposure.available && exposure.urine;
+  if (u) {
+    const tail = `Same daily dose as a continuous infusion: ${u.continuous.toFixed(2)} mg/mL. Assumes fe ${u.fe} and urine flow ${u.urineFlow} mL/h (estimate only).`;
+    if (u.over) add("warn", `Predicted urine acyclovir ${u.intermittentMax.toFixed(2)} mg/mL in the hour around the infusion exceeds the 1.3 mg/mL solubility (crystal nephropathy risk). Raise urine output, infuse over 2 h or longer, or consider a continuous infusion. ${tail}`, "urineSol");
+    else if (u.peakOver) add("info", `Predicted urine acyclovir peaks at ${u.peak.toFixed(2)} mg/mL at the end of the infusion, above the 1.3 mg/mL solubility; hourly average ${u.intermittentMax.toFixed(2)} mg/mL. ${tail}`, "urinePeak");
+  }
+  if (ind.immuno) add("info", "Immunocompromised: TTP/HUS, sometimes fatal, has been reported (label).", "ttp");
+  if (indKey === "hse") add("info", "Stop early only if HSV encephalitis is excluded (for example a negative CSF PCR judged adequate).", "pcr");
+
+  const result = {
+    ok: true, model, modelLabel: M.label, indication: indKey, ind, w, dw, policy, bp, adjFactor,
+    crcl, crcl173, crclBand, bandBasis, bandAbs, band173, bandsDiffer, severe, mgkgIndication, crclSource: inp.crclMode === "entered" ? "entered" : "cockcroftGault", cg, dialysis, reg,
+    mgkgReq, mgkg, mgkgGiven, fullDose, exact, dose, inc, capDose, capped, daily, tau: reg.tau,
+    infusionH, volume: vol.volume, volumeRule: vol.rule, conc, rateMlH, rateMgH: dose / infusionH, urineTarget,
+    exposure, vdModel, fe, urineFlow, boundary, days, daysSrc, footnote, alerts,
+  };
+  result.order = orderText(result);
+  return result;
+}
+
+const fmt = (x, dp = 1) => PK.round.fmt(x, dp);
+function orderText(r) {
+  const tau = `q${r.tau}h`;
+  const lines = [
+    `Acyclovir ${fmt(r.dose, 0)} mg IV ${tau}${r.dialysis === "hd" ? " (on dialysis days give after HD)" : ""}`,
+    `  Indication: ${r.ind.label}. ${fmt(r.mgkg, 1)} mg/kg × ${fmt(r.dw.weight, 1)} kg ${r.dw.basis}${r.reg.pct < 1 ? " × 50%" : ""} = ${fmt(r.exact, 0)} mg, rounded to ${r.inc} mg. Daily ${fmt(r.daily, 0)} mg.`,
+    `  Dilute in ${r.volume} mL NS or D5W (${fmt(r.conc, 2)} mg/mL). Infuse over ${r.infusionH} h (${fmt(r.rateMlH, 0)} mL/h). Never bolus.`,
+    `  Renal: ${r.dialysis === "none" ? `CrCl ${fmt(r.crcl173, 0)} mL/min/1.73 m² (absolute ${fmt(r.crcl, 0)} mL/min), band ${r.reg.band} on ${r.bandBasis === "per173" ? "per-1.73 m²" : "absolute"} CrCl${r.bandsDiffer ? " (bands differ: check)" : ""}` : r.reg.band}: ${r.reg.text}`,
+    `  Duration: ${r.days}${r.footnote ? ` (${r.footnote})` : ""}.`,
+    `  Hydration: IV fluids > 2 L/day; target urine output 100–150 mL/h. Monitor SCr daily and watch for neurotoxicity.`,
+    `  Weights: TBW ${fmt(r.w.tbw, 1)} kg, IBW ${fmt(r.w.ibw, 1)} kg, AdjBW ${fmt(r.w.adjbw, 1)} kg, BMI ${fmt(r.w.bmi, 1)}. Policy: ${WEIGHT_POLICIES[r.policy].label}. Model: ${r.modelLabel}.`,
+  ];
+  return lines.join("\n");
+}
+// CALC-END
+
+// ---------------------------------------------------------------- UI
+const $ = (id) => document.getElementById(id);
+const esc = PKUI.esc;
+const num = (id) => { const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; };
+const htT = PKUI.unitToggle($("ht"), $("htU"), ["cm", "in"], { dp: 1, onChange: () => update() });
+const wtT = PKUI.unitToggle($("wt"), $("wtU"), ["kg", "lb"], { dp: 1, onChange: () => update() });
+const scrT = PKUI.unitToggle($("scr"), $("scrU"), ["mg/dL", "µmol/L"], { dp: 2, onChange: () => update() });
+let model = "literature";
+const modelSeg = PKUI.segmented($("modelSeg"), (v) => { model = v; update(); });
+
+function badge(key) {
+  if (!key) return "";
+  if (PK.sources[key]) return PKUI.badge(key);
+  const s = SRC[key];
+  if (!s) return `<span class="src verify" title="Unknown source">verify</span>`;
+  const t = esc(`${s.label} (${s.ref})`);
+  return s.verify ? `<span class="src verify" title="${t}">verify</span>` : `<span class="src" title="${t}">src</span>`;
+}
+
+let filledFor = null;
+function fillPolicies() {
+  if (filledFor === model) return;
+  filledFor = model;
+  const sel = $("policy"), cur = sel.value;
+  sel.innerHTML = `<option value="">Model default: ${esc(WEIGHT_POLICIES[MODELS[model].weightPolicy].label)}</option>` +
+    Object.entries(WEIGHT_POLICIES).map(([k, p]) => `<option value="${k}">${esc(p.label)}</option>`).join("");
+  sel.value = cur;
+}
+
+function readInputs() {
+  const crclMode = $("crclMode").value;
+  const scrRaw = scrT.getValue();
+  const o = {
+    model, indication: $("indication").value, customMgkg: $("indication").value === "vzvEnc" ? parseFloat($("vzvDose").value) : num("mgkg"),
+    age: num("age"), sex: $("sex").value, heightCm: htT.getValue(), tbw: wtT.getValue(),
+    crclMode, scr: scrRaw, crcl: num("crcl"), dialysis: $("dialysis").value,
+    weightPolicy: $("policy").value || undefined, adjFactor: parseFloat($("adjFactor").value), bp: parseFloat($("bp").value),
+    infusionH: $("infusionH").value ? parseFloat($("infusionH").value) : undefined,
+    volume: $("volume").value ? parseFloat($("volume").value) : undefined,
+    roundInc: parseFloat($("roundInc").value), bandBasis: $("bandBasis").value || undefined,
+    vdModel: $("vdModel").value || undefined, urineFlow: num("urineFlow"), fe: parseFloat($("fe").value),
+  };
+  for (const id of ["r_vanco", "r_nsaid", "r_nephro", "r_dehyd", "r_ckd", "r_dm", "r_neuro", "r_aki", "r_severe"]) o[id] = $(id).checked;
+  return o;
+}
+
+let currentNote = "";
+function update() {
+  fillPolicies();
+  if (!INDICATIONS[$("indication").value]) $("indication").value = "hse";
+  const ind = INDICATIONS[$("indication").value];
+  $("mgkgRow").hidden = ind.mgkg !== null;
+  $("vzvRow").hidden = $("indication").value !== "vzvEnc";
+  $("severeRow").hidden = $("dialysis").value !== "crrt" || model !== "literature";
+  $("scrRow").hidden = $("crclMode").value !== "cg";
+  $("crclRow").hidden = $("crclMode").value !== "entered";
+  const pol = $("policy").value || MODELS[model].weightPolicy;
+  $("bpRow").hidden = pol !== "bmiBpAdjTbw";
+  $("policyNote").innerHTML = `${esc(WEIGHT_POLICIES[pol].note)} ${badge(WEIGHT_POLICIES[pol].src)}`;
+  const inp = readInputs();
+  const r = calc(inp);
+  save();
+  if (!r.ok) {
+    $("alerts").innerHTML = "";
+    $("result").innerHTML = `<section class="card order"><p class="hint" style="font-size:.9rem">${esc(r.error)}</p></section>`;
+    $("strip").innerHTML = ""; currentNote = ""; return;
+  }
+  renderStrip(r); renderResult(r); renderPolicyTable(inp, r); renderRenalTable(r); renderExposure(r);
+  PKUI.renderBanners($("alerts"), [...r.alerts].sort((a, b) => rank(a.lvl) - rank(b.lvl)));
+}
+const rank = (l) => (l === "crit" ? 0 : l === "warn" ? 1 : 2);
+
+function renderStrip(r) {
+  const chip = (k, v) => `<span class="chip">${k} <b>${v}</b></span>`;
+  $("strip").innerHTML = [
+    chip("IBW", `${fmt(r.w.ibw)} kg`), chip("AdjBW", `${fmt(r.w.adjbw)} kg`), chip("BMI", fmt(r.w.bmi)), chip("BSA", `${fmt(r.w.bsa, 2)} m²`),
+    r.dialysis === "none" ? chip("CrCl", `${fmt(r.crcl173, 0)} /1.73 m² · ${fmt(r.crcl, 0)} mL/min`) : chip("Dialysis", r.reg.band),
+  ].join("");
+}
+
+function renderResult(r) {
+  const L = (tag, text) => `<div class="oline"><span class="tag">${tag}</span><span class="rx">${text}</span></div>`;
+  const e = r.exposure;
+  $("result").innerHTML = `<section class="card order">
+    <div class="top">
+      <div class="lines">
+        ${L("Dose", `Acyclovir ${fmt(r.dose, 0)} mg IV q${r.tau}h${r.dialysis === "hd" ? ", after HD on dialysis days" : ""} ${badge(r.reg.src)}`)}
+        ${L("Mix", `${r.volume} mL NS or D5W · ${fmt(r.conc, 2)} mg/mL ${badge("labelConc")}`)}
+        ${L("Run", `over ${r.infusionH} h · ${fmt(r.rateMlH, 0)} mL/h ${badge(r.model === "site" ? "site2h" : "labelInf")}`)}
+        ${L("For", `${esc(r.days)} ${badge(r.daysSrc)}`)}
+        <div class="subl">${fmt(r.mgkg, 1)} mg/kg × ${fmt(r.dw.weight, 1)} kg ${r.dw.basis} ${badge(WEIGHT_POLICIES[r.policy].src)}${r.reg.pct < 1 ? " × 50%" : ""} = ${fmt(r.exact, 0)} mg → ${fmt(r.dose, 0)} mg (nearest ${r.inc} mg ${badge("rounding")}) · ${esc(r.ind.label)}${r.footnote ? ` · ${esc(r.footnote)}` : ""}</div>
+      </div>
+      <div class="right">
+        <span class="lbl">Daily</span><span class="val">${fmt(r.daily, 0)} mg</span>
+        <span class="lbl">${fmt(r.daily / r.dw.weight, 1)} mg/kg/day</span>
+        <span class="pill ${r.alerts.some((a) => a.lvl === "crit") ? "crit" : "ok"}">${esc(r.modelLabel)} model</span>
+      </div>
+    </div>
+    <div class="info">
+      <div><span class="lbl">Dosing weight</span>${fmt(r.dw.weight)} kg ${r.dw.basis}</div>
+      <div><span class="lbl">Renal band ${badge(r.dialysis === "none" ? (r.bandBasis === "per173" ? "bands173" : "labelRenal") : r.reg.src)}</span>${esc(r.reg.band)}${r.dialysis === "none" ? ` (${fmt(r.crcl173, 0)} mL/min/1.73 m²; absolute ${fmt(r.crcl, 0)} mL/min → ${esc(r.bandAbs)})${r.bandsDiffer ? ' <span class="pill warn">bands differ</span>' : ""}` : ""}</div>
+      <div><span class="lbl">Max per dose ${badge("labelMax")}</span>${fmt(r.capDose, 0)} mg (20 mg/kg)</div>
+      <div><span class="lbl">Urine output target ${badge("hydration")}</span>${Math.round(r.urineTarget)} mL/h; fluids &gt; 2 L/day</div>
+      <div><span class="lbl">Predicted peak / trough (display only) ${badge("blum")}</span>${e.available ? `${fmt(e.cmax)} / ${fmt(e.cmin)} mg/L` : "not predicted"}</div>
+      <div><span class="lbl">Predicted AUC24 (display only) ${badge("blum")}</span>${e.available ? `${fmt(e.auc24, 0)} mg·h/L` : "—"}</div>
+      <div><span class="lbl">Predicted urine level, first hour (display only) ${badge("urine")}</span>${e.available && e.urine ? `${fmt(e.urine.intermittentMax, 2)} mg/mL${e.urine.over ? ' <span class="pill warn">above 1.3 mg/mL</span>' : ""}; continuous ${fmt(e.urine.continuous, 2)} mg/mL` : "not predicted"}</div>
+    </div>
+    <div class="actions"><button class="primary" type="button" data-act="copy">Copy order</button><span id="copied" role="status"></span></div>
+    <textarea class="note" id="noteText" hidden readonly aria-label="Order text"></textarea>
+  </section>`;
+  currentNote = r.order;
+  $("noteText").value = r.order;
+}
+
+function renderPolicyTable(inp, r) {
+  const rows = Object.entries(WEIGHT_POLICIES).map(([k, p]) => {
+    const x = calc({ ...inp, weightPolicy: k });
+    return `<tr class="${k === r.policy ? "sel" : ""}"><td>${esc(p.label)} ${badge(p.src)}</td><td>${x.dw.basis}</td><td>${fmt(x.dw.weight)}</td><td>${fmt(x.dose, 0)}</td><td>${fmt(x.daily, 0)}</td></tr>`;
+  }).join("");
+  $("policyTable").innerHTML = `<table><thead><tr><th>Policy</th><th>Basis</th><th>kg</th><th>mg/dose</th><th>mg/day</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="hint">Same indication, renal band and rounding. Selected policy highlighted.</p>`;
+}
+
+function renderRenalTable(r) {
+  const wb = r.boundary === "workbook";
+  const shown = (b) => (wb && b === "< 10" ? "≤ 10" : wb && b === "10–<25" ? "> 10–<25" : b);
+  const rows = RENAL_TABLE.map((t) => ({ band: shown(t.band) + (wb && t.band === "< 10" ? ` ${badge("wb10")}` : ""), txt: `${t.pct === 1 ? "100%" : "50%"} q${t.tau}h`, sel: r.dialysis === "none" && r.reg.band === shown(t.band) }))
+    .concat([
+      { band: `Hemodialysis ${badge(r.model === "literature" ? "hdLit" : "labelHD")}`, txt: r.model === "literature" ? "2.5–5 mg/kg q24h, dose after HD" : "50% q24h, dose after each HD", sel: r.dialysis === "hd" },
+      { band: `Peritoneal dialysis ${badge("labelPD")}`, txt: "50% q24h, no supplement", sel: r.dialysis === "pd" },
+      { band: `CRRT ${badge(r.model === "literature" ? "crrtLit" : "crrt")}`, txt: r.model === "literature" ? "10 mg/kg q12h (CNS/VZV/severe); else 5–7.5 mg/kg q24h" : "5–10 mg/kg q12–24h (institution)", sel: r.dialysis === "crrt" },
+    ]);
+  $("renalTable").innerHTML = `<table><thead><tr><th>CrCl (mL/min/1.73 m²) ${badge("labelRenal")}</th><th>Regimen</th></tr></thead><tbody>${rows.map((x) => `<tr class="${x.sel ? "sel" : ""}"><td>${x.band}</td><td>${x.txt}</td></tr>`).join("")}</tbody></table>
+    <p class="hint">Boundaries: exactly 50 → q12h; exactly 25 → q12h; exactly 10 → ${wb ? "50% q24h (Site model, as the site workbook doses CrCl 10)" : "100% q24h (Literature model; the site workbook gives 50%, the label's ranges overlap at 10)"}. The label's bands are per 1.73 m²; choose the band basis under Dosing policy.</p>`;
+}
+
+function renderExposure(r) {
+  const e = r.exposure;
+  if (!e.available) { $("exposure").innerHTML = `<p>${esc(e.reason)}</p>`; return; }
+  $("exposure").innerHTML = `<dl class="calc">
+    <dt>CrCl used for CL (mL/min/1.73 m²)</dt><dd>${fmt(e.crcl173, 0)}${e.anuric ? " (anuric, interdialytic)" : ""}</dd>
+    <dt>CL, Blum ${badge("blum")}</dt><dd>${fmt(e.CL, 2)} L/h</dd>
+    <dt>V used: ${esc(e.vdModel === "blum48" ? VD_MODELS.blum48.label : VD_MODELS.perKg.label)} ${badge(e.vdModel === "blum48" ? "vss48" : "vd")}</dt><dd>${fmt(e.V, 1)} L</dd>
+    <dt>Other volume option: ${esc(e.vdModel === "blum48" ? VD_MODELS.perKg.label : VD_MODELS.blum48.label)}</dt><dd>${fmt(e.vdModel === "blum48" ? e.vPerKg : e.vBlum48, 1)} L</dd>
+    <dt>k / t½</dt><dd>${fmt(e.k, 3)} h⁻¹ / ${fmt(e.thalf, 1)} h</dd>
+    <dt>Steady-state peak (end of infusion)</dt><dd>${fmt(e.cmax, 1)} mg/L (${fmt(e.cmaxUmol, 0)} µmol/L)</dd>
+    <dt>Steady-state trough</dt><dd>${fmt(e.cmin, 2)} mg/L (${fmt(e.cminUmol, 0)} µmol/L)</dd>
+    <dt>AUC24 (dose/CL)</dt><dd>${fmt(e.auc24, 0)} mg·h/L</dd>
+    <dt>AUC24, linear-up/log-down (site workbook method)</dt><dd>${fmt(e.auc24TrapLog, 0)} mg·h/L</dd>
+    <dt>Same daily dose as continuous infusion, Css</dt><dd>${fmt(e.cssContinuous, 2)} mg/L</dd>
+    <dt>CL, Spector (continuous) ${badge("spector")}</dt><dd>${fmt(e.clSpector, 2)} L/h</dd>
+    <dt>CL, Fletcher (continuous) ${badge("fletcher")}</dt><dd>${fmt(e.clFletcher, 2)} L/h</dd>
+    ${e.urine ? `<dt>Urine level, first hour after the infusion ${badge("urine")}</dt><dd>${fmt(e.urine.hour1, 2)} mg/mL</dd>
+    <dt>Urine level, mean during the infusion</dt><dd>${fmt(e.urine.duringInfusion, 2)} mg/mL</dd>
+    <dt>Urine level, instantaneous at end of infusion</dt><dd>${fmt(e.urine.peak, 2)} mg/mL</dd>
+    <dt>Urine level, same daily dose as continuous infusion</dt><dd>${fmt(e.urine.continuous, 2)} mg/mL</dd>
+    <dt>Urine solubility ${badge("urineSol")}</dt><dd>1.3 mg/mL${e.urine.over ? ' <span class="pill warn">exceeded</span>' : ""}</dd>
+    <dt>Assumed fe / urine flow</dt><dd>${fmt(e.urine.fe, 1)} / ${fmt(e.urine.urineFlow, 0)} mL/h</dd>` : "<dt>Urine level</dt><dd>not predicted on dialysis</dd>"}
+  </dl>
+  <p class="hint">Display only: Blum CL is never used to choose the dose (coefficients unverified). Reference points: label 5 mg/kg design AUC 45–101 mg·h/L per 24 h; encephalitis trough above 2–4 mg/L (site). Blum CL runs higher than the label half-lives imply (t½ 2.5 h at CrCl &gt; 80). Volume: the Literature default is 0.6 L/kg × dosing weight (site page text); the site workbook uses 48 L/1.73 m² × BSA/1.73, about 0.74 L/kg at 70 kg, which lowers the predicted peak and raises the trough (for 70 kg, 70 in, CrCl 63, 700 mg q8h: peak 12.8 vs 14.7 mg/L, trough 1.56 vs 1.09 mg/L). Urine levels use the workbook's hourly method and are an estimate.</p>`;
+}
+
+// Copy order
+document.addEventListener("click", (e) => {
+  const act = e.target.closest("button[data-act='copy']");
+  if (!act) return;
+  const done = () => { const m = $("copied"); if (m) { m.textContent = "Copied"; setTimeout(() => (m.textContent = ""), 1800); } };
+  const fallback = () => { const t = $("noteText"); if (t) { t.hidden = false; t.focus(); t.select(); } const m = $("copied"); if (m) m.textContent = "Press Ctrl+C to copy"; };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(currentNote).then(done, fallback);
+  else fallback();
+});
+
+// Theme: auto → light → dark
+const THEMES = ["auto", "light", "dark"];
+let theme = "auto";
+function applyTheme(t) {
+  theme = THEMES.includes(t) ? t : "auto";
+  if (theme === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", theme);
+  $("themeBtn").textContent = theme[0].toUpperCase() + theme.slice(1);
+}
+$("themeBtn").addEventListener("click", () => { applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % 3]); save(); });
+
+// Persistence (per-viewer convenience only)
+const KEY = "pk-acyclovir-v1";
+const FIELDS = ["indication", "mgkg", "age", "sex", "ht", "wt", "crclMode", "scr", "crcl", "dialysis", "policy", "adjFactor", "bp", "infusionH", "volume", "roundInc", "bandBasis", "vdModel", "urineFlow", "fe",
+  "r_vanco", "r_nsaid", "r_nephro", "r_dehyd", "r_ckd", "r_dm", "r_neuro", "r_aki", "r_severe", "vzvDose"];
+function save() {
+  try {
+    const s = { _model: model, _theme: theme, _u: { ht: htT.unit(), wt: wtT.unit(), scr: scrT.unit() } };
+    for (const id of FIELDS) s[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value;
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch (e) {}
+}
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (!s) return;
+    if (s._model && MODELS[s._model]) { model = s._model; modelSeg.set(model); }
+    applyTheme(s._theme);
+    // Restore units first (clicking converts), then values.
+    const toggles = { ht: [htT, "htU"], wt: [wtT, "wtU"], scr: [scrT, "scrU"] };
+    for (const [id, [t, b]] of Object.entries(toggles)) { let n = 0; while (s._u && s._u[id] && t.unit() !== s._u[id] && n++ < 3) $(b).click(); }
+    fillPolicies();
+    for (const id of FIELDS) if (id in s) { if ($(id).type === "checkbox") $(id).checked = !!s[id]; else $(id).value = s[id]; }
+  } catch (e) {}
+}
+$("ibwBtn").addEventListener("click", () => { $("policy").value = "ibw"; update(); });
+$("defBtn").addEventListener("click", () => { $("policy").value = ""; update(); });
+load();
+document.addEventListener("input", (e) => { if (e.target.closest("input, select")) update(); });
+document.addEventListener("change", (e) => { if (e.target.closest("select, input[type=checkbox]")) update(); });
+update();
+</script>
+</body>
+</html>

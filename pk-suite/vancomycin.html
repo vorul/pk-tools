@@ -1,0 +1,1369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vancomycin AUC Dosing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="lib/pk.css">
+<style>
+  .credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+  .credit a { color: var(--accent); }
+  .hdr-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .themebtn { font: 500 .78rem var(--font-body); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  .setrow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+  .setrow > span { font-size: .8rem; color: var(--muted); }
+  .note { font-size: .8rem; color: var(--muted); margin: 6px 0 0; }
+  .checks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .sub { font: 600 .72rem var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 12px 0 6px; }
+  .sub:first-child { margin-top: 0; }
+  .panel { display: grid; gap: 12px; }
+  pre.ordertext { white-space: pre-wrap; font: .82rem/1.45 var(--font-data); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; margin: 0; }
+  .aucbar { position: relative; height: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; margin-top: 4px; }
+  .aucbar .band { position: absolute; top: 0; bottom: 0; background: var(--band); }
+  .aucbar .mark { position: absolute; top: -3px; bottom: -3px; width: 3px; border-radius: 2px; background: var(--ink); }
+  .aucbar .tick { position: absolute; top: 15px; font: .66rem var(--font-data); color: var(--muted); transform: translateX(-50%); }
+  .aucwrap { padding-bottom: 14px; min-width: 180px; }
+  .plotwrap { position: relative; }
+  .plotwrap .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; font: .76rem var(--font-data); color: var(--ink); white-space: nowrap; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .78rem; color: var(--muted); margin-top: 4px; }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--accent); vertical-align: middle; margin-right: 5px; }
+  .legend i.alt { border-top: 2px dashed var(--muted); }
+  .legend i.dot { width: 9px; height: 9px; border: 2px solid var(--surface); background: var(--ink); border-radius: 50%; box-shadow: 0 0 0 1px var(--ink); }
+  .legend i.bandk { height: 10px; border: 0; background: var(--band); }
+  svg .ln { fill: none; stroke: var(--accent); stroke-width: 2; }
+  svg .ln.alt { stroke: var(--muted); stroke-dasharray: 5 4; stroke-width: 1.6; }
+  svg .grid { stroke: var(--line); stroke-width: 1; }
+  svg .axis { stroke: var(--muted); stroke-width: 1; }
+  svg .bandr { fill: var(--band); }
+  svg .obs { fill: var(--ink); stroke: var(--surface); stroke-width: 2; }
+  svg .xh { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+  table.edit td { padding: 3px 4px; }
+  table.edit input { width: 100%; min-width: 0; }
+  table.edit input[type=datetime-local] { min-width: 170px; }
+  button.mini { font: 500 .78rem var(--font-body); color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+  td.l { text-align: left; white-space: normal; font-family: var(--font-body); }
+  .bigval { font: 500 1.6rem var(--font-data); line-height: 1.1; }
+  .bigval small { font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Vancomycin AUC Dosing</h1>
+    <div class="hdr-right">
+      <button type="button" class="themebtn" id="themeBtn" aria-label="Colour theme">Theme: auto</button>
+    </div>
+  </header>
+  <p class="credit">Site model reproduces the non-Bayesian and Bayesian vancomycin tools of Marshall Pierce, PharmD, at <a href="https://pkineticdrugdosing.com/index.html" target="_blank" rel="noopener">pkineticdrugdosing.com</a>; the default literature model follows Rybak 2020 and the sources in lit/vancomycin.md. Hemodialysis and dosing charts are in <a href="vancomycin-hd.html">vancomycin-hd.html</a>.</p>
+
+  <section class="card">
+    <h2>Patient</h2>
+    <div class="fields">
+      <label>Age <span class="ig"><input id="age" type="number" min="0" max="120" step="any" value="60"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button class="ub" id="htU"></button></span></label>
+      <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
+      <label>SCr (most recent) <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button class="ub" id="scrU"></button></span></label>
+      <label>Earlier SCr (if changing) <span class="ig"><input id="scr0" type="number" min="0" step="any" placeholder="blank = stable"><button class="ub" id="scr0U"></button></span></label>
+      <label>Hours between SCr values <span class="ig"><input id="hrs" type="number" min="0" step="any" placeholder="e.g. 48"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+    </div>
+    <p class="sub">Concomitant nephrotoxins</p>
+    <div class="checks" id="nephro">
+      <label class="check"><input type="checkbox" value="piperacillin-tazobactam"> Piperacillin-tazobactam</label>
+      <label class="check"><input type="checkbox" value="aminoglycoside"> Aminoglycoside</label>
+      <label class="check"><input type="checkbox" value="loop diuretic"> Loop diuretic</label>
+      <label class="check"><input type="checkbox" value="NSAID"> NSAID</label>
+      <label class="check"><input type="checkbox" value="IV contrast"> IV contrast</label>
+      <label class="check"><input type="checkbox" value="amphotericin B"> Amphotericin B</label>
+      <label class="check"><input type="checkbox" value="calcineurin inhibitor"> Calcineurin inhibitor</label>
+      <label class="check"><input type="checkbox" value="ACE inhibitor/ARB"> ACE inhibitor / ARB</label>
+      <label class="check"><input type="checkbox" value="vasopressors"> Vasopressors</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Model and settings</h2>
+    <div class="setrow">
+      <span>Model</span>
+      <div class="seg" id="modelSeg" role="group" aria-label="Parameter set">
+        <button data-value="literature" aria-pressed="true" title="Literature defaults (lit/vancomycin.md, Rybak 2020)">Literature</button>
+        <button data-value="site" aria-pressed="false" title="Reproduces pkineticdrugdosing.com exactly">Site</button>
+        <button data-value="workbook" aria-pressed="false" title="Reproduces the site's Excel workbooks (K/Vd fitting V2 and the 1-comp AUC calculator)">Workbook</button>
+      </div>
+    </div>
+    <div class="fields" style="margin-top:10px">
+      <label>Population model
+        <select id="pmodel"></select>
+      </label>
+      <label>Target AUC24 (mg·h/L, MIC 1)
+        <select id="target">
+          <option value="400">400</option><option value="450">450</option><option value="500" selected>500 (default)</option><option value="550">550</option><option value="600">600</option>
+        </select>
+      </label>
+      <label id="floorL">SCr floor
+        <select id="floor"><option value="off" selected>Off (default)</option><option value="0.7">Round up to 0.7 mg/dL</option><option value="0.8">Round up to 0.8 mg/dL</option></select>
+      </label>
+      <label class="check" id="elderlyL" style="align-self:end"><input type="checkbox" id="elderly"> Goti original: SCr ≥ 1.0 if age &gt; 65 <span class="src verify" title="Erratum (Ther Drug Monit 2019;41(4):549, PMID 31306395) changed the age threshold 60 → 65 per an InsightRX code comment; erratum text not read. Default off = modified Goti (Tong 2021, PMID 33009289).">verify</span></label>
+      <label id="gotiResL">Goti residual error
+        <select id="gotiRes"><option value="stable" selected>19.7% + 1.42 mg/L (MAP-stable, default)</option><option value="published">22.7% + 3.4 mg/L (published)</option></select>
+      </label>
+      <label id="ldCapL">Loading dose cap
+        <select id="ldCap"><option value="3000" selected>3000 mg (default, Rybak 2020)</option><option value="4000">4000 mg (Payne 2024, low evidence)</option></select>
+      </label>
+      <label class="check" id="fixed75L" style="align-self:end"><input type="checkbox" id="fixed75"> BMI ≥ 40: fixed Vd 75 L (Dunn 2019)</label>
+      <label class="check" id="wbLowL" style="align-self:end" hidden><input type="checkbox" id="wbLow"> Paralysis / spinal cord injury or malnutrition: SCr floor 0.5 (workbook; default 0.7)</label>
+    </div>
+    <p class="note" id="modelNote"></p>
+  </section>
+
+  <nav class="seg tabs" role="tablist" aria-label="Tool">
+    <button type="button" role="tab" id="tab-init" data-tab="init" aria-selected="true" aria-controls="panel-init">Initial regimen</button>
+    <button type="button" role="tab" id="tab-levels" data-tab="levels" aria-selected="false" aria-controls="panel-levels">Levels → AUC</button>
+    <button type="button" role="tab" id="tab-bayes" data-tab="bayes" aria-selected="false" aria-controls="panel-bayes">Bayesian</button>
+  </nav>
+
+  <!-- ===================== Initial regimen ===================== -->
+  <div id="panel-init" role="tabpanel" aria-labelledby="tab-init" class="panel">
+    <section class="card">
+      <h2>Regimen options</h2>
+      <div class="fields">
+        <label>Infusion time <span class="ig"><input id="i_tinf" type="number" min="0.5" step="0.5" value="2"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Interval <select id="i_tau"></select></label>
+        <label id="i_ldL">Loading dose <span class="ig"><input id="i_ld" type="number" min="20" max="35" step="1" value="25"><button type="button" class="ub" tabindex="-1" disabled>mg/kg</button></span></label>
+        <label>Maintenance dose (blank = for target) <span class="ig"><input id="i_dose" type="number" min="0" step="250" placeholder="auto"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+      </div>
+    </section>
+    <div class="alerts" id="i_alerts" aria-live="polite"></div>
+    <section class="card order" id="i_order" aria-live="polite"></section>
+    <section class="card"><h2>Concentration–time (loading dose, then maintenance)</h2><div class="plotwrap" id="i_plot"></div></section>
+    <div class="two">
+      <section class="card"><h2>Patient and population parameters</h2><dl class="calc" id="i_params"></dl></section>
+      <section class="card"><h2>Predicted at steady state</h2><dl class="calc" id="i_pred"></dl></section>
+    </div>
+    <details class="card" id="i_chartD">
+      <summary>Site population dosing chart for this patient (legacy peak/trough targets)</summary>
+      <div class="body"><div class="tablewrap"><table id="i_chart"></table></div>
+      <p class="note">From the site's workbook chart (Vd 0.65 L/kg, K = 0.00107·CrCl/1.73 m² + 0.0052, unrounded τ). Trough targeting is no longer recommended (Rybak 2020); shown for reference only.</p></div>
+    </details>
+  </div>
+
+  <!-- ===================== Levels → AUC ===================== -->
+  <div id="panel-levels" role="tabpanel" aria-labelledby="tab-levels" class="panel" hidden>
+    <section class="card">
+      <h2>Method</h2>
+      <div class="seg" id="lvMethod" role="group" aria-label="Method" style="width:max-content;max-width:100%">
+        <button data-value="pt" aria-pressed="true">Peak &amp; trough (Sawchuk-Zaske)</button>
+        <button data-value="tr" aria-pressed="false">Trough only (population Vd)</button>
+      </div>
+      <p class="sub">Regimen the levels were drawn on (steady state)</p>
+      <div class="fields">
+        <label>Dose <span class="ig"><input id="l_dose" type="number" min="0" step="any" value="1250"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+        <label>Interval <span class="ig"><input id="l_tau" type="number" min="1" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Infusion time <span class="ig"><input id="l_tinf" type="number" min="0.5" step="any" value="2"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+      </div>
+      <div id="l_ptF">
+        <p class="sub">Levels after the same dose</p>
+        <div class="fields">
+          <label>Peak <span class="ig"><input id="l_pk" type="number" min="0" step="any" value="30"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+          <label>Peak drawn after END of infusion <span class="ig"><input id="l_tpk" type="number" min="0" step="any" value="2"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+          <label>Trough <span class="ig"><input id="l_tr" type="number" min="0" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+          <label>Trough drawn before START of next dose <span class="ig"><input id="l_ttr" type="number" min="0" step="any" value="0.5"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+          <label class="check wide"><input type="checkbox" id="l_before"> Trough was drawn before this dose (around a dose; assumes steady state)</label>
+        </div>
+      </div>
+      <div id="l_trF" hidden>
+        <p class="sub">One steady-state level</p>
+        <div class="fields">
+          <label>Level <span class="ig"><input id="l_lv" type="number" min="0" step="any" value="15"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+          <label>Drawn after START of the dose <span class="ig"><input id="l_tlv" type="number" min="0" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        </div>
+        <p class="note" id="l_vdNote"></p>
+      </div>
+      <p class="sub">New regimen</p>
+      <div class="fields">
+        <label>Interval <select id="l_ntau"></select></label>
+        <label>Infusion time <span class="ig"><input id="l_ntinf" type="number" min="0.5" step="0.5" value="2"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Dose (blank = for target) <span class="ig"><input id="l_ndose" type="number" min="0" step="250" placeholder="auto"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+      </div>
+    </section>
+    <div class="alerts" id="l_alerts" aria-live="polite"></div>
+    <section class="card order" id="l_order" aria-live="polite"></section>
+    <section class="card"><h2>Steady-state profile: levels regimen and new regimen</h2><div class="plotwrap" id="l_plot"></div></section>
+    <section class="card"><h2>Patient-specific parameters</h2><div class="tablewrap"><table id="l_table"></table></div></section>
+    <section class="card" id="l_wbC" hidden>
+      <h2 style="overflow-wrap:anywhere">AUC workbook fit (VancomycinAUCCalculatorOneCompartmentModel)</h2>
+      <div class="fields">
+        <label>Workbook Vd <select id="l_wbVd"><option value="0.5">0.5 L/kg</option><option value="0.65" selected>0.65 L/kg (default)</option><option value="1">1 L/kg</option></select></label>
+        <label>Workbook fit <select id="l_wbObj"><option value="bayes" selected>Bayesian (CL and V)</option><option value="ls">Non-Bayesian (relative least squares)</option></select></label>
+      </div>
+      <div class="alerts" id="l_wbAlerts" aria-live="polite"></div>
+      <div class="two"><dl class="calc" id="l_wbPop"></dl><dl class="calc" id="l_wbFit"></dl></div>
+      <p class="note" id="l_wbNote"></p>
+    </section>
+  </div>
+
+  <!-- ===================== Bayesian ===================== -->
+  <div id="panel-bayes" role="tabpanel" aria-labelledby="tab-bayes" class="panel" hidden>
+    <section class="card">
+      <h2>Dose history</h2>
+      <div class="tablewrap"><table class="edit" id="b_doses"><thead><tr><th>Start (date and time)</th><th>Dose mg</th><th>Infusion h</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="actions" style="margin-top:8px"><button type="button" class="mini" id="b_addDose">Add dose</button></div>
+      <p class="sub">Add a regular series</p>
+      <div class="fields">
+        <label>First dose <input id="g_start" type="datetime-local"></label>
+        <label>Dose <span class="ig"><input id="g_dose" type="number" step="any" value="1000"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+        <label>Every <span class="ig"><input id="g_tau" type="number" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Number of doses <input id="g_n" type="number" min="1" max="60" step="1" value="4"></label>
+        <label>Infusion <span class="ig"><input id="g_tinf" type="number" step="any" value="1"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <div class="actions" style="align-self:end"><button type="button" class="mini" id="g_add">Append series</button><button type="button" class="mini" id="g_replace">Replace history</button></div>
+      </div>
+      <p class="sub">Measured levels</p>
+      <div class="tablewrap"><table class="edit" id="b_levels"><thead><tr><th>Drawn (date and time)</th><th>Level mg/L</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="actions" style="margin-top:8px"><button type="button" class="mini" id="b_addLevel">Add level</button></div>
+      <p class="sub">Fit and new regimen</p>
+      <div class="fields">
+        <label>Level already on board at first dose <span class="ig"><input id="b_c0" type="number" min="0" step="any" placeholder="0"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+        <label>Parameters fitted
+          <select id="b_mask"><option value="auto" selected>Auto (CL only for troughs / one level)</option><option value="CL">CL only (V at population)</option><option value="both">CL and V</option></select>
+        </label>
+        <label id="b_cvL">Assay CV (site objective) <input id="b_cv" type="number" min="0.02" max="0.5" step="0.05" value="0.1"></label>
+        <label id="b_wbObjL" hidden>Workbook fit
+          <select id="b_wbObj"><option value="bayes" selected>Bayesian (priors on K and V)</option><option value="ls">Non-Bayesian (least squares)</option></select>
+        </label>
+        <label>New interval <select id="b_ntau"></select></label>
+        <label>New infusion time <span class="ig"><input id="b_ntinf" type="number" min="0.5" step="0.5" value="1"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>New dose (blank = for target) <span class="ig"><input id="b_ndose" type="number" min="0" step="250" placeholder="auto"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+      </div>
+      <p class="note" id="b_objNote"></p>
+    </section>
+    <div class="alerts" id="b_alerts" aria-live="polite"></div>
+    <section class="card order" id="b_order" aria-live="polite"></section>
+    <section class="card"><h2>Fitted profile over the dose history, then the new regimen</h2><div class="plotwrap" id="b_plot"></div></section>
+    <div class="two">
+      <section class="card"><h2>Parameters: population vs fitted</h2><div class="tablewrap"><table id="b_params"></table></div></section>
+      <section class="card"><h2>Observed vs predicted</h2><div class="tablewrap"><table id="b_fitTbl"></table></div></section>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>Methods, sources and sign-off items</summary>
+    <div class="body" id="methods">
+      <p><b>Targets.</b> AUC24 400–600 mg·h/L assuming MIC 1 (Rybak 2020, PMID 32191793). AUC &gt; 600 and troughs &gt; 15–20 mg/L are associated with nephrotoxicity. Trough-only targeting of 15–20 is no longer recommended.</p>
+      <p><b>Literature model (default).</b> 1-comp K = 0.00107·CrCl(mL/min/1.73 m²) + 0.0052 with Cockcroft-Gault on min(IBW, TBW) (the regression's own CrCl definition), Vd 0.65 L/kg TBW, or 0.5 L/kg TBW when BMI ≥ 30 with no TBW cap (Rybak 2020; Adane 2015), a warning above 200 kg, and an optional fixed 75 L at BMI ≥ 40 (Dunn 2019, PMID 31630155). Matzke 1984 (CL = 3.66 + 0.689·CrCl mL/min, Vd 0.7 L/kg) is an alternate. Loading dose 20–35 mg/kg TBW (≤ 25 if BMI ≥ 30), rounded to 250 mg, capped at 3000 mg (4000 mg option: Payne 2024, PMID 39493211, small RCT, low confidence). Maintenance = target AUC × CL × τ/24, rounded to 250 mg. Interval auto = ln 2/K (2-comp: K = CL/Vss) + T′ snapped to the nearest of 8/12/16/24/36/48/72 h. Empiric doses &gt; 4500 mg/day are flagged.</p>
+      <p><b>Goti 2018 two-compartment (published</b>, PMID 29470227; confirmed against Mena 2023, Clin Transl Sci 2023 and the InsightRX model code; primary paper not read, <span class="src verify">verify</span>): CL = 4.5·(CrCl/120)^0.8·0.7^DIAL L/h, V1 = 58.4·(TBW/70)·0.5^DIAL L, V2 = 38.4 L, Q = 6.5 L/h; CrCl Cockcroft-Gault on TBW, capped at 150 mL/min. The original model sets SCr to 1.0 if age &gt; 65; the 2019 erratum (PMID 31306395) changed the threshold from 60 to 65 according to an InsightRX code comment (erratum text not read, <span class="src verify">verify</span>). Default off (modified Goti; Tong 2021, PMID 33009289, better in the elderly). IIV ω CL 0.398, V1 0.816, V2 0.571; residual 19.7% + 1.42 mg/L (InsightRX MAP-stable) by default, published 22.7% + 3.4 mg/L as an option. DIAL = 0 here (hemodialysis is in vancomycin-hd.html).</p>
+      <p><b>Published vancomycin model priors (reference</b>, decisions/vancomycin-aminoglycosides.md §6; ω = √ω²):</p>
+      <div class="tablewrap"><table><thead><tr><th>Model</th><th>CL IIV</th><th>V IIV</th><th>Other</th><th>Residual</th><th>Source</th></tr></thead><tbody>
+        <tr><td class="l">Buelga 2005 (1-comp), CL 1.08·CrCl L/h, V 0.98 L/kg</td><td>28.2%</td><td>37.2%</td><td class="l">r(CL,V) 0.25 assumed</td><td>3.52 mg/L add.</td><td class="l">PMID 16304155</td></tr>
+        <tr><td class="l">Adane 2015 (1-comp), BMI ≥ 40, V 0.51 L/kg</td><td>23.9%</td><td>26.7%</td><td class="l">—</td><td>18.9% prop.</td><td class="l">PMID 25644478</td></tr>
+        <tr><td class="l">Thomson 2009 (2-comp), CL 2.99·(1 + 0.0154·(CrCl − 66))</td><td>27%</td><td>V1 15%</td><td class="l">Q 49%, V2 130%</td><td>15% + 1.6 mg/L</td><td class="l">PMID 19299472</td></tr>
+        <tr><td class="l">Goti 2018 (2-comp)</td><td>39.8%</td><td>V1 81.6%</td><td class="l">V2 57.1%</td><td>22.7% + 3.4 (19.7% + 1.42 MAP-stable)</td><td class="l">PMID 29470227</td></tr>
+        <tr><td class="l">Hughes 2024 (2-comp), FFM-scaled, BMI ≥ 40</td><td>21.8%</td><td>V1 18%</td><td class="l">V2 80%, covariances</td><td>13.3% + 0.001</td><td class="l">PMID 38758633</td></tr>
+      </tbody></table></div>
+      <p class="note">Shown for reference only; Buelga, Adane, Thomson and Hughes are not selectable models in this build.</p>
+      <p><b>Site model.</b> Non-Bayesian calculator as verified on the live server (2026-10-23): banker's rounding at every step with rounded values carried forward; SCr to 0.1, no floor; CrCl on min(IBW, TBW), Chow with creatinine Vd 0.6 × TBW when SCr changes; K = 0.00107·CrCl·1.73/BSA(0.01) + 0.00521 (fitted intercept; the documented 0.0052 mis-rounds two server rows), 4 dp; Vd 0.65 L/kg TBW; loading dose 40·Vd·K·T′/(1 − e^−KT′) with no 3 g cap; interval 0.7/K + T′ snapped up to 8/12/16/24/36/48/72/96/120; Cmin from the rounded Cmax; AUC = Dose/(K·Vd)·24/τ. The site Bayesian mode follows the site's web Bayesian page (not the Excel workbooks, see Workbook model): 0.0052 intercept unrounded, normal priors CV 0.3/0.3 on CL and V, assay CV 0.1 on the observed level. The site's "modified Goti" (Vc 58.4·WT/70, Vp 38.4·WT/70, Q 6.5, CV 0.3 on all parameters; unpublished) is offered in site mode only, in two versions: CL <b>6.4</b>·(CrCl/120)^0.8 (current: 3/2023 MUE Part 2 PDF and the FractionSS workbook; default) and CL <b>6.04</b>·(CrCl/120)^0.8 (legacy: 4/2022 MUE PDF and the site's web pages) <span class="src verify" title="two-comp-auc.md Workbook verification item 1; workbook-checks/acyclovir-engine-coverage.md B4, C1">verify</span>. Literature mode keeps the published Goti CL 4.5. <b>Carreno</b> (site MUE 3/2023, site mode only): Vc 25.76 L, k12 2.29 and k21 1.44 h⁻¹ (Q 58.99 L/h, Vp 40.97 L), CL = 0.043292·CrCl + 0.331123 L/h (4/2022 version 0.038151·CrCl + 0.4339, recorded, not offered) with Cockcroft-Gault on TBW, or AdjBW when TBW ≥ 1.2·IBW. Its Bayesian priors are not documented: CV 0.3 on every parameter is assumed <span class="src verify" title="two-comp-auc.md Workbook verification item 2; priors assumed">verify</span>.</p>
+      <p><b>Workbook model (opt-in).</b> Reproduces the site's Excel files as read from formula dumps (workbook-checks/vancomycin-aminoglycosides.md §1–2; the files were saved blank, so checks use re-implemented cases). <i>Fitting workbook</i> (K_VD_Fitting_V2; Initial and Bayesian tabs): SCr floored at 0.7 mg/dL (0.5 with paralysis or malnutrition) before the Chiou two-SCr fit (creatinine Vd 0.6·TBW, production on min(IBW, TBW), CrCl bounded 5–244 mL/min); K = 0.00107·CrCl·1.73/BSA + 0.005216005; Vd 0.65 L/kg TBW; loading dose for a 30 mg/L peak by the infusion formula (no cap; warning above 3 g); interval ln(30/15)/K + 2 h (fixed 2 h, not T′); maintenance 12.5 mg/kg TBW; AUC24 = [(Cmax + Cmin)·T′/2 + (Cmax − Cmin)/K]·24/τ. Fit: normal priors on <b>K and V</b>, SD 0.3 × population, residual SD 0.1 × observed; non-Bayesian = Σ(pred − obs)²; Solver box K 0.1–10 ×, V 0.5–2 × population; K-only fits hold V. <i>AUC workbook</i> (Levels tab, peak and trough): Cockcroft-Gault on min(IBW, TBW) with no floor; CL = (0.00107·CrCl/1.73 m² + 0.0052)·0.65·TBW whatever Vd (0.5/0.65/1 L/kg) is chosen; priors on CL and V with SD 0.3 × the <b>fitted</b> value; non-Bayesian = relative least squares; box 0.5–2 ×; AUC = Dose/CL·24/τ. Not copied (workbook errors): levels during an infusion are predicted here with the infusion equation, not the post-infusion one; the AUC workbook's Sawchuk-Zaske helper AUC ((Cmax + Cmin)·2/T′) is not used. Not built: per-dose SCr (time-varying K), the steady-state buttons that treat the measured trough as a known starting level, the 7-dose/14-level layout (larger histories are used and flagged), the pediatric branch.</p>
+      <p><b>Levels.</b> Peak and trough after the same dose: K = ln(Cpk/Ctr)/Δt, Δt = τ − T′ − t<sub>peak after end</sub> − t<sub>trough before start</sub>; Vd by Sawchuk-Zaske; AUC24 = Dose/CL·24/τ and the linear-up/log-down trapezoid (Pai 2014). Trough only: K solved from one steady-state level with Vd fixed at the population value; less reliable (Rybak 2020; Neely 2014, trough-only data underestimated AUC by 23%).</p>
+      <p><b>Bayesian.</b> MAP over the actual dose history by superposition (non-steady state allowed). Literature: log-normal priors ω 0.30 on CL and V (1-comp; approved, decisions §6) or the Goti IIV; combined residual σ = √((a·Ĉ)² + b²) on the <i>predicted</i> level (1-comp 15% + 1.5 mg/L; Goti 19.7% + 1.42 mg/L default), objective including ln σ². Site: Σ((obs − pred)/(CV·obs))² + Σ((θ − μ)/(0.3·μ))², normal priors. CL only is fitted for troughs or a single level; for 2-comp, Vc and CL are fitted (Vp also with ≥ 4 levels in Goti), Q held. The AUC range shown is ±1.96 approximate posterior SE of ln CL.</p>
+      <p><b>Local helpers (not in pkcore).</b> Banker's rounding for site parity; bisection for K from one steady-state level; MAP with combined error on the predicted level (PK.fit weights only on the observed level). All other math uses PK.body, PK.renal, PK.one, PK.two, PK.fit and PK.round.</p>
+      <p><b>Decisions applied</b> (DECISIONS.md, decisions/vancomycin-aminoglycosides.md, approved): obese Vd 0.5 L/kg TBW at BMI ≥ 30 with no TBW cap, warning &gt; 200 kg, fixed 75 L option at BMI ≥ 40; LD cap 3 g (4 g option); MAP priors log-normal ω 0.30/0.30 with 15% + 1.5 mg/L on predicted; Goti confirmed, CG on TBW capped 150, elderly SCr rounding off. Still open: the Goti primary paper and erratum text have not been read.</p>
+    </div>
+  </details>
+
+  <footer>Educational and clinical decision-support use by trained clinicians only. Population predictions are estimates; confirm with measured levels, renal trend and clinical judgement before dosing. Not a substitute for product labeling or institutional protocols. Data stay in this page. PK Suite <span id="ver"></span>.</footer>
+</div>
+<script src="lib/pkcore.js"></script>
+<script src="lib/pk-ui.js"></script>
+<script>
+// CALC-START
+// Pure calculations for vancomycin.html (no DOM). All PK math goes through PK.* (lib/pkcore.js).
+// Local helpers (pkcore lacks them; reported in the page footer notes):
+//   R()         banker's rounding (VBScript Round) for site-parity display, rounded values carried forward
+//   solveKSS()  bisection root for K from one steady-state level with Vd fixed (site trough fit)
+//   mapPred()   MAP with combined residual error on the PREDICTED level (+ ln σ² term); PK.fit only weights on observed
+// Units: h, mg, mg/L, L, L/h, kg, in, mg/dL.
+
+const isFin = (x) => typeof x === "number" && isFinite(x);
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+
+// VBScript Round(): round half to even at `dp` decimals.
+function R(x, dp = 0) {
+  if (!isFin(x)) return x;
+  const f = Math.pow(10, dp), y = x * f, fl = Math.floor(y), d = y - fl;
+  const r = Math.abs(d - 0.5) < 1e-7 ? (fl % 2 === 0 ? fl : fl + 1) : Math.round(y);
+  return +(r / f).toFixed(Math.max(dp, 0));
+}
+
+// ---------- Parameter sets ----------
+// "site": reproduces pkineticdrugdosing.com (specs/vanco-auc.md live-server sections, specs/vanco-bayesian.md).
+const SITE = {
+  kSlope: 0.00107,
+  kIntServer: 0.00521,   // live-server fit (feasible 0.005204–0.005238); documented 0.0052 mis-rounds v10, v13
+  kIntWorkbook: 0.0052,  // Excel/Bayesian workbook and prose (vanco-bayesian §3.1)
+  vdPerKg: 0.65, mdPerKg: 15, ldTarget: 40,
+  tauLn: 0.7,            // Tau = 0.7/K + T′ snapped UP (ratio r ∈ (2.008, 2.094]; exact ln 2 fails s31)
+  tauMenu: [8, 12, 16, 24, 36, 48, 72, 96, 120],
+  lbPerKg: 2.2, crVdPerKg: 0.6,
+  cvCL: 0.3, cvV: 0.3, cvAssay: 0.1,
+};
+// "literature": lit/vancomycin.md §2 (Rybak 2020 and cited sources). Default.
+const LIT = {
+  kSlope: 0.00107, kInt: 0.0052, vdPerKg: 0.65, vdObesePerKg: 0.5, obeseBMI: 30,
+  ldPerKg: 25, ldRange: [20, 35], ldObeseMaxPerKg: 25, ldCap: 3000, ldCapAlt: 4000, maxDaily: 4500, heavyKg: 200, fixedVdBMI: 40, fixedVd: 75,
+  aucTarget: 500, aucRange: [400, 600], troughWarn: 20,
+  tauMenu: [6, 8, 12, 16, 24, 36, 48, 72], tauAuto: [8, 12, 16, 24, 36, 48, 72],
+  doseInc: 250, cvCL: 0.30, cvV: 0.30, /* ω = √ω² (decisions §6) */ resid: { prop: 0.15, add: 1.5 }, peakMinH: 1, maxRate: 1000,
+  matzkeVdPerKg: 0.7,
+};
+// Goti 2018 (PMID 29470227; erratum PMID 31306395), confirmed against two secondary sources and InsightRX code (decisions §7):
+// CG on TBW capped 150; residual default 19.7% + 1.42 mg/L (InsightRX MAP-stable), published 22.7% + 3.4 as option. Primary paper not read → verify badge. HD (DIAL) handled by vancomycin-hd.html.
+const GOTI = {
+  published: { clRef: 4.5, crclRef: 120, clExp: 0.8, crclCap: 150, vcRef: 58.4, vpRef: 38.4, vpScaled: false, q: 6.5,
+    dialCL: 0.7, dialVc: 0.5, iiv: { CL: 0.398, Vc: 0.816, Vp: 0.571 }, resid: { prop: 0.197, add: 1.42 }, residPublished: { prop: 0.227, add: 3.4 }, elderlyFloor: 1.0, elderlyAge: 65 },
+  // Site "modified/optimized Goti" (unpublished). Current version: CL coefficient 6.4 (3/2023 MUE Part 2 PDF and the
+  // FractionSSachievedAUCcalculation workbook). Legacy: 6.04 (4/2022 MUE PDF and the site's web pages). two-comp-auc
+  // "Workbook verification" item 1; workbook-checks/acyclovir-engine-coverage.md B4, C1.
+  siteModified: { clRef: 6.4, crclRef: 120, clExp: 0.8, vcRef: 58.4, vpRef: 38.4, vpScaled: true, q: 6.5,
+    iiv: { CL: 0.3, Vc: 0.3, Vp: 0.3, Q: 0.3 }, cvAssay: 0.1, version: "3/2023" },
+  siteModified2022: { clRef: 6.04, crclRef: 120, clExp: 0.8, vcRef: 58.4, vpRef: 38.4, vpScaled: true, q: 6.5,
+    iiv: { CL: 0.3, Vc: 0.3, Vp: 0.3, Q: 0.3 }, cvAssay: 0.1, version: "4/2022" },
+};
+// Carreno 2-comp as used in the site's 1-comp vs 2-comp MUE PDFs (two-comp-auc "Workbook verification" item 2):
+// Vc 25.76 L fixed, k12 2.29, k21 1.44 1/h (Q = k12·Vc, Vp = Q/k21); CL (L/h) = a·CrCl + b with CrCl Cockcroft-Gault on TBW,
+// or AdjBW when TBW ≥ 1.2·IBW (×0.85 female). Current 3/2023 (also FractionSS Sheet2); 4/2022 kept as a record.
+// Bayesian priors are not documented for Carreno: CV 0.3 on every parameter is ASSUMED (the site's modified-Goti convention).
+const CARRENO = {
+  vc: 25.76, k12: 2.29, k21: 1.44, cl2023: { a: 0.043292, b: 0.331123 }, cl2022: { a: 0.038151, b: 0.4339 },
+  iiv: { CL: 0.3, Vc: 0.3, Vp: 0.3, Q: 0.3 }, cvAssay: 0.1,
+};
+const MODELS = {
+  reg1c: { label: "1-comp K regression (Pierce)", struct: "1c" },
+  matzke: { label: "1-comp Matzke 1984", struct: "1c" },
+  goti: { label: "2-comp Goti 2018 (published)", struct: "2c" },
+  gotiSite: { label: "2-comp modified Goti, CL 6.4 (site, 3/2023, unpublished)", struct: "2c" },
+  gotiSite2022: { label: "2-comp modified Goti, CL 6.04 (site legacy, 4/2022)", struct: "2c" },
+  carrenoSite: { label: "2-comp Carreno (site MUE 3/2023)", struct: "2c" },
+  wbFit: { label: "1-comp fitting workbook (K_VD_Fitting_V2)", struct: "1c" },
+};
+
+// ---------- Site non-Bayesian calculator (PulseDosingVanco.asp / TradDosingAV.asp), exact display ----------
+// Root of the steady-state one-level equation for K with Vd fixed. t = h from START of the dose (t ≥ T′).
+function solveKSS({ dose, tau, tinf, V, level, t }) {
+  const f = (k) => PK.one.ss({ dose, tau, tinf }, { V, k }).at(t) - level; // decreasing in k
+  let lo = 1e-6, hi = 5;
+  if (f(lo) < 0 || f(hi) > 0) return NaN;
+  for (let i = 0; i < 200; i++) { const m = Math.sqrt(lo * hi); if (f(m) > 0) lo = m; else hi = m; if (hi / lo - 1 < 1e-14) break; }
+  return Math.sqrt(lo * hi);
+}
+
+// i: { age, sex, htIn | htCm, wtKg | wtLb, scr, scrPrev, dtScr, tinf, dose, tau, level, levelTime, kFit }
+function siteCalc(i) {
+  const out = { flags: [] };
+  const htIn = isFin(i.htCm) ? R(i.htCm / 2.54, 1) : i.htIn;
+  const kg = isFin(i.wtLb) ? i.wtLb / SITE.lbPerKg : i.wtKg;
+  const scr = R(i.scr, 1), scrPrev = R(isFin(i.scrPrev) ? i.scrPrev : i.scr, 1), tinf = i.tinf;
+  const ibw = R(PK.body.ibw(i.sex, htIn), 1), wcr = Math.min(ibw, kg);
+  const bsa = R(PK.body.bsa(kg, htIn * 2.54), 2);
+  let crcl, crT;
+  if (scr === scrPrev) {
+    crcl = R(PK.renal.cgRaw(i.age, wcr, scr, i.sex), 1);
+    crT = R((0.693 * SITE.crVdPerKg * kg) / (crcl * 0.06), 1);
+  } else {
+    const c = PK.renal.chowNonSteadyState({ age: i.age, sex: i.sex, weight: wcr, scr1: scrPrev, scr2: scr, hours: i.dtScr || 24, vdPerKg: (SITE.crVdPerKg * kg) / wcr });
+    if (!c.converged) return { error: "Changing SCr has no Chow solution (rise faster than zero clearance allows)." };
+    crcl = R(c.crcl, 1); crT = R(0.693 / c.k, 1); out.kc = c.k;
+  }
+  const kPop = R(SITE.kSlope * PK.renal.normalizeTo173(crcl, bsa) + SITE.kIntServer, 4);
+  const K = isFin(i.kFit) ? i.kFit : kPop;
+  const Vd = R(SITE.vdPerKg * kg, 1);
+  Object.assign(out, {
+    htIn, kg, ibw, lbw: wcr, dw: kg, bsa, wcr, crcl, crT, kPop, K, tHalf: R(0.693 / K, 1), Vd, vdPerKg: R(Vd / kg, 2),
+    ld: R(PK.one.loadingDoseInfusion({ cTarget: SITE.ldTarget, tinf }, { V: Vd, k: K }), 0),
+    doseCalc: R(SITE.mdPerKg * kg, 0),
+    tau: PK.round.snapInterval(SITE.tauLn / K + tinf, SITE.tauMenu, "up"),
+    tauRaw: SITE.tauLn / K + tinf,
+    ss: R((3 * 0.693) / K, 1),
+  });
+  if (isFin(i.dose) && isFin(i.tau)) {
+    const s = PK.one.ss({ dose: i.dose, tau: i.tau, tinf }, { V: Vd, k: K });
+    out.cmax = R(s.cmax, 1);
+    out.cmin = R(out.cmax * Math.exp(-K * (i.tau - tinf)), 2);
+    out.auc = R(PK.one.auc24Dose(i.dose, K * Vd, i.tau), 0);
+    out.mgkg = R(i.dose / kg, 1);
+  }
+  if (isFin(i.level) && isFin(i.levelTime) && isFin(i.dose) && isFin(i.tau)) {
+    if (i.levelTime < tinf) out.flags.push({ code: "levelDuringInfusion", lvl: "crit", text: "Level time is before the end of the infusion; the site's one-level fit needs t ≥ T′ (the site server errors here)." });
+    else out.kFitOut = R(solveKSS({ dose: i.dose, tau: i.tau, tinf, V: Vd, level: i.level, t: i.levelTime }), 4);
+  }
+  if (out.ld > 3000) out.flags.push({ code: "ldOver3g", lvl: "warn", text: `Site loading dose ${out.ld} mg exceeds the 3000 mg maximum on the site's own label; the site does not cap it.` });
+  return out;
+}
+
+// Site population dosing chart row (vanco-bayesian §9.3): per kg, Vd 0.65 L/kg, workbook intercept, unrounded τ.
+function popChartRow(crclNorm, tinf, cmax, cmin) {
+  const k = SITE.kSlope * crclNorm + SITE.kIntWorkbook, p = { V: SITE.vdPerKg, k };
+  const tau = PK.one.intervalForTargets({ cmax, cmin, k, tinf });
+  return { k, tHalf: PK.one.halfLife(k), tau,
+    ldPerKg: (c) => PK.one.loadingDoseInfusion({ cTarget: c, tinf }, p),
+    mdPerKg: PK.one.doseForPeak({ cmax, tau, tinf }, p),
+    auc: PK.one.auc24TrapLog(cmax, cmin, k, tinf, tau) };
+}
+
+// ---------- Covariates (literature and site-Bayesian) ----------
+// i: { age, sex, htIn, wtKg, scr, scrPrev, dtScr, scrFloor (null|number), elderlyFloor (bool) }
+function covariates(i) {
+  const flags = [];
+  const tbw = i.wtKg, htCm = i.htIn * 2.54, ibw = PK.body.ibw(i.sex, i.htIn);
+  const bmi = PK.body.bmi(tbw, htCm), bsa = PK.body.bsa(tbw, htCm);
+  const changing = isFin(i.scrPrev) && isFin(i.dtScr) && i.scrPrev !== i.scr;
+  const cg = (policy, floor) => {
+    const base = { age: i.age, sex: i.sex, heightIn: i.htIn, tbw, weightPolicy: policy, scrFloor: floor };
+    if (!changing) return PK.renal.cockcroftGault({ ...base, scr: i.scr });
+    const e = PK.renal.estimate({ ...base, scr: i.scrPrev, scr2: i.scr, hours: i.dtScr });
+    return e;
+  };
+  const floor = isFin(i.scrFloor) ? i.scrFloor : null;
+  const reg = cg("minIbwTbw", floor);                     // regression's own CrCl definition
+  const gotiFloor = i.elderlyFloor && i.age > GOTI.published.elderlyAge ? Math.max(floor || 0, GOTI.published.elderlyFloor) : floor;
+  const gotiCg = cg("tbw", gotiFloor);                   // Goti: Cockcroft-Gault on TBW (decisions §7)
+  const litCg = cg("adjIfObese", floor);                 // suite literature CG (Matzke)
+  const siteGotiCg = cg("adjIfOver", null);              // site: AdjBW when TBW > LBW
+  const carrenoW = tbw >= 1.2 * ibw ? PK.body.adjustedBW(ibw, tbw) : tbw;  // site MUE: TBW, or AdjBW when TBW ≥ 1.2·IBW
+  const carrenoCg = changing ? PK.renal.estimate({ age: i.age, sex: i.sex, heightIn: i.htIn, tbw, weight: carrenoW, scr: i.scrPrev, scr2: i.scr, hours: i.dtScr })
+    : PK.renal.cockcroftGault({ age: i.age, sex: i.sex, heightIn: i.htIn, tbw, weight: carrenoW, scr: i.scr, scrFloor: null });
+  if (tbw > LIT.heavyKg) flags.push({ code: "heavy", lvl: "warn", text: `TBW ${Math.round(tbw)} kg > 200 kg: Vd and CL extrapolate beyond most model data; check levels early.` });
+  if (i.age < 18) flags.push({ code: "peds", lvl: "crit", text: "Adult models only (age ≥ 18). Use a pediatric method." });
+  if (changing) flags.push({ code: "nss", lvl: "warn", text: "SCr is changing: CrCl from the Chow non-steady-state method. Predictions assume the new renal function persists; recheck levels early." });
+  if (reg.chow && !reg.chow.converged) flags.push({ code: "chowFail", lvl: "crit", text: "Changing SCr has no Chow solution; check values and times." });
+  return { tbw, ibw, bmi, bsa, htCm, obese: bmi >= LIT.obeseBMI, changing,
+    crclReg: reg.crcl, crclNorm: PK.renal.normalizeTo173(reg.crcl, bsa), crclGoti: gotiCg.crcl, crclLit: litCg.crcl, crclGotiCapped: Math.min(gotiCg.crcl, GOTI.published.crclCap),
+    crclSiteGoti: siteGotiCg.crcl, crclCarreno: carrenoCg.crcl, carrenoWeight: carrenoW, scrUsed: reg.scrUsed, flags };
+}
+
+// Population parameters for a model. mode 'literature' | 'site'.
+//   1c → { struct:'1c', p:{V,CL,k}, prior:[...], error }   2c → { struct:'2c', p:{CL,Vc,Vp,Q}, ... }
+function popModel(cov, model, mode, opt = {}) {
+  const tbw = cov.tbw;
+  if (model === "reg1c" || model === "matzke") {
+    let V, CL, k, src;
+    const vdKg = mode === "site" ? SITE.vdPerKg : (cov.obese ? LIT.vdObesePerKg : (model === "matzke" ? LIT.matzkeVdPerKg : LIT.vdPerKg));
+    V = vdKg * tbw;
+    const fixed75 = mode !== "site" && !!opt.fixed75 && cov.bmi >= LIT.fixedVdBMI;
+    if (fixed75) V = LIT.fixedVd;
+    if (model === "reg1c") { k = (mode === "site" ? SITE.kSlope : LIT.kSlope) * cov.crclNorm + (mode === "site" ? SITE.kIntWorkbook : LIT.kInt); CL = k * V; src = "reg1c"; }
+    else { CL = ((3.66 + 0.689 * cov.crclLit) * 60) / 1000; k = CL / V; src = "matzke"; }
+    const site = mode === "site";
+    if (fixed75 && model === "matzke") k = CL / V;
+    return { model, struct: "1c", p: { V, CL, k }, vdPerKg: V / tbw, fixed75, src,
+      cv: site ? { CL: SITE.cvCL, V: SITE.cvV } : { CL: LIT.cvCL, V: LIT.cvV },
+      prior: site ? "normal" : "lognormal",
+      error: site ? { onObs: true, prop: SITE.cvAssay, add: 0 } : { onObs: false, ...LIT.resid } };
+  }
+  if (model === "goti") {
+    const c = GOTI.published, dial = opt.dial ? 1 : 0;
+    const p = PK.two.gotiStructure({ crcl: cov.crclGoti, wt: tbw }, { ...c, clRef: c.clRef * Math.pow(c.dialCL, dial), vcRef: c.vcRef * Math.pow(c.dialVc, dial) });
+    return { model, struct: "2c", p: { CL: p.CL, Vc: p.Vc, Vp: p.Vp, Q: p.Q }, src: "goti", cv: { ...c.iiv }, prior: "lognormal",
+      error: { onObs: false, ...(opt.gotiResid === "published" ? c.residPublished : c.resid) } };
+  }
+  if (model === "gotiSite" || model === "gotiSite2022") {
+    const c = model === "gotiSite" ? GOTI.siteModified : GOTI.siteModified2022;
+    const p = PK.two.gotiStructure({ crcl: cov.crclSiteGoti, wt: tbw }, c);
+    return { model, struct: "2c", p: { CL: p.CL, Vc: p.Vc, Vp: p.Vp, Q: p.Q }, src: model, cv: { ...c.iiv }, prior: "normal",
+      error: { onObs: true, prop: c.cvAssay, add: 0 } };
+  }
+  if (model === "carrenoSite") {
+    const c = CARRENO, cl = opt.carrenoVersion === "2022" ? c.cl2022 : c.cl2023, Q = c.k12 * c.vc;
+    return { model, struct: "2c", p: { CL: cl.a * cov.crclCarreno + cl.b, Vc: c.vc, Vp: Q / c.k21, Q }, src: "carrenoSite", cv: { ...c.iiv }, prior: "normal",
+      error: { onObs: true, prop: c.cvAssay, add: 0 } };
+  }
+  throw new Error(`Unknown model ${model}`);
+}
+
+// Rate constant for the auto interval (1c: k; 2c: effective CL/Vss, since terminal β overstates the decline within a dosing interval).
+const kTerm = (pm) => (pm.struct === "1c" ? PK.one.k(pm.p.CL, pm.p.V) : pm.p.CL / (pm.p.Vc + pm.p.Vp));
+
+// Steady-state prediction for a regimen r = { dose, tau, tinf } (1c or 2c).
+function predictSS(pm, r) {
+  if (pm.struct === "1c") {
+    const s = PK.one.ss(r, pm.p);
+    return { peak: s.cmax, trough: s.cmin, auc: s.auc24, aucTrap: PK.one.auc24TrapLog(s.cmax, s.cmin, s.k, r.tinf, r.tau), at: s.at,
+      post1: s.at(Math.min(r.tinf + 1, r.tau)), post2: s.at(Math.min(r.tinf + 2, r.tau)), tHalf: PK.one.halfLife(s.k, Math.LN2) };
+  }
+  const m = PK.two.micro(pm.p), s = PK.two.ss(r, m);
+  return { peak: s.peak, trough: s.trough, auc: s.auc24, aucTrap: PK.two.auc24Trapezoid(r, m, 0.02), at: s.at,
+    post1: s.at(Math.min(r.tinf + 1, r.tau)), post2: s.at(Math.min(r.tinf + 2, r.tau)), tHalf: m.thalfBeta };
+}
+// Concentration from a dose-event list for either structure.
+function concAt(pm, events, t, init) {
+  return pm.struct === "1c" ? PK.one.superpose(t, events, pm.p, init) : PK.two.superpose(t, events, PK.two.micro(pm.p), init);
+}
+
+// Dose for a target AUC24, rounded to the increment (never below one increment).
+function doseForAuc(CL, tau, target, inc = LIT.doseInc) {
+  const exact = PK.one.doseForAUC({ auc24: target, tau }, { CL, V: 1 });
+  return { exact, dose: Math.max(inc, PK.round.roundTo(exact, inc)) };
+}
+const autoTau = (pm, tinf, menu = LIT.tauAuto) => PK.round.snapInterval(Math.LN2 / kTerm(pm) + tinf, menu, "nearest");
+
+// Literature loading dose: mg/kg TBW (20–35; ≤ 25 if BMI ≥ 30), rounded to 250 mg, capped 3000 mg.
+function litLoadingDose(tbw, perKg, obese, cap = LIT.ldCap) {
+  const used = clamp(isFin(perKg) ? perKg : LIT.ldPerKg, LIT.ldRange[0], obese ? LIT.ldObeseMaxPerKg : LIT.ldRange[1]);
+  const exact = used * tbw, rounded = PK.round.roundTo(exact, LIT.doseInc);
+  return { perKg: used, exact, dose: Math.min(rounded, cap), cap, capped: rounded > cap, clampedFrom: used !== perKg && isFin(perKg) ? perKg : null };
+}
+
+// Common clinical warnings. o: { auc, trough, dose, tau, tinf, ld, nephrotoxins:[], obese, mode, empiric }
+function clinicalFlags(o) {
+  const f = [];
+  if (isFin(o.auc)) {
+    if (o.auc > 600) f.push({ code: "auc>600", lvl: "crit", text: `Predicted AUC24 ${Math.round(o.auc)} > 600 mg·h/L: higher nephrotoxicity risk (Rybak 2020). Reduce the dose.` });
+    else if (o.auc < 400) f.push({ code: "auc<400", lvl: "warn", text: `Predicted AUC24 ${Math.round(o.auc)} < 400 mg·h/L: below the efficacy target for serious MRSA infection.` });
+  }
+  if (isFin(o.trough) && o.trough > LIT.troughWarn) f.push({ code: "trough>20", lvl: "warn", text: `Predicted trough ${o.trough.toFixed(1)} mg/L > 20: troughs above 15–20 are associated with nephrotoxicity.` });
+  if (isFin(o.dose) && isFin(o.tinf) && o.tinf > 0 && o.dose / o.tinf > LIT.maxRate) f.push({ code: "rate", lvl: "warn", text: `Infusion rate ${Math.round(o.dose / o.tinf)} mg/h > 1000 mg/h: lengthen the infusion (infusion reactions).` });
+  if (o.empiric && isFin(o.dose) && isFin(o.tau) && (o.dose * 24) / o.tau > LIT.maxDaily) f.push({ code: "daily>4500", lvl: "warn", text: `Empiric daily dose ${Math.round((o.dose * 24) / o.tau)} mg > 4500 mg/day (Rybak 2020): check levels early.` });
+  if (o.nephrotoxins && o.nephrotoxins.length) f.push({ code: "nephrotoxins", lvl: "warn", text: `Concomitant nephrotoxins (${o.nephrotoxins.join(", ")}): additive AKI risk; aim for the lower half of 400–600 and monitor SCr and levels closely.` });
+  return f;
+}
+
+// ---------- Tab 1: initial regimen ----------
+// i: covariates input + { tinf, model, mode, aucTarget, tau ('auto' | number), ldPerKg, nephrotoxins, scrFloor, elderlyFloor, htCm, wtLb }
+function initialCalc(i) {
+  const mode = i.mode || "literature", tinf = i.tinf || 1;
+  const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
+  if (mode === "workbook") return wbInitialCalc(i);
+  if (mode === "site" && (i.model || "reg1c") === "reg1c") {
+    const s0 = siteCalc({ ...i, dose: NaN, tau: NaN });
+    if (s0.error) return { error: s0.error };
+    const tau = i.tau === "auto" || !isFin(i.tau) ? s0.tau : i.tau;
+    const md = doseForAuc(s0.K * s0.Vd, tau, target);
+    const dose = isFin(i.dose) ? i.dose : md.dose;
+    const s = siteCalc({ ...i, dose, tau });
+    const pm = { model: "reg1c", struct: "1c", p: { V: s.Vd, k: s.K, CL: s.K * s.Vd }, src: "siteServer" };
+    const flags = s.flags.concat(clinicalFlags({ auc: s.auc, trough: s.cmin, dose, tau, tinf, nephrotoxins: i.nephrotoxins }));
+    if (i.age < 18) flags.unshift({ code: "peds", lvl: "crit", text: "Adult models only (age ≥ 18). The site alert says so but does not enforce it." });
+    return { mode, model: "reg1c", pm, site: s, ld: { dose: s.ld, exact: s.ld, capped: false, perKg: s.ld / s.kg }, tau, tauSuggested: s0.tau,
+      md: { ...md, dose }, pred: { peak: s.cmax, trough: s.cmin, auc: s.auc, tHalf: s.tHalf }, predExact: predictSS(pm, { dose, tau, tinf }), flags, tinf, target };
+  }
+  const cov = covariates(i);
+  const pm = popModel(cov, i.model || "reg1c", mode, i);
+  const tau = i.tau === "auto" || !isFin(i.tau) ? autoTau(pm, tinf) : i.tau;
+  const md = doseForAuc(pm.p.CL, tau, target);
+  const dose = isFin(i.dose) ? i.dose : md.dose;
+  const ld = litLoadingDose(cov.tbw, i.ldPerKg, cov.obese, i.ldCap === LIT.ldCapAlt ? LIT.ldCapAlt : LIT.ldCap);
+  const pred = predictSS(pm, { dose, tau, tinf });
+  const flags = cov.flags.concat(clinicalFlags({ auc: pred.auc, trough: pred.trough, dose, tau, tinf, nephrotoxins: i.nephrotoxins, empiric: true }));
+  if (cov.obese) flags.push({ code: "obese", lvl: "info", text: `BMI ${cov.bmi.toFixed(1)} ≥ 30: ${pm.struct !== "1c" ? "" : pm.fixed75 ? "fixed Vd 75 L (BMI ≥ 40, Dunn 2019), " : "Vd 0.5 L/kg TBW, "}loading dose ≤ 25 mg/kg (Rybak 2020; Adane 2015). Obesity Vd is a sign-off item.` });
+  if (ld.capped) flags.push({ code: "ldCap", lvl: "info", text: `Loading dose capped at ${ld.cap} mg (${ld.perKg} mg/kg would be ${Math.round(ld.exact)} mg).` });
+  if (ld.clampedFrom !== null) flags.push({ code: "ldClamp", lvl: "info", text: `Loading dose ${ld.clampedFrom} mg/kg limited to ${ld.perKg} mg/kg (range 20–35, ≤ 25 if BMI ≥ 30).` });
+  return { mode, model: pm.model, cov, pm, ld, tau, tauSuggested: autoTau(pm, tinf), md: { ...md, dose }, pred, predExact: pred, flags, tinf, target };
+}
+
+// ---------- Tab 2: levels → AUC ----------
+// Two levels after the same dose at steady state. tPeak = h after END of infusion; tTrough = h BEFORE the next START.
+// i: { dose, tau, tinf, peak, tPeak, trough, tTrough, troughBefore (bool: drawn before the dose, SS assumed), tbw, mode,
+//      newTau, newTinf, aucTarget, newDose (optional fixed) }
+function twoLevelCalc(i) {
+  const flags = [];
+  const dt = i.tau - i.tinf - i.tPeak - i.tTrough;
+  if (!(i.peak > 0 && i.trough > 0)) return { error: "Enter both levels." };
+  if (!(i.peak > i.trough)) return { error: "Peak must be higher than trough." };
+  if (!(dt > 0)) return { error: "Time between levels must be > 0: check the interval, infusion time and sampling times." };
+  const sz = PK.one.sawchukZaske({ peak: i.peak, trough: i.trough, dt, tPeakAfterEnd: i.tPeak, dose: i.dose, tinf: i.tinf, tau: i.tau });
+  const pm = { model: "fit", struct: "1c", p: { V: sz.V, CL: sz.CL, k: sz.k } };
+  const minPk = i.mode === "site" ? 2 : LIT.peakMinH;
+  if (i.tPeak < minPk) flags.push({ code: "earlyPeak", lvl: "warn", text: `Peak drawn ${i.tPeak} h after the end of infusion (< ${minPk} h): distribution phase inflates K and lowers Vd.` });
+  if (i.troughBefore) flags.push({ code: "around", lvl: "warn", text: "Trough drawn before the dose and peak after it (around a dose) assumes steady state; levels after the same dose are preferred." });
+  const vkg = isFin(i.tbw) ? sz.V / i.tbw : NaN;
+  if (isFin(vkg) && (vkg < 0.4 || vkg > 1.0)) flags.push({ code: "vdOdd", lvl: "warn", text: `Fitted Vd ${vkg.toFixed(2)} L/kg is outside 0.4–1.0: check sampling and infusion times.` });
+  const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
+  const newTinf = isFin(i.newTinf) ? i.newTinf : i.tinf, newTau = isFin(i.newTau) ? i.newTau : i.tau;
+  const md = doseForAuc(sz.CL, newTau, target);
+  const newDose = isFin(i.newDose) ? i.newDose : md.dose;
+  const pred = predictSS(pm, { dose: newDose, tau: newTau, tinf: newTinf });
+  const site = i.mode === "site" ? siteDisplay(sz.k, sz.V, { dose: newDose, tau: newTau, tinf: newTinf }) : null;
+  flags.push(...clinicalFlags({ auc: pred.auc, trough: pred.trough, dose: newDose, tau: newTau, tinf: newTinf, nephrotoxins: i.nephrotoxins }));
+  return { sz, dt, pm, vkg, current: { auc: sz.auc24, aucTrap: sz.auc24TrapLog, cmax: sz.cmax, cmin: sz.cmin },
+    md: { ...md, dose: newDose }, newTau, newTinf, pred, site, flags, target };
+}
+// Site display rounding for a fitted K/Vd and a regimen (vanco-auc §8 Ex 3 note).
+function siteDisplay(k, V, r) {
+  const K = R(k, 4), Vd = R(V, 1), s = PK.one.ss(r, { V: Vd, k: K }), cmax = R(s.cmax, 1);
+  return { K, Vd, cmax, cmin: R(cmax * Math.exp(-K * (r.tau - r.tinf)), 2), auc: R(PK.one.auc24Dose(r.dose, K * Vd, r.tau), 0) };
+}
+
+// One steady-state level (from the START of the dose), Vd fixed at population. Less reliable (Rybak 2020; Neely 2014).
+// i: { dose, tau, tinf, level, t, V, newTau, newTinf, aucTarget, mode }
+function troughOnlyCalc(i) {
+  if (!(i.level > 0)) return { error: "Enter the level." };
+  if (!(i.t >= i.tinf)) return { error: "Level time must be at or after the end of the infusion (time is from the START of the dose)." };
+  if (!(i.t <= i.tau)) return { error: "Level time must be within the dosing interval." };
+  const k = solveKSS({ dose: i.dose, tau: i.tau, tinf: i.tinf, V: i.V, level: i.level, t: i.t });
+  if (!isFin(k)) return { error: "No K reproduces this level with the population Vd." };
+  const pm = { model: "fit", struct: "1c", p: { V: i.V, CL: k * i.V, k } };
+  const cur = predictSS(pm, { dose: i.dose, tau: i.tau, tinf: i.tinf });
+  const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
+  const newTau = isFin(i.newTau) ? i.newTau : i.tau, newTinf = isFin(i.newTinf) ? i.newTinf : i.tinf;
+  const md = doseForAuc(pm.p.CL, newTau, target);
+  const newDose = isFin(i.newDose) ? i.newDose : md.dose;
+  const pred = predictSS(pm, { dose: newDose, tau: newTau, tinf: newTinf });
+  const flags = [{ code: "troughOnly", lvl: "warn", text: "Trough-only first-order AUC assumes the population Vd and is not a guideline method (Rybak 2020): use two levels or Bayesian estimation." }];
+  if (i.t < i.tau - 2) flags.push({ code: "notTrough", lvl: "info", text: "Level is not a trough; still valid at steady state (time from the start of the dose)." });
+  flags.push(...clinicalFlags({ auc: pred.auc, trough: pred.trough, dose: newDose, tau: newTau, tinf: newTinf, nephrotoxins: i.nephrotoxins }));
+  return { k, pm, current: cur, md: { ...md, dose: newDose }, newTau, newTinf, pred, flags, target,
+    site: i.mode === "site" ? { kFit: R(k, 4), ...siteDisplay(R(k, 4), i.V, { dose: newDose, tau: newTau, tinf: newTinf }) } : null };
+}
+
+// ---------- Tab 3: Bayesian MAP over the dose history ----------
+// MAP with combined residual error on the predicted level and log-normal priors (literature).
+// spec as PK.fit: { predict, obs, params:[{name, mean, cv, fit}], error:{prop, add} }
+function mapPred(spec) {
+  const free = spec.params.filter((p) => p.fit !== false), fixed = {};
+  spec.params.forEach((p) => { if (p.fit === false) fixed[p.name] = p.mean; });
+  const th = (phi) => { const t = { ...fixed }; free.forEach((p, j) => (t[p.name] = Math.exp(phi[j]))); return t; };
+  const sig = (pred) => Math.sqrt(Math.pow(spec.error.prop * pred, 2) + Math.pow(spec.error.add, 2));
+  const om = (p) => p.cv; // ω = √ω² (the conventionally reported "%CV" of log-normal IIV)
+  const resid = (phi) => {
+    const t = th(phi);
+    const r = spec.obs.map((o) => { const f = spec.predict(t, o.t); return (o.c - f) / sig(f); })
+      .concat(free.map((p, j) => (phi[j] - Math.log(p.mean)) / om(p)));
+    return r.every(isFin) ? r : r.map(() => 1e150);
+  };
+  const full = (phi) => {
+    const t = th(phi);
+    let s = 0;
+    for (const o of spec.obs) { const f = spec.predict(t, o.t), sg = sig(f); s += Math.pow((o.c - f) / sg, 2) + Math.log(sg * sg); }
+    free.forEach((p, j) => (s += Math.pow((phi[j] - Math.log(p.mean)) / om(p), 2)));
+    return isFin(s) ? s : 1e300;
+  };
+  const phi0 = free.map((p) => Math.log(p.mean));
+  let best = null;
+  const starts = [phi0, ...phi0.map((_, j) => phi0.map((v, i) => (i === j ? v + Math.LN2 : v))), ...phi0.map((_, j) => phi0.map((v, i) => (i === j ? v - Math.LN2 : v)))];
+  for (const s of starts) { const r = PK.fit.levenbergMarquardt(resid, s); const fv = full(r.x); if (!best || fv < best.f) best = { x: r.x, f: fv }; }
+  const nm = PK.fit.nelderMead(full, best.x);
+  if (nm.f <= best.f) best = { x: nm.x, f: nm.f, converged: nm.converged }; else best.converged = true;
+  const params = th(best.x);
+  // Approximate posterior SE of ln θ from the weighted-residual Jacobian.
+  const J = PK.fit.levenbergMarquardt(resid, best.x, { maxIter: 1 }).J, se = {};
+  if (J) {
+    const n = free.length, A = Array.from({ length: n }, (_, a) => Array.from({ length: n }, (_, b) => J.reduce((s, row) => s + row[a] * row[b], 0)));
+    free.forEach((p, j) => { const e = new Array(n).fill(0); e[j] = 1; const col = PK.fit.solve(A, e); se[p.name] = col ? Math.sqrt(Math.max(col[j], 0)) : NaN; });
+  }
+  return { params, objective: best.f, converged: best.converged !== false, se, method: "MAP (combined error on predicted)",
+    predictions: spec.obs.map((o) => ({ t: o.t, obs: o.c, pred: spec.predict(params, o.t) })) };
+}
+
+// Classify a level as trough-like (≥ 70% of the way through its dosing interval).
+function levelKinds(doses, levels) {
+  const ds = [...doses].sort((a, b) => a.t - b.t);
+  return levels.map((l) => {
+    const prev = ds.filter((d) => d.t <= l.t), last = prev[prev.length - 1];
+    if (!last) return { ...l, kind: "pre", tsd: NaN };
+    const idx = ds.indexOf(last), next = ds[idx + 1], before = ds[idx - 1];
+    const tau = next ? next.t - last.t : before ? last.t - before.t : 24;
+    const tsd = l.t - last.t;
+    return { ...l, tsd, tau, kind: tsd < (last.tinf || 0) ? "during" : tsd >= 0.7 * tau ? "trough" : "peak" };
+  });
+}
+
+// i: covariates input + { mode, model ('reg1c'|'goti'|'gotiSite'|'matzke'), doses:[{t,dose,tinf}], levels:[{t,c}], c0,
+//      fitMask ('auto'|'CL'|'both'), priorOverride:{V,CL}, cvAssay (site), newTau, newTinf, aucTarget, newDose, nephrotoxins }
+function bayesCalc(i) {
+  const mode = i.mode || "literature";
+  if (mode === "workbook") return wbBayesCalc(i);
+  const cov = covariates(i);
+  const pm = popModel(cov, i.model || "reg1c", mode, i);
+  if (pm.struct === "1c" && i.priorOverride) { pm.p = { V: i.priorOverride.V, CL: i.priorOverride.CL }; pm.p.k = pm.p.CL / pm.p.V; }
+  const doses = [...i.doses].sort((a, b) => a.t - b.t);
+  const levels = i.levels.filter((l) => isFin(l.t) && l.c > 0).sort((a, b) => a.t - b.t);
+  if (!doses.length) return { error: "Enter at least one dose." };
+  if (!levels.length) return { error: "Enter at least one measured level." };
+  const flags = [...cov.flags];
+  const kinds = levelKinds(doses, levels);
+  const init = isFin(i.c0) && i.c0 > 0 ? { c0: i.c0, t0: doses[0].t } : undefined;
+  const allTroughs = kinds.every((k) => k.kind === "trough");
+  const mask = i.fitMask && i.fitMask !== "auto" ? i.fitMask : levels.length === 1 || allTroughs ? "CL" : "both";
+  let fitR, params;
+  if (pm.struct === "1c") {
+    const predict = PK.fit.oneCompPredictor(doses, init);
+    const prm = [{ name: "V", mean: pm.p.V, cv: pm.cv.V, fit: mask === "both" }, { name: "CL", mean: pm.p.CL, cv: pm.cv.CL }];
+    fitR = pm.prior === "normal"
+      ? PK.fit.map({ predict, obs: levels, params: prm, error: { type: "proportionalObs", cv: isFin(i.cvAssay) ? i.cvAssay : pm.error.prop } })
+      : mapPred({ predict, obs: levels, params: prm, error: pm.error });
+    params = { ...fitR.params, k: fitR.params.CL / fitR.params.V };
+  } else {
+    const predict = PK.fit.twoCompPredictor(doses, init);
+    const fitVp = pm.model === "goti" && levels.length >= 4 && mask === "both";
+    const prm = [{ name: "CL", mean: pm.p.CL, cv: pm.cv.CL }, { name: "Vc", mean: pm.p.Vc, cv: pm.cv.Vc, fit: mask === "both" },
+      { name: "Vp", mean: pm.p.Vp, cv: pm.cv.Vp, fit: fitVp }, { name: "Q", mean: pm.p.Q, fit: false }];
+    fitR = pm.prior === "normal"
+      ? PK.fit.map({ predict, obs: levels, params: prm, error: { type: "proportionalObs", cv: isFin(i.cvAssay) ? i.cvAssay : pm.error.prop } })
+      : mapPred({ predict, obs: levels, params: prm, error: pm.error });
+    params = { ...fitR.params };
+  }
+  const fm = { ...pm, p: params };
+  const last = doses[doses.length - 1], prevD = doses[doses.length - 2];
+  const curTau = isFin(i.curTau) ? i.curTau : prevD ? last.t - prevD.t : 24;
+  const current = predictSS(fm, { dose: last.dose, tau: curTau, tinf: last.tinf });
+  const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
+  const newTau = isFin(i.newTau) ? i.newTau : curTau, newTinf = isFin(i.newTinf) ? i.newTinf : last.tinf;
+  const md = doseForAuc(params.CL, newTau, target);
+  const newDose = isFin(i.newDose) ? i.newDose : md.dose;
+  const pred = predictSS(fm, { dose: newDose, tau: newTau, tinf: newTinf });
+  const seCL = fitR.se && isFin(fitR.se.CL) ? fitR.se.CL : NaN;
+  const aucRange = isFin(seCL) ? [pred.auc * Math.exp(-1.96 * seCL), pred.auc * Math.exp(1.96 * seCL)] : null;
+  // Diagnostics
+  if (levels.length === 1 && kinds[0].kind === "peak") flags.push({ code: "peakOnly", lvl: "warn", text: "A single peak gives poor AUC estimates (site Monte Carlo sensitivity 62%). Add a trough." });
+  else if (allTroughs) flags.push({ code: "troughsOnly", lvl: "info", text: "Troughs only: CL is fitted with Vd held at the population value. Trough-only Bayesian AUC is acceptable in some patients (Rybak 2020, B-II); a peak improves accuracy." });
+  if (kinds.some((k) => k.kind === "during")) flags.push({ code: "during", lvl: "warn", text: "A level falls during an infusion: check its time." });
+  const res = fitR.predictions.map((p) => p.obs - p.pred);
+  if (levels.length >= 3 && (res.every((r) => r > 0) || res.every((r) => r < 0)) && res.every((r, j) => Math.abs(r) > 0.15 * levels[j].c))
+    flags.push({ code: "mismatch", lvl: "warn", text: "All levels sit on one side of the fitted curve: the model may not fit this patient (check times, doses, renal trend)." });
+  if (cov.changing) flags.push({ code: "nssRefit", lvl: "info", text: "Renal function is changing: the prior uses the Chow CrCl, and fitted CL may drift; refit with new levels." });
+  flags.push(...clinicalFlags({ auc: pred.auc, trough: pred.trough, dose: newDose, tau: newTau, tinf: newTinf, nephrotoxins: i.nephrotoxins }));
+  // AUC actually achieved over the last 24 h of the history (non-steady state), linear-up/log-down trapezoid.
+  const tEnd = Math.max(last.t + curTau, levels[levels.length - 1].t), ts = [], cs = [];
+  for (let t = tEnd - 24; t <= tEnd + 1e-9; t += 0.05) { ts.push(t); cs.push(concAt(fm, doses, t, init)); }
+  const auc24Last = PK.one.aucTrapezoid(ts, cs, { logDown: true });
+  return { mode, pm, fm, cov, fit: fitR, params, mask, kinds, init, doses, levels, current, curTau, md: { ...md, dose: newDose },
+    newTau, newTinf, pred, aucRange, auc24Last, flags, target };
+}
+
+// ---------- Workbook model (opt-in): the site's two Excel workbooks ----------
+// FIT  = Gentamicin_Vancomycin_Non_Steady_State_Or_Steady_State_K_VD_Fitting_V2.xlsm (Initial and Bayesian tabs)
+// AUCWB = VancomycinAUCCalculatorOneCompartmentModel.xlsm (Levels tab, peak & trough after the same dose)
+// Source: workbook-checks/vancomycin-aminoglycosides.md §1, §2, §6 W1/W3/W4 (formula dumps; workbooks saved blank).
+// Workbook bugs deliberately NOT ported: levels during an infusion predicted with the post-infusion equation (true
+// superposition is used here), the AUCWB Sawchuk-Zaske helper AUC ((Cmax + Cmin)·2/T′ for ·T′/2), the blank
+// patient-specific dose after a fit (VBA writes an unassigned variable). Not built: per-segment SCr (W2) and the
+// steady-state buttons that make the measured trough a fixed starting level (W3 option).
+// Local helper boxMin(): bounded 1-D minimiser (log grid + golden section) standing in for Excel Solver GRG with
+// box constraints; PK.fit.map has no parameter bounds.
+const WB = {
+  kSlope: 0.00107, kIntFit: 0.005216005, kIntAuc: 0.0052, vdPerKg: 0.65, crVdPerKg: 0.6,
+  scrFloor: 0.7, scrFloorLow: 0.5,            // floored BEFORE any SCr multiplier (FIT CrCl sheet)
+  clCrBounds: [0.3, 14.64],                    // L/h (5–244 mL/min), Solver bounds on the Chiou fit
+  ldTarget: 30, tauCmax: 30, tauCmin: 15, tauAddH: 2 /* fixed 2 h, not T′ */, mdPerKg: 12.5,
+  cvK: 0.3, cvV: 0.3, cvAssay: 0.1,            // FIT hard-coded: priors on K and V, SD = CV × population; residual 0.1 × observed
+  kBox: [0.1, 10], vBox: [0.5, 2], aucBox: [0.5, 2],
+  maxDoses: 7, maxLevelsPerDose: 2, aucVdOptions: [0.5, 0.65, 1], doseWarnPerKg: 18, doseMaxPerKg: 20, ldWarn: 3000,
+};
+
+function golden(f, a, b, it = 90) {
+  const g = (Math.sqrt(5) - 1) / 2; let c = b - g * (b - a), d = a + g * (b - a), fc = f(c), fd = f(d);
+  for (let j = 0; j < it; j++) { if (fc < fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = f(c); } else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = f(d); } }
+  return (a + b) / 2;
+}
+// Global minimum of f on [lo, hi] (lo > 0): log-spaced grid, then golden section in the best bracket.
+function boxMin(f, lo, hi, n = 240) {
+  const r = Math.pow(hi / lo, 1 / n); let best = 0, fb = Infinity;
+  for (let j = 0; j <= n; j++) { const v = f(lo * Math.pow(r, j)); if (v < fb) { fb = v; best = j; } }
+  return golden(f, lo * Math.pow(r, Math.max(0, best - 1)), lo * Math.pow(r, Math.min(n, best + 1)));
+}
+// Two-parameter box fit by profiling: x outer, y inner. Returns { x, y, f }.
+function boxMin2(f, xb, yb) {
+  const inner = (x) => boxMin((y) => f(x, y), yb[0], yb[1], 120);
+  const x = boxMin((x) => f(x, inner(x)), xb[0], xb[1], 120), y = inner(x);
+  return { x, y, f: f(x, y) };
+}
+
+// FIT renal function: Chiou two-SCr fit (Vcr 0.6·TBW, production on min(IBW, TBW)), SCr floored first.
+// i: { age, sex, htIn, wtKg, scr, scrPrev, dtScr, lowFloor (SCI/paralysis or malnutrition → 0.5), scrMult }
+function wbRenal(i) {
+  const tbw = i.wtKg, htCm = i.htIn * 2.54, ibw = PK.body.ibw(i.sex, i.htIn), lbw = Math.min(ibw, tbw);
+  const floor = i.lowFloor ? WB.scrFloorLow : WB.scrFloor, mult = isFin(i.scrMult) ? i.scrMult : 1;
+  const prev = isFin(i.scrPrev) ? i.scrPrev : i.scr;
+  const S2 = Math.max(i.scr, floor) * mult, S1 = Math.max(prev, floor) * mult;
+  const prod = PK.renal.creatinineProduction(i.age, lbw, i.sex);           // mg/h
+  const vcr = WB.crVdPerKg * tbw, T = isFin(i.dtScr) && i.dtScr > 0 ? i.dtScr : 24;
+  const pred = (cl) => { const e = Math.exp((-cl / vcr) * T); return S1 * e + (prod / (10 * cl)) * (1 - e); }; // mg/dL
+  let [lo, hi] = WB.clCrBounds, cl, clamped = false;
+  if (pred(lo) <= S2) { cl = lo; clamped = true; } else if (pred(hi) >= S2) { cl = hi; clamped = true; }
+  else { for (let j = 0; j < 200; j++) { const m = (lo + hi) / 2; if (pred(m) > S2) lo = m; else hi = m; } cl = (lo + hi) / 2; }
+  const crcl = (cl * 1000) / 60, bsa = PK.body.bsa(tbw, htCm);
+  const flags = [];
+  if (S2 !== i.scr * mult || S1 !== prev * mult) flags.push({ code: "wbFloor", lvl: "info", text: `Workbook floors SCr at ${floor} mg/dL before the Chiou fit (the live site and the Literature model do not).` });
+  if (clamped) flags.push({ code: "wbClClamp", lvl: "warn", text: `Workbook CrCl limited to the Solver bounds 5–244 mL/min (${num0(crcl)} mL/min).` });
+  return { tbw, htCm, ibw, lbw, bsa, S1, S2, floor, prod, vcr, crclLh: cl, crcl, crclNorm: (crcl * 1.73) / bsa, crT: 0.693 / (cl / vcr), changing: S1 !== S2, flags };
+}
+const num0 = (x) => (isFin(x) ? String(Math.round(x)) : "–");
+
+// FIT population block (C17–C35): K, V, LD for a 30 mg/L peak, interval ln(30/15)/K + 2 h, MD 12.5 mg/kg TBW.
+function wbPop(i) {
+  const rn = wbRenal(i), tinf = isFin(i.tinf) ? i.tinf : 2;
+  const k = WB.kSlope * rn.crclNorm + WB.kIntFit, V = WB.vdPerKg * rn.tbw;
+  return { ...rn, k, V, CL: k * V, tinf,
+    ld: PK.one.loadingDoseInfusion({ cTarget: WB.ldTarget, tinf }, { V, k }),
+    tauCalc: Math.log(WB.tauCmax / WB.tauCmin) / k + WB.tauAddH, mdPop: WB.mdPerKg * rn.tbw };
+}
+// FIT steady-state prediction (C37–C39): AUC24 = [(Cmax + Cmin)·T′/2 + (Cmax − Cmin)/K]·24/τ.
+function wbSS(dose, tau, tinf, k, V) {
+  const peak = (dose * (1 - Math.exp(-k * tinf))) / (V * k * tinf * (1 - Math.exp(-k * tau))), trough = peak * Math.exp(-k * (tau - tinf));
+  return { peak, trough, aucTrap: (((peak + trough) * tinf) / 2 + (peak - trough) / k) * (24 / tau), aucDose: (dose * 24) / (k * V * tau) };
+}
+// FIT dose-workbook flags (sheet warnings).
+function wbDoseFlags(dose, tbw, tau, oldDaily) {
+  const f = [], pk = dose / tbw;
+  if (pk > WB.doseMaxPerKg) f.push({ code: "wbDoseMax", lvl: "warn", text: `${pk.toFixed(1)} mg/kg per dose: the workbook warns above 20 mg/kg ("too large").` });
+  else if (pk >= WB.doseWarnPerKg) f.push({ code: "wbDose18", lvl: "info", text: `${pk.toFixed(1)} mg/kg per dose: the workbook recommends 10–17.5 mg/kg.` });
+  if (isFin(oldDaily) && (dose * 24) / tau > 1.5 * oldDaily) f.push({ code: "wbDaily", lvl: "warn", text: "New total daily dose is more than 1.5 × the old one (workbook warning)." });
+  return f;
+}
+
+// Workbook initial regimen. i: covariates input + { tinf, tau ('auto'|number), dose, aucTarget, lowFloor, nephrotoxins }
+function wbInitialCalc(i) {
+  const tinf = i.tinf || 2, pop = wbPop({ ...i, tinf });
+  const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
+  const pm = { model: "wbFit", struct: "1c", p: { V: pop.V, CL: pop.CL, k: pop.k }, src: "wbFit" };
+  const tauSuggested = PK.round.snapInterval(pop.tauCalc, LIT.tauAuto, "nearest");
+  const tau = i.tau === "auto" || !isFin(i.tau) ? tauSuggested : i.tau;
+  const mdExact = pop.mdPop, dose = isFin(i.dose) ? i.dose : Math.max(LIT.doseInc, PK.round.roundTo(mdExact, LIT.doseInc));
+  const mdAuc = doseForAuc(pop.CL, tau, target);
+  const ld = { exact: pop.ld, dose: PK.round.roundTo(pop.ld, LIT.doseInc), capped: false, perKg: pop.ld / pop.tbw };
+  const wb = wbSS(dose, tau, tinf, pop.k, pop.V), pred = predictSS(pm, { dose, tau, tinf });
+  const flags = [...pop.flags];
+  if (i.age < 18) flags.unshift({ code: "peds", lvl: "crit", text: "Adult workbook branch only here (age ≥ 18). The workbook's pediatric branch (Peck LBW, Schwartz) is not built." });
+  if (pop.ld > WB.ldWarn) flags.push({ code: "wbLd3g", lvl: "warn", text: `Workbook loading dose ${Math.round(pop.ld)} mg exceeds 3000 mg; the workbook warns but does not cap it.` });
+  flags.push(...wbDoseFlags(dose, pop.tbw, tau));
+  flags.push(...clinicalFlags({ auc: wb.aucTrap, trough: wb.trough, dose, tau, tinf, nephrotoxins: i.nephrotoxins }));
+  return { mode: "workbook", model: "wbFit", pop, pm, ld, tau, tauSuggested, tauRaw: pop.tauCalc, md: { exact: mdExact, dose, perKg: dose / pop.tbw }, mdAuc,
+    pred, wb, flags, tinf, target };
+}
+
+// Workbook (FIT) MAP over the dose history. i: covariates input + { doses, levels, c0, fitMask, wbObjective ('bayes'|'ls'),
+//   newTau, newTinf, newDose, aucTarget, lowFloor, nephrotoxins }
+// Bayesian: Σ((obs − pred)/(0.1·obs))² + ((K − Kpop)/(0.3·Kpop))² + ((V − Vpop)/(0.3·Vpop))²; non-Bayesian: Σ(pred − obs)².
+// Solver box K ∈ [0.1, 10]·Kpop, V ∈ [0.5, 2]·Vpop; K-only fits hold V at the population value.
+function wbBayesCalc(i) {
+  const doses = [...i.doses].sort((a, b) => a.t - b.t);
+  const levels = i.levels.filter((l) => isFin(l.t) && l.c > 0).sort((a, b) => a.t - b.t);
+  if (!doses.length) return { error: "Enter at least one dose." };
+  if (!levels.length) return { error: "Enter at least one measured level." };
+  const pop = wbPop({ ...i, tinf: doses[0].tinf });
+  const pm = { model: "wbFit", struct: "1c", p: { V: pop.V, CL: pop.CL, k: pop.k }, src: "wbFit" };
+  const flags = [...pop.flags];
+  if (i.age < 18) flags.unshift({ code: "peds", lvl: "crit", text: "Adult workbook branch only here (age ≥ 18)." });
+  const kinds = levelKinds(doses, levels);
+  const init = isFin(i.c0) && i.c0 > 0 ? { c0: i.c0, t0: doses[0].t } : undefined;
+  const allTroughs = kinds.every((k) => k.kind === "trough");
+  const mask = i.fitMask && i.fitMask !== "auto" ? i.fitMask : levels.length === 1 || allTroughs ? "CL" : "both";
+  const bayes = i.wbObjective !== "ls";
+  const pred = (k, V, t) => PK.one.superpose(t, doses, { V, k }, init);
+  const of = (k, V) => {
+    let s = 0;
+    for (const l of levels) { const p = pred(k, V, l.t); s += bayes ? Math.pow((l.c - p) / (WB.cvAssay * l.c), 2) : Math.pow(p - l.c, 2); }
+    if (bayes) s += Math.pow((pop.k - k) / (WB.cvK * pop.k), 2) + Math.pow((pop.V - V) / (WB.cvV * pop.V), 2);
+    return s;
+  };
+  const kb = [WB.kBox[0] * pop.k, WB.kBox[1] * pop.k], vb = [WB.vBox[0] * pop.V, WB.vBox[1] * pop.V];
+  let k, V;
+  if (mask === "both") { const r = boxMin2((v, kk) => of(kk, v), vb, kb); V = r.x; k = r.y; }
+  else { V = pop.V; k = boxMin((kk) => of(kk, V), kb[0], kb[1]); }
+  const atBound = { k: k < kb[0] * 1.001 || k > kb[1] * 0.999, V: mask === "both" && (V < vb[0] * 1.001 || V > vb[1] * 0.999) };
+  if (atBound.k || atBound.V) flags.push({ code: "wbBound", lvl: "warn", text: `Fit stopped at the workbook Solver bound (${atBound.k ? "K 0.1–10 × population" : "V 0.5–2 × population"}): check doses, times and levels.` });
+  const params = { V, k, CL: k * V };
+  const fm = { ...pm, p: params };
+  const predictions = levels.map((l) => ({ t: l.t, obs: l.c, pred: pred(k, V, l.t) }));
+  // Workbook limits: 7 doses, 2 levels after each dose.
+  if (doses.length > WB.maxDoses) flags.push({ code: "wbMaxDoses", lvl: "info", text: `${doses.length} doses: the workbook holds 7. All doses are used here.` });
+  const perDose = kinds.reduce((m, l) => { const key = String(l.t - l.tsd); m[key] = (m[key] || 0) + 1; return m; }, {});
+  if (Object.values(perDose).some((n) => n > WB.maxLevelsPerDose)) flags.push({ code: "wbMaxLevels", lvl: "info", text: "More than 2 levels after one dose: the workbook holds 2 per dose. All levels are used here." });
+  if (kinds.some((l) => l.kind === "during")) flags.push({ code: "during", lvl: "warn", text: "A level falls during an infusion: check its time. Predicted here with the infusion equation; the workbook would use the post-infusion equation and over-predict it." });
+  const last = doses[doses.length - 1], prevD = doses[doses.length - 2];
+  const curTau = isFin(i.curTau) ? i.curTau : prevD ? last.t - prevD.t : 24;
+  const current = { ...predictSS(fm, { dose: last.dose, tau: curTau, tinf: last.tinf }), wb: wbSS(last.dose, curTau, last.tinf, k, V) };
+  const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
+  const newTau = isFin(i.newTau) ? i.newTau : curTau, newTinf = isFin(i.newTinf) ? i.newTinf : last.tinf;
+  const md = doseForAuc(params.CL, newTau, target);
+  const newDose = isFin(i.newDose) ? i.newDose : md.dose;
+  const predN = { ...predictSS(fm, { dose: newDose, tau: newTau, tinf: newTinf }), wb: wbSS(newDose, newTau, newTinf, k, V) };
+  flags.push(...wbDoseFlags(newDose, pop.tbw, newTau, (last.dose * 24) / curTau));
+  flags.push(...clinicalFlags({ auc: predN.auc, trough: predN.trough, dose: newDose, tau: newTau, tinf: newTinf, nephrotoxins: i.nephrotoxins }));
+  const tEnd = Math.max(last.t + curTau, levels[levels.length - 1].t), ts = [], cs = [];
+  for (let t = tEnd - 24; t <= tEnd + 1e-9; t += 0.05) { ts.push(t); cs.push(concAt(fm, doses, t, init)); }
+  return { mode: "workbook", pm, fm, pop, fit: { params, predictions, se: {}, objective: of(k, V), bayes, atBound }, params, mask, kinds, init, doses, levels,
+    current, curTau, md: { ...md, dose: newDose }, newTau, newTinf, pred: predN, aucRange: null, auc24Last: PK.one.aucTrapezoid(ts, cs, { logDown: true }),
+    tauSuggested: Math.log(WB.tauCmax / WB.tauCmin) / k + WB.tauAddH, flags, target };
+}
+
+// AUCWB: steady-state peak & trough after the same dose, MAP on CL and V (workbook-checks §2, W4).
+// Population: CG on min(IBW, TBW), no SCr floor; CL = (0.00107·CrCl/1.73 m² + 0.0052)·0.65·TBW whatever Vd is chosen.
+// Bayesian: Σ((obs − pred)/(0.1·obs))² + ((V − Vpop)/(0.3·V))² + ((CL − CLpop)/(0.3·CL))² (prior SD on the FITTED value);
+// non-Bayesian: relative least squares Σ((obs − pred)/obs)². Box CL, V ∈ [0.5, 2] × population.
+// i: { age, sex, htIn, wtKg, scr, vdPerKg, dose, tau, tinf, peak, tPeak (h after END), trough, tTrough (h before next START),
+//      wbObjective, newTau, newTinf, newDose, aucTarget }
+function aucWbCalc(i) {
+  const tbw = i.wtKg, ibw = PK.body.ibw(i.sex, i.htIn), crcl = PK.renal.cgRaw(i.age, Math.min(ibw, tbw), i.scr, i.sex);
+  const bsa = PK.body.bsa(tbw, i.htIn * 2.54), crclN = (1.73 * crcl) / bsa;
+  const vdPerKg = WB.aucVdOptions.includes(i.vdPerKg) ? i.vdPerKg : WB.vdPerKg;
+  const V0 = vdPerKg * tbw, CL0 = (WB.kSlope * crclN + WB.kIntAuc) * WB.vdPerKg * tbw, k0 = CL0 / V0, T = i.tinf, tau = i.tau, dose = i.dose;
+  const pop = { ibw, crcl, bsa, crclN, vdPerKg, V: V0, CL: CL0, k: k0, tauSug: Math.LN2 / k0 + T,
+    dose30: (WB.ldTarget * k0 * V0 * T * (1 - Math.exp(-k0 * tau))) / (1 - Math.exp(-k0 * T)), ld: dose / (1 - Math.exp(-k0 * tau)),
+    auc: ((dose / CL0) * 24) / tau, ...wbSS(dose, tau, T, k0, V0) };
+  const out = { pop, flags: [] };
+  if (!(i.peak > 0 && i.trough > 0)) return { ...out, error: "Enter both levels." };
+  const tpk = T + i.tPeak, ttr = tau - i.tTrough;
+  if (!(ttr > tpk)) return { ...out, error: "Trough must be drawn after the peak within the interval." };
+  const bayes = i.wbObjective !== "ls";
+  const at = (V, CL, t) => PK.one.ss({ dose, tau, tinf: T }, { V, CL }).at(t);
+  const of = (V, CL) => {
+    const rp = (i.peak - at(V, CL, tpk)) / i.peak, rt = (i.trough - at(V, CL, ttr)) / i.trough;
+    if (!bayes) return rp * rp + rt * rt;
+    return Math.pow(rp / WB.cvAssay, 2) + Math.pow(rt / WB.cvAssay, 2) + Math.pow((V - V0) / (V * WB.cvV), 2) + Math.pow((CL - CL0) / (CL * WB.cvK), 2);
+  };
+  const r = boxMin2(of, [WB.aucBox[0] * V0, WB.aucBox[1] * V0], [WB.aucBox[0] * CL0, WB.aucBox[1] * CL0]);
+  const V = r.x, CL = r.y, k = CL / V;
+  if (i.tPeak < 0) out.flags.push({ code: "during", lvl: "warn", text: "Peak time is during the infusion; predicted with the infusion equation." });
+  const atB = (x, x0) => x < WB.aucBox[0] * x0 * 1.001 || x > WB.aucBox[1] * x0 * 0.999;
+  if (atB(V, V0) || atB(CL, CL0)) out.flags.push({ code: "wbBound", lvl: "warn", text: "AUC workbook fit stopped at a Solver bound (0.5–2 × population)." });
+  const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
+  const newTau = isFin(i.newTau) ? i.newTau : tau, newTinf = isFin(i.newTinf) ? i.newTinf : T;
+  const md = doseForAuc(CL, newTau, target), newDose = isFin(i.newDose) ? i.newDose : md.dose;
+  return { ...out, bayes, fit: { V, CL, k, objective: r.f, auc: ((dose / CL) * 24) / tau, ...wbSS(dose, tau, T, k, V), predPeak: at(V, CL, tpk), predTrough: at(V, CL, ttr) },
+    md: { ...md, dose: newDose }, newTau, newTinf, pred: wbSS(newDose, newTau, newTinf, k, V), target };
+}
+
+// ---------- Plot data ----------
+// Sampled profile for a dose-event list over [t0, t1].
+function profile(pm, events, t0, t1, init, n = 240) {
+  const pts = [];
+  for (let j = 0; j <= n; j++) { const t = t0 + ((t1 - t0) * j) / n; pts.push([t, concAt(pm, events, t, init)]); }
+  return pts;
+}
+// Steady-state profile over k intervals for regimen r, optionally preceded by a loading dose at t = 0.
+function regimenEvents(r, n, ld) {
+  const ev = [];
+  if (isFin(ld) && ld > 0) ev.push({ t: 0, dose: ld, tinf: Math.max(r.tinf, ld / LIT.maxRate) });
+  const t0 = ev.length ? r.tau : 0;
+  for (let j = 0; j < n; j++) ev.push({ t: t0 + j * r.tau, dose: r.dose, tinf: r.tinf });
+  return ev;
+}
+
+// ---------- Order text ----------
+function orderText(o) {
+  const lines = [];
+  if (isFin(o.ld) && o.ld > 0) lines.push(`Vancomycin ${o.ld} mg IV x1 loading dose, infuse over ${Math.max(1, Math.ceil((o.ld / 1000) * 2) / 2)} h.`);
+  lines.push(`Vancomycin ${o.dose} mg IV every ${o.tau} h, infuse over ${o.tinf} h${o.firstAt ? `, first dose ${o.firstAt}` : ""}.`);
+  const p = [];
+  if (isFin(o.auc)) p.push(`AUC24 ${Math.round(o.auc)} mg·h/L (target ${o.range || "400–600"})`);
+  if (isFin(o.peak)) p.push(`peak ${o.peak.toFixed(1)}`);
+  if (isFin(o.trough)) p.push(`trough ${o.trough.toFixed(1)} mg/L`);
+  if (p.length) lines.push(`Predicted at steady state: ${p.join(", ")}.`);
+  lines.push(`Basis: ${o.basis}.`);
+  lines.push(o.monitor || "Monitor: SCr daily; peak 1–2 h after end of infusion and trough before the next dose (same dose) or Bayesian levels within 24–48 h.");
+  return lines.join("\n");
+}
+// CALC-END
+
+// ===================== UI =====================
+const $ = (id) => document.getElementById(id);
+const { esc, num } = PKUI;
+$("ver").textContent = `v${PK.version}`;
+
+// Local provenance tags (rendered like PKUI.badge).
+const LSRC = {
+  reg1c: { label: "K = 0.00107·CrCl/1.73 m² + 0.0052, Vd 0.65 L/kg (site author's 2007 regression, unpublished)", ref: "vanco-auc §3; lit/vancomycin 1b", verify: false },
+  siteServer: { label: "Site server calculator, live-verified 2026-10-23 (intercept 0.00521)", ref: "vanco-auc live-server sections", verify: false },
+  matzke: { label: "Matzke 1984 CL = 3.66 + 0.689·CrCl; Vd 0.7 L/kg textbook [R]", ref: "lit/vancomycin 1b", verify: true },
+  goti: { label: "Goti 2018 (PMID 29470227; erratum PMID 31306395): confirmed via two secondary sources and InsightRX code; primary paper and erratum not read", ref: "decisions/vancomycin-aminoglycosides.md §7", verify: true },
+  gotiSite: { label: "Site 'modified Goti' CL 6.4·(CrCl/120)^0.8, Vp weight-scaled: unpublished; current version (3/2023 MUE Part 2 PDF, FractionSS workbook)", ref: "two-comp-auc Workbook verification item 1", verify: true },
+  gotiSite2022: { label: "Site 'modified Goti' CL 6.04·(CrCl/120)^0.8: legacy 4/2022 MUE PDF and site web pages; unpublished", ref: "two-comp-auc §3.1 and Workbook verification item 1", verify: true },
+  carrenoSite: { label: "Carreno 2-comp from the site's 3/2023 MUE: Vc 25.76, k12 2.29, k21 1.44, CL 0.043292·CrCl + 0.331123; priors CV 0.3 assumed", ref: "two-comp-auc Workbook verification item 2", verify: true },
+  wbFit: { label: "Site fitting workbook K_VD_Fitting_V2: K = 0.00107·CrCl/1.73 m² + 0.005216005, Vd 0.65 L/kg, SCr floor 0.7, priors on K and V (CV 0.3), assay 0.1 × observed", ref: "workbook-checks/vancomycin-aminoglycosides.md §1", verify: false },
+  wbAuc: { label: "Site AUC workbook (1-comp): CL = (0.00107·CrCl/1.73 m² + 0.0052)·0.65·TBW, prior SD 0.3 × fitted value, assay 0.1", ref: "workbook-checks/vancomycin-aminoglycosides.md §2", verify: false },
+  wbLd: { label: "Workbook LD for a 30 mg/L peak, infusion formula, no cap (warning above 3 g)", ref: "workbook-checks/vancomycin-aminoglycosides.md §1.2", verify: false },
+  obeseVd: { label: "Vd 0.5 L/kg TBW when BMI ≥ 30, no TBW cap (Rybak 2020; Adane 2015; approved)", ref: "decisions/vancomycin-aminoglycosides.md §5", verify: false },
+  fixed75: { label: "Fixed Vd 75 L at BMI ≥ 40 (Dunn 2019, PMID 31630155)", ref: "decisions/vancomycin-aminoglycosides.md §5", verify: false },
+  ld4g: { label: "LD cap 4000 mg (Payne 2024, PMID 39493211; small RCT, low confidence)", ref: "decisions/vancomycin-aminoglycosides.md §5", verify: true },
+  ld: { label: "LD 20–35 mg/kg TBW, ≤ 25 if BMI ≥ 30, max 3000 mg (Rybak 2020)", ref: "lit/vancomycin 1a", verify: false },
+  siteLd: { label: "Site LD = 40·Vd·K·T′/(1 − e^−KT′), no cap (live-verified)", ref: "vanco-auc §3", verify: false },
+  aucTarget: { label: "AUC24 400–600 mg·h/L, MIC 1 (Rybak 2020)", ref: "lit/vancomycin 1a", verify: false },
+  litPrior: { label: "Log-normal priors ω 0.30 on CL and V, residual 15% + 1.5 mg/L on predicted (approved)", ref: "decisions/vancomycin-aminoglycosides.md §6", verify: false },
+  siteMap: { label: "Site MAP: normal priors CV 0.3, assay CV 0.1 × observed", ref: "bayesian-engine §4(c)", verify: false },
+  troughOnly: { label: "Trough-only first-order AUC: not a guideline method", ref: "Rybak 2020; lit/vancomycin 1a", verify: true },
+};
+const badge = (k) => {
+  if (PK.sources[k]) return PKUI.badge(k);
+  const s = LSRC[k];
+  if (!s) return `<span class="src verify" title="Unknown source">verify</span>`;
+  const t = esc(`${s.label} (${s.ref})`);
+  return s.verify ? `<span class="src verify" title="${t}">verify</span>` : `<span class="src" title="${t}">src</span>`;
+};
+
+// ---------- Tabs and theme ----------
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+let activeTab = "init";
+function showTab(name) {
+  activeTab = name;
+  tabs.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  for (const t of ["init", "levels", "bayes"]) $(`panel-${t}`).hidden = t !== name;
+  calcAll();
+}
+tabs.forEach((b) => b.addEventListener("click", () => { showTab(b.dataset.tab); try { history.replaceState(null, "", `#${b.dataset.tab}`); } catch (e) {} }));
+tabs.forEach((b, idx) => b.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  const n = tabs[(idx + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; n.focus(); n.click();
+}));
+const THEMES = ["auto", "light", "dark"];
+let theme = "auto";
+try { theme = localStorage.getItem("pk-theme") || "auto"; } catch (e) {}
+function applyTheme() {
+  if (theme === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", theme);
+  $("themeBtn").textContent = `Theme: ${theme}`;
+}
+$("themeBtn").addEventListener("click", () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; try { localStorage.setItem("pk-theme", theme); } catch (e) {} applyTheme(); });
+applyTheme();
+
+// ---------- Inputs ----------
+const htT = PKUI.unitToggle($("ht"), $("htU"), ["in", "cm"], { dp: 1, onChange: () => calcAll() });
+const wtT = PKUI.unitToggle($("wt"), $("wtU"), ["kg", "lb"], { dp: 1, onChange: () => calcAll() });
+const scrT = PKUI.unitToggle($("scr"), $("scrU"), ["mg/dL", "µmol/L"], { dp: 2, onChange: () => calcAll() });
+const scr0T = PKUI.unitToggle($("scr0"), $("scr0U"), ["mg/dL", "µmol/L"], { dp: 2, onChange: () => calcAll() });
+const fnum = (id) => { const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; };
+let mode = "literature";
+PKUI.segmented($("modelSeg"), (v) => { mode = v; fillModels(); calcAll(); });
+let lvMethod = "pt";
+PKUI.segmented($("lvMethod"), (v) => { lvMethod = v; $("l_ptF").hidden = v !== "pt"; $("l_trF").hidden = v !== "tr"; calcAll(); });
+
+function fillModels() {
+  const opts = mode === "workbook" ? ["wbFit"] : mode === "site" ? ["reg1c", "gotiSite", "gotiSite2022", "carrenoSite"] : ["reg1c", "matzke", "goti"];
+  const cur = $("pmodel").value;
+  $("pmodel").innerHTML = opts.map((m) => `<option value="${m}">${esc(m === "reg1c" && mode === "site" ? "1-comp site calculator (default)" : MODELS[m].label + (m === "reg1c" ? " (default)" : ""))}</option>`).join("");
+  if (opts.includes(cur)) $("pmodel").value = cur;
+  const lit = mode === "literature", wb = mode === "workbook";
+  $("floorL").hidden = !lit; $("elderlyL").hidden = $("gotiResL").hidden = !lit || $("pmodel").value !== "goti";
+  $("ldCapL").hidden = !lit; $("fixed75L").hidden = !lit || MODELS[$("pmodel").value].struct !== "1c";
+  $("wbLowL").hidden = !wb; $("b_wbObjL").hidden = !wb;
+  $("b_cvL").hidden = mode !== "site"; $("i_ldL").hidden = wb || (mode === "site" && $("pmodel").value === "reg1c");
+  $("modelNote").innerHTML = mode === "site"
+    ? `Site parity: reproduces pkineticdrugdosing.com (rounded values, no SCr floor, no obesity adjustment, uncapped 40 mg/L loading dose). Bayesian tab = the site's web Bayesian page, not its Excel workbooks. ${badge("siteServer")}`
+    : wb ? `Workbook parity: reproduces the site's Excel workbooks (SCr floor 0.7, K intercept 0.005216005, 30 mg/L loading dose, priors on K and V; the Levels tab adds the 1-comp AUC workbook). Workbook formula errors are not copied. ${badge("wbFit")}`
+    : `Literature defaults from lit/vancomycin.md (Rybak 2020). Values outside the site or unverified carry a <span class="src verify">verify</span> badge.`;
+  $("b_objNote").innerHTML = mode === "site" ? `Objective: site MAP (web Bayesian page) ${badge("siteMap")}`
+    : wb ? `Objective: fitting workbook, normal priors on K and V (SD 0.3 × population), residual SD 0.1 × observed; Solver box K 0.1–10 ×, V 0.5–2 × ${badge("wbFit")}`
+    : `Objective: log-normal priors, combined residual error on the predicted level ${badge("litPrior")}`;
+}
+$("pmodel").addEventListener("change", () => { fillModels(); calcAll(); });
+const tauOpts = (sel, withAuto, def) => {
+  $(sel).innerHTML = (withAuto ? `<option value="auto">Auto</option>` : "") + LIT.tauMenu.concat([96, 120]).filter((v, j, a) => a.indexOf(v) === j).map((t) => `<option value="${t}">q${t}h</option>`).join("");
+  $(sel).value = def;
+};
+tauOpts("i_tau", true, "auto"); tauOpts("l_ntau", false, "12"); tauOpts("b_ntau", false, "12");
+
+function patient() {
+  const scrPrevRaw = $("scr0").value === "" ? NaN : scr0T.getValue(), hrs = fnum("hrs");
+  const cm = htT.unit() === "cm", lb = wtT.unit() === "lb";
+  const floor = $("floor").value;
+  return {
+    age: fnum("age"), sex: $("sex").value, htIn: htT.getValue(), wtKg: wtT.getValue(),
+    htCm: mode === "site" && cm ? fnum("ht") : NaN, wtLb: mode === "site" && lb ? fnum("wt") : NaN, // site converts cm (0.1 in) and lb (÷2.2) itself
+    scr: scrT.getValue(), scrPrev: isFinite(scrPrevRaw) && isFinite(hrs) ? scrPrevRaw : NaN, dtScr: isFinite(hrs) ? hrs : 24,
+    scrFloor: mode !== "literature" || floor === "off" ? null : +floor, elderlyFloor: mode === "literature" && $("elderly").checked,
+    lowFloor: $("wbLow").checked, wbObjective: $("b_wbObj").value,
+    gotiResid: $("gotiRes").value, ldCap: +$("ldCap").value, fixed75: $("fixed75").checked,
+    nephrotoxins: [...document.querySelectorAll("#nephro input:checked")].map((x) => x.value),
+    mode, model: $("pmodel").value, aucTarget: +$("target").value,
+  };
+}
+const validPatient = (p) => [p.age, p.htIn, p.wtKg, p.scr].every((x) => x > 0);
+
+// ---------- Rendering helpers ----------
+function aucBar(auc) {
+  const lo = 200, hi = 900, pos = (x) => `${(100 * (Math.min(hi, Math.max(lo, x)) - lo)) / (hi - lo)}%`;
+  return `<div class="aucwrap" role="img" aria-label="AUC ${Math.round(auc)} versus target 400 to 600"><div class="aucbar">
+    <div class="band" style="left:${pos(400)};width:${(100 * 200) / (hi - lo)}%"></div>
+    <div class="mark" style="left:calc(${pos(auc)} - 1px)"></div>
+    <span class="tick" style="left:${pos(400)}">400</span><span class="tick" style="left:${pos(600)}">600</span></div></div>`;
+}
+const aucPill = (auc) => (auc > 600 ? `<span class="pill crit">AUC above 600</span>` : auc < 400 ? `<span class="pill warn">AUC below 400</span>` : `<span class="pill ok">AUC in 400–600</span>`);
+const modelPill = () => `<span class="pill ${mode === "literature" ? "ok" : "warn"}">Model: ${mode}</span>`;
+const dl = (rows) => rows.filter(Boolean).map(([k, v, s]) => `<dt>${esc(k)} ${s ? badge(s) : ""}</dt><dd>${v}</dd>`).join("");
+let orderCache = {};
+function orderCard(id, o) {
+  orderCache[id] = orderText(o);
+  return `<div class="top"><div class="lines">
+      ${o.ld ? `<div class="oline"><span class="tag">Load</span><span class="rx">${o.ld} mg IV ×1</span></div>` : ""}
+      <div class="oline"><span class="tag">Maint</span><span class="rx">${o.dose} mg IV q${o.tau}h over ${o.tinf} h</span></div>
+      <div class="subl">${o.sub || ""}</div>
+    </div>
+    <div class="right">${modelPill()}<span class="lbl">Predicted AUC24</span><span class="val">${Math.round(o.auc)}</span><span class="lbl">mg·h/L ${badge("aucTarget")}</span>${aucPill(o.auc)}${aucBar(o.auc)}</div></div>
+    <div class="info">${o.info || ""}</div>
+    <pre class="ordertext" id="${id}_txt">${esc(orderCache[id])}</pre>
+    <div class="actions"><button type="button" class="primary" data-copy="${id}">Copy order text</button><span class="hint" id="${id}_ok"></span></div>`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  const id = b.dataset.copy, txt = orderCache[id];
+  const done = () => { $(`${id}_ok`).textContent = "Copied"; setTimeout(() => ($(`${id}_ok`).textContent = ""), 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(id, done));
+  else fallbackCopy(id, done);
+});
+function fallbackCopy(id, done) { const r = document.createRange(); r.selectNodeContents($(`${id}_txt`)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand("copy"); done(); } catch (e) {} }
+
+// Inline SVG concentration–time plot. lines: [{pts:[[t,c]], alt, label}], obs: [{t,c}], band: [lo, hi] Cavg band for AUC 400–600.
+function plot(el, { lines, obs = [], band = [400 / 24, 600 / 24], xlab = "h" }) {
+  const W = 720, H = 260, m = { l: 42, r: 12, t: 10, b: 30 };
+  const all = lines.flatMap((l) => l.pts);
+  const xmin = Math.min(...all.map((p) => p[0])), xmax = Math.max(...all.map((p) => p[0]));
+  const ymax = Math.max(band[1] * 1.15, ...all.map((p) => p[1]), ...obs.map((o) => o.c)) * 1.08;
+  const step = ymax > 60 ? 20 : ymax > 30 ? 10 : 5;
+  const X = (t) => m.l + ((t - xmin) / (xmax - xmin || 1)) * (W - m.l - m.r), Y = (c) => H - m.b - (c / ymax) * (H - m.t - m.b);
+  const xs = xmax - xmin > 120 ? 24 : xmax - xmin > 48 ? 12 : 6;
+  let g = `<rect class="bandr" x="${m.l}" y="${Y(band[1])}" width="${W - m.l - m.r}" height="${Y(band[0]) - Y(band[1])}"/>`;
+  for (let y = 0; y <= ymax; y += step) g += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(y)}" y2="${Y(y)}"/><text x="${m.l - 6}" y="${Y(y) + 4}" text-anchor="end">${y}</text>`;
+  for (let x = Math.ceil(xmin / xs) * xs; x <= xmax + 1e-9; x += xs) g += `<text x="${X(x)}" y="${H - m.b + 16}" text-anchor="middle">${Math.round(x)}</text>`;
+  g += `<line class="axis" x1="${m.l}" x2="${W - m.r}" y1="${Y(0)}" y2="${Y(0)}"/><text x="${W - m.r}" y="${H - 4}" text-anchor="end">${esc(xlab)}</text><text x="4" y="${m.t + 8}">mg/L</text>`;
+  for (const l of lines) g += `<polyline class="ln${l.alt ? " alt" : ""}" points="${l.pts.map((p) => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ")}"/>`;
+  for (const o of obs) g += `<circle class="obs" cx="${X(o.t)}" cy="${Y(o.c)}" r="5"><title>Observed ${o.c} mg/L at ${o.t.toFixed(1)} h</title></circle>`;
+  g += `<line class="xh" id="${el.id}_xh" y1="${m.t}" y2="${H - m.b}" x1="-10" x2="-10"/>`;
+  el.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Concentration-time curve with the concentration band equivalent to AUC 400–600">${g}</svg><div class="tip" hidden></div>
+    <div class="legend">${lines.map((l) => `<span><i class="${l.alt ? "alt" : ""}"></i>${esc(l.label)}</span>`).join("")}${obs.length ? `<span><i class="dot"></i>Observed level</span>` : ""}<span><i class="bandk"></i>Average level for AUC 400–600 (16.7–25 mg/L)</span></div>`;
+  const svg = el.querySelector("svg"), tip = el.querySelector(".tip"), xh = el.querySelector(".xh");
+  svg.addEventListener("mousemove", (e) => {
+    const r = svg.getBoundingClientRect(), sx = ((e.clientX - r.left) / r.width) * W;
+    if (sx < m.l || sx > W - m.r) { tip.hidden = true; return; }
+    const t = xmin + ((sx - m.l) / (W - m.l - m.r)) * (xmax - xmin);
+    const vals = lines.map((l) => { let best = l.pts[0]; for (const p of l.pts) if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p; return Math.abs(best[0] - t) < (xmax - xmin) / 50 ? `${l.label}: ${best[1].toFixed(1)}` : null; }).filter(Boolean);
+    if (!vals.length) { tip.hidden = true; return; }
+    xh.setAttribute("x1", sx); xh.setAttribute("x2", sx);
+    tip.hidden = false; tip.textContent = `${t.toFixed(1)} h · ${vals.join(" · ")} mg/L`;
+    const px = (sx / W) * r.width; tip.style.left = `${Math.min(px + 10, r.width - tip.offsetWidth - 4)}px`; tip.style.top = "4px";
+  });
+  svg.addEventListener("mouseleave", () => { tip.hidden = true; xh.setAttribute("x1", -10); xh.setAttribute("x2", -10); });
+}
+
+// ---------- Tab 1 ----------
+function calcInit(p) {
+  const tauSel = $("i_tau").value;
+  const r = initialCalc({ ...p, tinf: fnum("i_tinf") || 1, tau: tauSel === "auto" ? "auto" : +tauSel, ldPerKg: fnum("i_ld"), dose: $("i_dose").value === "" ? NaN : fnum("i_dose") });
+  if (r.error) { PKUI.renderBanners($("i_alerts"), [{ lvl: "crit", text: r.error }]); $("i_order").innerHTML = ""; return; }
+  PKUI.renderBanners($("i_alerts"), r.flags);
+  if (r.mode === "workbook") return renderInitWb(r);
+  const site = r.site, pe = r.predExact;
+  const srcKey = site ? "siteServer" : r.pm.src;
+  const ldSrc = site ? "siteLd" : r.ld.cap === 4000 ? "ld4g" : "ld";
+  const sub = site
+    ? `Site calculator: suggested interval q${site.tau}h; dose for target AUC ${Math.round(r.md.exact)} mg → ${r.md.dose} mg (site gives no target-AUC dose: closed form).`
+    : `Dose for AUC ${r.target}: ${Math.round(r.md.exact)} mg → ${r.md.dose} mg (250 mg steps). ${MODELS[r.model].label} ${badge(srcKey)}`;
+  $("i_order").innerHTML = orderCard("i", {
+    ld: r.ld.dose, dose: r.md.dose, tau: r.tau, tinf: r.tinf, auc: site ? r.pred.auc : pe.auc, peak: site ? r.pred.peak : pe.peak, trough: site ? r.pred.trough : pe.trough, sub,
+    info: `<div><span class="lbl">Loading dose ${badge(ldSrc)}</span>${r.ld.dose} mg (${num(r.ld.dose / (site ? site.kg : r.cov.tbw), 1)} mg/kg)</div>
+      <div><span class="lbl">Peak (end of infusion)</span>${site ? r.pred.peak : num(pe.peak, 1)} mg/L</div>
+      <div><span class="lbl">Trough</span>${site ? r.pred.trough : num(pe.trough, 1)} mg/L</div>
+      <div><span class="lbl">Daily dose</span>${Math.round((r.md.dose * 24) / r.tau)} mg/day</div>`,
+    basis: `${mode} model, ${site ? "site non-Bayesian calculator" : MODELS[r.model].label}; population estimate before levels`,
+  });
+  const ev = regimenEvents({ dose: r.md.dose, tau: r.tau, tinf: r.tinf }, Math.max(3, Math.ceil(96 / r.tau)), r.ld.dose);
+  const tEnd = ev[ev.length - 1].t + r.tau;
+  plot($("i_plot"), { lines: [{ pts: profile(r.pm, ev, 0, tEnd, undefined, 400), label: `LD ${r.ld.dose} mg, then ${r.md.dose} mg q${r.tau}h` }] });
+  if (site) {
+    $("i_params").innerHTML = dl([["IBW / LBW", `${site.ibw} kg`, "devine"], ["Dosing weight (TBW)", `${num(site.kg, 1)} kg`], ["BSA (DuBois, 0.01)", `${site.bsa} m²`, "dubois"],
+      ["CrCl (min(IBW, TBW))", `${site.crcl} mL/min`, "cockcroftGault"], ["Creatinine t½", `${site.crT} h`], ["K", `${site.K} h⁻¹`, "siteServer"], ["t½", `${site.tHalf} h`],
+      ["Vd (0.65 L/kg)", `${site.Vd} L`], ["Dosecalc (15 mg/kg)", `${site.doseCalc} mg`], ["Suggested interval", `${site.tau} h (raw ${num(site.tauRaw, 2)})`], ["Time to 87.5% SS", `${site.ss} h`]]);
+    $("i_pred").innerHTML = dl([["Cmax (end of infusion)", `${site.cmax} mg/L`], ["Cmin", `${site.cmin} mg/L`], ["AUC24 (Dose/CL)", `${site.auc} mg·h/L`], ["mg/kg per dose", `${site.mgkg}`],
+      ["Unrounded AUC (trapezoid)", `${num(pe.aucTrap, 1)}`], ["Level 2 h post-infusion", `${num(pe.post2, 1)} mg/L`]]);
+  } else {
+    const c = r.cov, pm = r.pm;
+    const parRows = pm.struct === "1c"
+      ? [["K", `${num(pm.p.k, 4)} h⁻¹`, pm.src], ["t½", `${num(pe.tHalf, 1)} h`], ["Vd", `${num(pm.p.V, 1)} L (${num(pm.vdPerKg, 2)} L/kg)`, pm.fixed75 ? "fixed75" : c.obese ? "obeseVd" : null], ["CL", `${num(pm.p.CL, 2)} L/h`]]
+      : (() => { const m = PK.two.micro(pm.p); return [["CL", `${num(pm.p.CL, 2)} L/h`, pm.src], ["Vc / Vp", `${num(pm.p.Vc, 1)} / ${num(pm.p.Vp, 1)} L`], ["Q", `${num(pm.p.Q, 1)} L/h`], ["α / β", `${num(m.alpha, 4)} / ${num(m.beta, 4)} h⁻¹`], ["t½β", `${num(m.thalfBeta, 1)} h`]]; })();
+    $("i_params").innerHTML = dl([["IBW", `${num(c.ibw, 1)} kg`, "devine"], ["BMI", `${num(c.bmi, 1)} kg/m²`], ["BSA (DuBois)", `${num(c.bsa, 2)} m²`, "dubois"],
+      ["CrCl, regression (min(IBW, TBW))", `${num(c.crclReg, 1)} mL/min (${num(c.crclNorm, 1)} /1.73 m²)`, c.changing ? "chow" : "cockcroftGault"],
+      r.model === "goti" ? ["CrCl, Goti (CG on TBW, cap 150)", `${num(c.crclGoti, 1)} mL/min${c.crclGoti > 150 ? " → 150" : ""}`, "goti"] : r.model === "matzke" ? ["CrCl, Matzke (AdjBW if obese)", `${num(c.crclLit, 1)} mL/min`, "cockcroftGault"] : null,
+      ...parRows]);
+    $("i_pred").innerHTML = dl([["Peak (end of infusion)", `${num(pe.peak, 1)} mg/L`], ["Level 1 h post-infusion", `${num(pe.post1, 1)} mg/L`], ["Trough", `${num(pe.trough, 1)} mg/L`],
+      ["AUC24 (Dose/CL)", `${num(pe.auc, 0)} mg·h/L`, "aucDose"], ["AUC24 (trapezoid)", `${num(pe.aucTrap, 0)} mg·h/L`], ["Suggested interval", `q${r.tauSuggested}h`]]);
+  }
+  // Site population chart row
+  $("i_chartD").hidden = mode !== "site";
+  if (mode === "site" && site) {
+    const cn = PK.renal.normalizeTo173(site.crcl, site.bsa), pairs = [[40, 15], [30, 20], [30, 15], [30, 10]];
+    const rows = pairs.map(([a, b]) => { const q = popChartRow(cn, r.tinf, a, b); return `<tr><td>${a}/${b}</td><td>${num(q.tau, 0)}</td><td>${num(q.mdPerKg, 1)}</td><td>${num(q.mdPerKg * site.kg, 0)}</td><td>${num(q.auc, 0)}</td></tr>`; });
+    const q0 = popChartRow(cn, r.tinf, 30, 15);
+    $("i_chart").innerHTML = `<thead><tr><th>Peak/trough</th><th>τ h</th><th>MD mg/kg</th><th>MD mg</th><th>AUC</th></tr></thead><tbody>${rows.join("")}</tbody>
+      <tfoot><tr><td colspan="5" class="l">CrCl ${num(cn, 1)} mL/min/1.73 m² · K ${num(q0.k, 4)} · t½ ${num(q0.tHalf, 1)} h · LD ${num(q0.ldPerKg(40), 1)} mg/kg (peak 40) / ${num(q0.ldPerKg(30), 1)} (peak 30)</td></tr></tfoot>`;
+  }
+}
+
+function renderInitWb(r) {
+  const q = r.pop, w = r.wb;
+  $("i_order").innerHTML = orderCard("i", {
+    ld: r.ld.dose, dose: r.md.dose, tau: r.tau, tinf: r.tinf, auc: w.aucTrap, peak: w.peak, trough: w.trough,
+    sub: `Workbook population dose 12.5 mg/kg = ${Math.round(r.md.exact)} mg (rounded to 250 mg here; the workbook leaves rounding to the user). Dose for AUC ${r.target}: ${Math.round(r.mdAuc.exact)} mg → ${r.mdAuc.dose} mg. ${badge("wbFit")}`,
+    info: `<div><span class="lbl">Loading dose (30 mg/L peak) ${badge("wbLd")}</span>${Math.round(r.ld.exact)} mg → ${r.ld.dose} mg (${num(r.ld.dose / q.tbw, 1)} mg/kg)</div>
+      <div><span class="lbl">Workbook interval ln(30/15)/K + 2</span>${num(r.tauRaw, 2)} h → q${r.tauSuggested}h</div>
+      <div><span class="lbl">Peak / trough</span>${num(w.peak, 1)} / ${num(w.trough, 1)} mg/L</div>
+      <div><span class="lbl">Daily dose</span>${Math.round((r.md.dose * 24) / r.tau)} mg/day</div>`,
+    basis: `workbook model (site fitting workbook K_VD_Fitting_V2); population estimate before levels`,
+  });
+  const ev = regimenEvents({ dose: r.md.dose, tau: r.tau, tinf: r.tinf }, Math.max(3, Math.ceil(96 / r.tau)), r.ld.dose);
+  plot($("i_plot"), { lines: [{ pts: profile(r.pm, ev, 0, ev[ev.length - 1].t + r.tau, undefined, 400), label: `LD ${r.ld.dose} mg, then ${r.md.dose} mg q${r.tau}h` }] });
+  $("i_params").innerHTML = dl([["IBW / min(IBW, TBW)", `${num(q.ibw, 1)} / ${num(q.lbw, 1)} kg`, "devine"], ["BSA (DuBois)", `${num(q.bsa, 2)} m²`, "dubois"],
+    ["SCr used (floor " + q.floor + ")", q.changing ? `${num(q.S1, 2)} → ${num(q.S2, 2)} mg/dL` : `${num(q.S2, 2)} mg/dL`],
+    ["CrCl (Chiou, Vcr 0.6·TBW)", `${num(q.crcl, 1)} mL/min (${num(q.crclNorm, 1)} /1.73 m²)`], ["Creatinine t½", `${num(q.crT, 1)} h`],
+    ["K", `${num(q.k, 4)} h⁻¹`, "wbFit"], ["t½ (0.693/K)", `${num(0.693 / q.k, 1)} h`], ["Vd (0.65 L/kg TBW)", `${num(q.V, 1)} L`], ["CL", `${num(q.CL, 2)} L/h`]]);
+  $("i_pred").innerHTML = dl([["Cmax (end of infusion)", `${num(w.peak, 1)} mg/L`], ["Cmin", `${num(w.trough, 1)} mg/L`], ["AUC24 (workbook trapezoid + log)", `${num(w.aucTrap, 0)} mg·h/L`],
+    ["AUC24 (Dose/CL)", `${num(w.aucDose, 0)} mg·h/L`, "aucDose"], ["mg/kg per dose", `${num(r.md.perKg, 1)}`]]);
+  $("i_chartD").hidden = true;
+}
+
+// ---------- Tab 2 ----------
+function popVd(p) {
+  if (mode === "site") { const s = siteCalc({ ...p, tinf: 2 }); return s.error ? NaN : { V: s.Vd, label: `site Vd ${s.Vd} L (0.65 L/kg, rounded)` }; }
+  if (mode === "workbook") return { V: WB.vdPerKg * p.wtKg, label: `workbook Vd ${num(WB.vdPerKg * p.wtKg, 1)} L (0.65 L/kg TBW)` };
+  const pm = popModel(covariates(p), "reg1c", "literature");
+  return { V: pm.p.V, label: `population Vd ${num(pm.p.V, 1)} L (${pm.vdPerKg} L/kg TBW)` };
+}
+function calcLevels(p) {
+  const base = { dose: fnum("l_dose"), tau: fnum("l_tau"), tinf: fnum("l_tinf"), newTau: +$("l_ntau").value, newTinf: fnum("l_ntinf"),
+    newDose: $("l_ndose").value === "" ? NaN : fnum("l_ndose"), aucTarget: p.aucTarget, mode, nephrotoxins: p.nephrotoxins, tbw: p.wtKg };
+  $("l_wbC").hidden = !(mode === "workbook" && lvMethod === "pt");
+  if (!$("l_wbC").hidden) renderAucWb(p, base);
+  let r;
+  if (lvMethod === "pt") r = twoLevelCalc({ ...base, peak: fnum("l_pk"), tPeak: fnum("l_tpk"), trough: fnum("l_tr"), tTrough: fnum("l_ttr"), troughBefore: $("l_before").checked });
+  else { const v = popVd(p); $("l_vdNote").innerHTML = `Vd fixed at the ${esc(v.label)}. ${badge("troughOnly")}`; r = troughOnlyCalc({ ...base, level: fnum("l_lv"), t: fnum("l_tlv"), V: v.V }); }
+  if (r.error) { PKUI.renderBanners($("l_alerts"), [{ lvl: "crit", text: r.error }]); $("l_order").innerHTML = ""; $("l_table").innerHTML = ""; $("l_plot").innerHTML = ""; return; }
+  PKUI.renderBanners($("l_alerts"), r.flags);
+  const pm = r.pm, k = pm.p.k, S = r.site;
+  const cur = lvMethod === "pt" ? r.current : { auc: r.current.auc, aucTrap: r.current.aucTrap, cmax: r.current.peak, cmin: r.current.trough };
+  $("l_order").innerHTML = orderCard("l", {
+    dose: r.md.dose, tau: r.newTau, tinf: r.newTinf, auc: S ? S.auc : r.pred.auc, peak: S ? S.cmax : r.pred.peak, trough: S ? S.cmin : r.pred.trough,
+    sub: `Dose for AUC ${r.target}: ${Math.round(r.md.exact)} mg → ${r.md.dose} mg. ${lvMethod === "pt" ? `Sawchuk-Zaske ${badge("sawchukZaske")}` : `Trough only ${badge("troughOnly")}`}`,
+    info: `<div><span class="lbl">Current AUC24 (Dose/CL)</span>${num(cur.auc, 0)} mg·h/L</div><div><span class="lbl">Current AUC24 (log trapezoid) ${badge("aucTrapLog")}</span>${num(cur.aucTrap, 0)} mg·h/L</div>
+      <div><span class="lbl">New peak / trough</span>${S ? `${S.cmax} / ${S.cmin}` : `${num(r.pred.peak, 1)} / ${num(r.pred.trough, 1)}`} mg/L</div>`,
+    basis: `patient-specific K ${num(k, 4)} h⁻¹, Vd ${num(pm.p.V, 1)} L from ${lvMethod === "pt" ? "peak and trough after the same dose" : "one steady-state level with population Vd"}`,
+  });
+  const regA = { dose: fnum("l_dose"), tau: fnum("l_tau"), tinf: fnum("l_tinf") }, regB = { dose: r.md.dose, tau: r.newTau, tinf: r.newTinf };
+  const span = Math.max(regA.tau, regB.tau) * Math.max(1, Math.round(48 / Math.max(regA.tau, regB.tau)));
+  const ssPts = (reg) => { const s = PK.one.ss(reg, pm.p), pts = []; for (let j = 0; j <= 300; j++) { const t = (span * j) / 300; pts.push([t, s.at(t % reg.tau)]); } return pts; };
+  const obs = lvMethod === "pt" ? [{ t: regA.tinf + fnum("l_tpk"), c: fnum("l_pk") }, { t: regA.tau - fnum("l_ttr"), c: fnum("l_tr") }] : [{ t: fnum("l_tlv"), c: fnum("l_lv") }];
+  plot($("l_plot"), { lines: [{ pts: ssPts(regA), label: `Current ${regA.dose} mg q${regA.tau}h`, alt: true }, { pts: ssPts(regB), label: `New ${regB.dose} mg q${regB.tau}h` }], obs, xlab: "h from start of a steady-state dose" });
+  const row = (lbl, a, b) => `<tr><td>${lbl}</td><td>${a}</td><td>${b}</td></tr>`;
+  $("l_table").innerHTML = `<thead><tr><th>Quantity</th><th>Levels regimen</th><th>New regimen</th></tr></thead><tbody>
+    ${row(`K ${S ? "(site: 4 dp)" : ""}`, num(k, 4) + " h⁻¹", S ? S.K : "same")}
+    ${row("t½", num(Math.LN2 / k, 1) + " h", "same")}
+    ${row(`Vd${r.vkg ? ` (${num(r.vkg, 2)} L/kg)` : ""}`, num(pm.p.V, 1) + " L", S ? S.Vd ?? "" : "same")}
+    ${row("CL", num(pm.p.CL, 2) + " L/h", "same")}
+    ${row("Regimen", `${regA.dose} mg q${regA.tau}h / ${regA.tinf} h`, `${regB.dose} mg q${regB.tau}h / ${regB.tinf} h`)}
+    ${row("Cmax (end of infusion)", num(cur.cmax, 1), S ? S.cmax : num(r.pred.peak, 1))}
+    ${row("Cmin", num(cur.cmin, 1), S ? S.cmin : num(r.pred.trough, 1))}
+    ${row("AUC24 Dose/CL", num(cur.auc, 0), S ? S.auc : num(r.pred.auc, 0))}
+    ${row("AUC24 log trapezoid", num(cur.aucTrap, 0), num(r.pred.aucTrap, 0))}</tbody>`;
+}
+
+function renderAucWb(p, base) {
+  const a = aucWbCalc({ ...p, ...base, vdPerKg: +$("l_wbVd").value, wbObjective: $("l_wbObj").value,
+    peak: fnum("l_pk"), tPeak: fnum("l_tpk"), trough: fnum("l_tr"), tTrough: fnum("l_ttr") });
+  const q = a.pop;
+  PKUI.renderBanners($("l_wbAlerts"), a.error ? [{ lvl: "crit", text: a.error }] : a.flags);
+  $("l_wbPop").innerHTML = dl([["CrCl (CG, min(IBW, TBW), no floor)", `${num(q.crcl, 1)} mL/min (${num(q.crclN, 1)} /1.73 m²)`, "cockcroftGault"],
+    ["Population CL (0.65 L/kg basis)", `${num(q.CL, 3)} L/h`, "wbAuc"], ["Population Vd", `${num(q.V, 1)} L (${q.vdPerKg} L/kg)`], ["Population K", `${num(q.k, 4)} h⁻¹`],
+    ["Suggested interval ln 2/K + T′", `${num(q.tauSug, 2)} h`], ["Dose for a 30 mg/L peak at q" + base.tau + "h", `${num(q.dose30, 0)} mg`],
+    ["Loading dose for this dose", `${num(q.ld, 0)} mg`], ["Population AUC24 (Dose/CL)", `${num(q.auc, 1)} mg·h/L`]]);
+  if (a.error) { $("l_wbFit").innerHTML = ""; $("l_wbNote").innerHTML = ""; return; }
+  const f = a.fit;
+  $("l_wbFit").innerHTML = dl([[`Fitted CL (${a.bayes ? "Bayesian" : "relative least squares"})`, `${num(f.CL, 3)} L/h`, "wbAuc"], ["Fitted Vd", `${num(f.V, 2)} L`], ["Fitted K", `${num(f.k, 4)} h⁻¹`],
+    ["AUC24 now (Dose/CL)", `${num(f.auc, 1)} mg·h/L`], ["Predicted peak / trough at the draw times", `${num(f.predPeak, 1)} / ${num(f.predTrough, 1)} mg/L`],
+    [`Dose for AUC ${a.target} q${a.newTau}h`, `${Math.round(a.md.exact)} mg → ${a.md.dose} mg`], ["New regimen AUC24 / peak / trough", `${num(a.pred.aucDose, 0)} / ${num(a.pred.peak, 1)} / ${num(a.pred.trough, 1)}`]]);
+  $("l_wbNote").innerHTML = "Peak time = infusion time + time after the end; trough time = interval − time before the next start (both from the start of the dose). The workbook's Sawchuk-Zaske helper AUC is not shown: it uses (Cmax + Cmin)·2/T′ and is wrong unless T′ = 2 h; the table above gives the correct log-trapezoid AUC.";
+}
+
+// ---------- Tab 3 ----------
+const pad = (n) => String(n).padStart(2, "0");
+const toLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function doseRow(dt, dose, tinf) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td><input type="datetime-local" value="${dt}" aria-label="Dose start"></td><td><input type="number" step="any" value="${dose}" aria-label="Dose mg"></td><td><input type="number" step="any" value="${tinf}" aria-label="Infusion hours"></td><td><button type="button" class="mini" aria-label="Remove dose">✕</button></td>`;
+  $("b_doses").tBodies[0].appendChild(tr);
+}
+function levelRow(dt, c) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td><input type="datetime-local" value="${dt}" aria-label="Level time"></td><td><input type="number" step="any" value="${c}" aria-label="Level mg/L"></td><td><button type="button" class="mini" aria-label="Remove level">✕</button></td>`;
+  $("b_levels").tBodies[0].appendChild(tr);
+}
+for (const id of ["b_doses", "b_levels"]) {
+  $(id).addEventListener("click", (e) => { if (e.target.closest("button")) { e.target.closest("tr").remove(); calcAll(); } });
+  $(id).addEventListener("input", () => calcAll());
+}
+function addSeries(replace) {
+  const start = new Date($("g_start").value); if (isNaN(start)) return;
+  if (replace) $("b_doses").tBodies[0].innerHTML = "";
+  const n = Math.min(60, Math.max(1, Math.round(fnum("g_n")))), tau = fnum("g_tau");
+  for (let j = 0; j < n; j++) doseRow(toLocal(new Date(start.getTime() + j * tau * 3600e3)), fnum("g_dose"), fnum("g_tinf"));
+  calcAll();
+}
+$("g_add").addEventListener("click", () => addSeries(false));
+$("g_replace").addEventListener("click", () => addSeries(true));
+$("b_addDose").addEventListener("click", () => {
+  const rows = [...$("b_doses").tBodies[0].rows], last = rows[rows.length - 1];
+  const t = last ? new Date(new Date(last.cells[0].firstElementChild.value).getTime() + fnum("g_tau") * 3600e3) : new Date();
+  doseRow(toLocal(t), last ? last.cells[1].firstElementChild.value : 1000, last ? last.cells[2].firstElementChild.value : 1); calcAll();
+});
+$("b_addLevel").addEventListener("click", () => { levelRow(toLocal(new Date()), ""); });
+// Example history: 1000 mg q12h × 4 (1 h infusions), peak 1 h and trough 0.5 h before dose 5... after dose 4.
+(function seed() {
+  const s = new Date(2026, 9, 20, 8, 0);
+  $("g_start").value = toLocal(s);
+  for (let j = 0; j < 4; j++) doseRow(toLocal(new Date(s.getTime() + j * 12 * 3600e3)), 1000, 1);
+  levelRow(toLocal(new Date(s.getTime() + (36 + 3) * 3600e3)), 28);
+  levelRow(toLocal(new Date(s.getTime() + (36 + 11.5) * 3600e3)), 12);
+})();
+function readHistory() {
+  const doses = [...$("b_doses").tBodies[0].rows].map((r) => ({ ms: new Date(r.cells[0].firstElementChild.value).getTime(), dose: parseFloat(r.cells[1].firstElementChild.value), tinf: parseFloat(r.cells[2].firstElementChild.value) }))
+    .filter((d) => isFinite(d.ms) && d.dose > 0 && d.tinf >= 0);
+  const levels = [...$("b_levels").tBodies[0].rows].map((r) => ({ ms: new Date(r.cells[0].firstElementChild.value).getTime(), c: parseFloat(r.cells[1].firstElementChild.value) }))
+    .filter((l) => isFinite(l.ms) && l.c > 0);
+  const t0 = doses.length ? Math.min(...doses.map((d) => d.ms)) : 0;
+  return { t0, doses: doses.map((d) => ({ t: (d.ms - t0) / 3600e3, dose: d.dose, tinf: d.tinf })), levels: levels.map((l) => ({ t: (l.ms - t0) / 3600e3, c: l.c })) };
+}
+function calcBayes(p) {
+  const h = readHistory();
+  const r = bayesCalc({ ...p, doses: h.doses, levels: h.levels, c0: fnum("b_c0"), fitMask: $("b_mask").value, cvAssay: fnum("b_cv"),
+    newTau: +$("b_ntau").value, newTinf: fnum("b_ntinf"), newDose: $("b_ndose").value === "" ? NaN : fnum("b_ndose") });
+  if (r.error) { PKUI.renderBanners($("b_alerts"), [{ lvl: "info", text: r.error }]); $("b_order").innerHTML = ""; $("b_params").innerHTML = ""; $("b_fitTbl").innerHTML = ""; $("b_plot").innerHTML = ""; return; }
+  PKUI.renderBanners($("b_alerts"), r.flags);
+  const last = r.doses[r.doses.length - 1], nextT = last.t + r.curTau;
+  const firstAt = new Date(h.t0 + nextT * 3600e3);
+  const range = r.aucRange ? `approx. 95% range ${Math.round(r.aucRange[0])}–${Math.round(r.aucRange[1])}` : "";
+  $("b_order").innerHTML = orderCard("b", {
+    dose: r.md.dose, tau: r.newTau, tinf: r.newTinf, auc: r.pred.auc, peak: r.pred.peak, trough: r.pred.trough, firstAt: firstAt.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }),
+    sub: `Dose for AUC ${r.target}: ${Math.round(r.md.exact)} mg → ${r.md.dose} mg. ${range ? `${range}. ` : ""}Fitted ${r.mode === "workbook" ? (r.mask === "CL" ? "K only (V at population)" : "K and V") + (r.fit.bayes ? ", Bayesian" : ", least squares") : r.mask === "CL" ? "CL only" : "CL and V"}; ${MODELS[r.pm.model].label} ${badge(r.pm.src)}`,
+    info: `<div><span class="lbl">AUC24 at SS, current regimen</span>${num(r.current.auc, 0)} mg·h/L (${last.dose} mg q${num(r.curTau, 1)}h)</div>
+      ${r.mode === "workbook" ? `<div><span class="lbl">Workbook AUC24 (trapezoid + log), new regimen</span>${num(r.pred.wb.aucTrap, 0)} mg·h/L</div><div><span class="lbl">Workbook interval ln(30/15)/K + 2</span>${num(r.tauSuggested, 1)} h</div>` : ""}
+      <div><span class="lbl">AUC over the last 24 h of history</span>${num(r.auc24Last, 0)} mg·h/L</div>
+      <div><span class="lbl">New peak / trough</span>${num(r.pred.peak, 1)} / ${num(r.pred.trough, 1)} mg/L</div>
+      <div><span class="lbl">Next dose due</span>${esc(firstAt.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }))}</div>`,
+    basis: `${mode} Bayesian MAP over ${r.doses.length} doses and ${r.levels.length} level(s); CL ${num(r.params.CL, 2)} L/h`,
+  });
+  // Plot: history with fitted and population curves, then the new regimen from the next dose time.
+  const nNew = Math.max(2, Math.ceil(48 / r.newTau));
+  const evNew = r.doses.concat(Array.from({ length: nNew }, (_, j) => ({ t: nextT + j * r.newTau, dose: r.md.dose, tinf: r.newTinf })));
+  const tEnd = nextT + nNew * r.newTau;
+  plot($("b_plot"), { lines: [{ pts: profile(r.pm, r.doses, 0, nextT, r.init, 300), label: "Population prior (history)", alt: true },
+    { pts: profile(r.fm, evNew, 0, tEnd, r.init, 500), label: `Fitted: history, then ${r.md.dose} mg q${r.newTau}h` }], obs: r.levels, xlab: "h from first dose" });
+  const pp = r.pm.p, fp = r.params, cv = r.fit.se || {};
+  const prow = (n, a, b, u, dp) => `<tr><td>${n}</td><td>${num(a, dp)}</td><td>${num(b, dp)}</td><td>${isFinite(cv[n]) ? `±${num(100 * cv[n], 0)}%` : r.mode === "workbook" ? "–" : "fixed"}</td><td class="l">${u}</td></tr>`;
+  $("b_params").innerHTML = `<thead><tr><th>Param</th><th>Prior</th><th>Fitted</th><th>~CV</th><th>Unit</th></tr></thead><tbody>` +
+    (r.pm.struct === "1c" ? prow("CL", pp.CL, fp.CL, "L/h", 3) + prow("V", pp.V, fp.V, "L", 1) + `<tr><td>K</td><td>${num(pp.CL / pp.V, 4)}</td><td>${num(fp.k, 4)}</td><td></td><td class="l">h⁻¹</td></tr>`
+      : prow("CL", pp.CL, fp.CL, "L/h", 3) + prow("Vc", pp.Vc, fp.Vc, "L", 1) + prow("Vp", pp.Vp, fp.Vp, "L", 1) + prow("Q", pp.Q, fp.Q, "L/h", 1)) + `</tbody>`;
+  $("b_fitTbl").innerHTML = `<thead><tr><th>Time h</th><th>Type</th><th>Observed</th><th>Predicted</th></tr></thead><tbody>` +
+    r.fit.predictions.map((q, j) => `<tr><td>${num(q.t, 1)}</td><td>${r.kinds[j].kind}</td><td>${num(q.obs, 1)}</td><td>${num(q.pred, 1)}</td></tr>`).join("") + `</tbody>`;
+}
+
+// ---------- Main ----------
+function calcAll() {
+  const p = patient();
+  if (!validPatient(p)) { for (const id of ["i_alerts", "l_alerts", "b_alerts"]) PKUI.renderBanners($(id), [{ lvl: "info", text: "Enter age, height, weight and SCr." }]); return; }
+  try {
+    if (activeTab === "init") calcInit(p); else if (activeTab === "levels") calcLevels(p); else calcBayes(p);
+  } catch (e) { PKUI.renderBanners($(`${activeTab === "init" ? "i" : activeTab === "levels" ? "l" : "b"}_alerts`), [{ lvl: "crit", text: `Calculation error: ${e.message}` }]); }
+}
+document.querySelectorAll("input, select").forEach((el) => { if (!el.closest("#b_doses, #b_levels") && !el.id.startsWith("g_")) el.addEventListener("input", () => calcAll()); });
+fillModels();
+const h0 = location.hash.slice(1);
+showTab(["init", "levels", "bayes"].includes(h0) ? h0 : "init");
+</script>
+</body>
+</html>

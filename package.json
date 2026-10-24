@@ -4,6 +4,6 @@
   "description": "Clinical pharmacokinetic dosing tools",
   "license": "AGPL-3.0-or-later",
   "scripts": {
-    "test": "node --test phenytoin/tests/calc.test.js"
+    "test": "node --test phenytoin/tests/calc.test.js pk-suite/tests/"
   }
 }
