@@ -1,6 +1,6 @@
 # Sign-off decisions: research summary (2026-10-23)
 
-**Applied 2026-10-23.** Every row below is in the tools' Literature model (the default). Site models are unchanged. The suite passes 714/714 tests, and every page loads in the browser with no errors. Where the builders deviated from or went beyond a row, it is noted under "Applied with notes" at the end.
+**Applied 2026-10-23.** Every row below is in the tools' Literature model (the default). Site models are unchanged. At that point the suite passed 714/714 tests, and every page loaded in the browser with no errors. Where the builders deviated from or went beyond a row, it is noted under "Applied with notes" at the end.
 
 Evidence, citations and the alternatives for each item are in `decisions/*.md`. Confidence: **H** high, **M** moderate, **L** low.
 "Change" means the built tool's current default differs from the recommendation. "Institutional" means local P&T must set it; the tool keeps it as a labelled setting.

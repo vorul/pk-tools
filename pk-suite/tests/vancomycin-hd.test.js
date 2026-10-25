@@ -1,5 +1,5 @@
 // Tests for pk-suite/vancomycin-hd.html (trough charts + high-flux HD). Run: node --test pk-suite/tests/
-// Loads lib/pkcore.js, then the page's CALC-START…CALC-END block via new Function (same pattern as ../../tests/calc.test.js).
+// Loads lib/pkcore.js, then the page's CALC-START…CALC-END block via new Function (same pattern as ../../phenytoin/tests/calc.test.js).
 // Sources: specs/vanco-charts-hd.md §3c/§3d chart tables (parsed from the spec itself) and §8 TC1–TC9; lit/vancomycin.md §1e/§2.8.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");

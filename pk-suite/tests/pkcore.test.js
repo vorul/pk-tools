@@ -480,3 +480,41 @@ test("peckLBW returns kg and matches the site workbook's 32 cached values", () =
     assert.ok(Math.abs(v / kg - 1) < 0.0025, `${sex} ${cm} cm within 0.25%`);
   }
 });
+
+// ======================= Review fixes (2026-10-25) =======================
+test("CrCl obesity flag names the weight actually used (AdjBW only under an AdjBW policy)", () => {
+  const lit = renal.cockcroftGault({ age: 50, sex: "M", scr: 1, tbw: 130, heightIn: 70 });
+  assert.match(lit.flags.find((f) => f.code === "obese").text, /adjusted body weight used/);
+  const site = renal.cockcroftGault({ preset: "site", age: 50, sex: "M", scr: 1, tbw: 130, heightIn: 70 });
+  assert.equal(site.weightBasis, "IBW");
+  assert.match(site.flags.find((f) => f.code === "obese").text, /IBW used \(weight policy minIbwTbw\)/);
+  const tbw = renal.cockcroftGault({ weightPolicy: "tbw", age: 50, sex: "M", scr: 1, tbw: 130, heightIn: 70 });
+  assert.match(tbw.flags.find((f) => f.code === "obese").text, /TBW used/);
+});
+
+test("oralSS at ka = k equals the limit of the general formula and the superposed single doses", () => {
+  const p = { V: 30, k: 0.1 }, tau = 12;
+  for (const t of [0, 1, 3, 6, 11.9]) {
+    const atK = one.oralSS(t, 300, 0.1, tau, p);
+    assert.ok(isFinite(atK), `finite at t=${t}`);
+    rel(atK, one.oralSS(t, 300, 0.1 * (1 + 1e-6), tau, p), 1e-5, `limit t=${t}`);
+    let sum = 0; for (let n = 0; n < 400; n++) sum += one.oral(t + n * tau, 300, 0.1, p);
+    rel(atK, sum, 1e-9, `superposition t=${t}`);
+  }
+});
+
+test("sawchukZaske returns NaN (not negative K and V) when peak ≤ trough", () => {
+  const bad = one.sawchukZaske({ peak: 5, trough: 8, dt: 6, dose: 1000, tinf: 1, tau: 12 });
+  assert.ok(Number.isNaN(bad.k) && Number.isNaN(bad.V) && Number.isNaN(bad.CL));
+  assert.ok(bad.flags.some((f) => f.code === "peak<=trough"));
+  const zero = one.sawchukZaske({ peak: 5, trough: 0, dt: 6, dose: 1000, tinf: 1, tau: 12 });
+  assert.ok(Number.isNaN(zero.k)); assert.ok(zero.flags.some((f) => f.code === "badLevels"));
+});
+
+test("roundToStrengths flags a total that maxUnits stopped short of the dose", () => {
+  const short = round.roundToStrengths(1500, [100, 30]);
+  assert.equal(short.total, 1200); assert.equal(short.capped, true);
+  assert.equal(round.roundToStrengths(700, [100, 200], { maxUnits: 4 }).capped, false);
+  assert.equal(round.roundToStrengths(700, [100, 200], { maxUnits: 4 }).total, 700);
+  assert.equal(round.roundToStrengths(310, [100, 30]).capped, false);
+});

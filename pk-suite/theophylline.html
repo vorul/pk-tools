@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <title>Theophylline Dosing</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="lib/pk.css">
 <style>
 /* Page-specific additions only; tokens and components come from lib/pk.css. */
@@ -467,7 +464,9 @@ function roundDose(x, form, salt, code) {
   if (form === "inj") return PK.round.roundTo(x, 25);
   if (form === "elixir") return PK.round.roundTo(x, 10);
   const st = (STRENGTHS[salt.group] || STRENGTHS.theo)[form];
-  return PK.round.roundToStrengths(x, st, { maxUnits: 3 }).total;
+  // Prefer at most 3 tablets per dose; when 3 cannot reach the dose, allow as many as it needs rather than capping.
+  const r = PK.round.roundToStrengths(x, st, { maxUnits: 3 });
+  return r.capped ? PK.round.roundToStrengths(x, st, { maxUnits: Math.ceil(x / Math.max(...st)) + 1 }).total : r.total;
 }
 
 function regimenText(pt, form, code, dose) {

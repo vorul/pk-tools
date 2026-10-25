@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Renal and Hepatic Function</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="lib/pk.css">
 <style>
   .credit { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
@@ -674,7 +671,7 @@ function calcCP() {
   $("cpDrugs").innerHTML = `
     <li><b>Argatroban</b> ${badge("argatroban")} — the only suite drug that uses the class. ${arg} No renal adjustment.</li>
     <li><b>Theophylline</b> ${badge("theophylline")} — <b>not</b> auto-adjusted by Child-Pugh. Use the theophylline tool's "hepatic insufficiency" flag (clearance reduced ≥ 50%) and monitor levels.</li>
-    <li><b>Phenytoin</b> ${badge("phenytoin")} — <b>not</b> auto-adjusted. In hepatic disease or low albumin, use unbound (free) levels; see the <a href="../phenytoin-calculator.html">phenytoin calculator</a>.</li>`;
+    <li><b>Phenytoin</b> ${badge("phenytoin")} — <b>not</b> auto-adjusted. In hepatic disease or low albumin, use unbound (free) levels; see the <a href="phenytoin.html">phenytoin tool</a>.</li>`;
 }
 
 // ---------- Prefill from the query string (links from other tools) ----------

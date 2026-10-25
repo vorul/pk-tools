@@ -1,6 +1,6 @@
 // Tests for pk-suite/phenytoin.html. Run from the project folder:  node --test pk-suite/tests/
 // Loads lib/pkcore.js (sets globalThis.PK), then the page's CALC-START…CALC-END block, so the tests exercise the published code.
-// Sections: (1) every case from ../../tests/calc.test.js (Winter ch. 14 Q1–Q17 and the original checks), ported;
+// Sections: (1) every case from ../../phenytoin/tests/calc.test.js (Winter ch. 14 Q1–Q17 and the original checks), ported;
 // (2) workbook cases T1–T10 from specs/phenytoin.md §8; (3) new features (Model setting, binding defaults, fits, Lambert W).
 // Where the literature default changes a number (Q10, Q13/14, Q16, two binding checks), the original value is tested in
 // the "site" model and the new value in the "literature" model, with the reason stated in the test name.

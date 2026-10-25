@@ -12,7 +12,7 @@ const PK = require(path.join(__dirname, "..", "lib", "pkcore.js"));
 
 const html = fs.readFileSync(path.join(__dirname, "..", "theophylline.html"), "utf8");
 const block = html.split("// CALC-START")[1].split("// CALC-END")[0];
-const T = new Function(`${block}; return { MODELS, SCHEDULES, FORMS, patient, ssProfile, solveDecreasing, siteRound, startCalc, levelCalc, adjustCalc };`)();
+const T = new Function(`${block}; return { MODELS, SCHEDULES, FORMS, patient, ssProfile, solveDecreasing, siteRound, startCalc, levelCalc, adjustCalc, roundDose };`)();
 
 const near = (actual, expected, tol, msg) =>
   assert.ok(Math.abs(actual - expected) <= tol, `${msg || ""} expected ${expected} ± ${tol}, got ${actual}`);
@@ -306,4 +306,10 @@ test("decision Q11: SR and IR sampling text says peak, never trough", () => {
   assert.ok(off.alerts.some((a) => /outside 8–14 h/.test(a.text)), "SR level away from the peak is flagged");
   const site = T.startCalc({ ...B, s_form: "ir", s_code: "2" });
   assert.match(site.lines.find((l) => l.tag === "Level").rx, /Trough/, "site mode keeps its trough advice");
+});
+
+test("tablet rounding: more than 3 tablets when 3 cannot reach the dose (no silent cap)", () => {
+  assert.equal(T.roundDose(700, "sr", { group: "amino" }, "2"), 700);   // was capped at 600 (3 × 200)
+  assert.equal(T.roundDose(1000, "ir", { group: "amino" }, "1"), 1000);
+  assert.equal(T.roundDose(450, "sr", { group: "theo" }, "2"), 450);    // within 3 tablets: unchanged
 });

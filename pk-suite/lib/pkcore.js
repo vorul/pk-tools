@@ -163,7 +163,12 @@
       const crcl = renal.cgRaw(o.age, dw.weight, scrUsed, o.sex);
       if (o.age < 18) flags.push({ code: "age<18", lvl: "crit", text: "Cockcroft-Gault is for adults (18 years and older)." });
       if (scrFloored) flags.push({ code: "scrFloored", lvl: "info", text: `SCr ${o.scr} rounded up to ${floor} mg/dL.` });
-      if (dw.obese) flags.push({ code: "obese", lvl: "info", text: `TBW > ${isNum(o.obesityRatio) ? o.obesityRatio : policies.obesityRatio} × IBW: adjusted body weight used (suite policy).` });
+      if (dw.obese) {
+        const ratio = isNum(o.obesityRatio) ? o.obesityRatio : policies.obesityRatio;
+        flags.push({ code: "obese", lvl: "info", text: dw.basis === "AdjBW"
+          ? `TBW > ${ratio} × IBW: adjusted body weight used (suite policy).`
+          : `TBW > ${ratio} × IBW: ${dw.basis} used (weight policy ${dw.policy}).` });
+      }
       if (isNum(heightIn) && heightIn < 60) flags.push({ code: "short", lvl: "warn", text: "Height under 60 in: Devine IBW is below its base value." });
       if (o.amputationPct) flags.push({ code: "amputation", lvl: "info", text: `IBW reduced ${o.amputationPct}% for amputation.` });
       return { crcl, weight: dw.weight, weightBasis: dw.basis, policy: dw.policy, obese: dw.obese, ibw, adjbw: dw.adjbw, tbw: o.tbw, scrUsed, scrFloored, scrFloor: floor, flags, source: "cockcroftGault" };
@@ -269,6 +274,11 @@
     },
     oralSS(t, dose, ka, tau, p, sf) {
       const q = p1(p), A = sfOf(sf) * dose;
+      // ka ≈ k: sum of (A/V)·k·(t + nτ)·e^(−k(t + nτ)) over n ≥ 0, with r = e^(−kτ).
+      if (Math.abs(ka - q.k) < 1e-9 * ka) {
+        const r = exp(-q.k * tau), om = omexp(q.k * tau);
+        return (A / q.V) * q.k * exp(-q.k * t) * (t / om + (tau * r) / (om * om));
+      }
       return ((A * ka) / (q.V * (ka - q.k))) * (exp(-q.k * t) / omexp(q.k * tau) - exp(-ka * t) / omexp(ka * tau));
     },
     tmaxOral: (ka, k) => ln(ka / k) / (ka - k),
@@ -310,7 +320,8 @@
     //         dose, tinf (0 → bolus form), tau, S, F }
     sawchukZaske(o) {
       const sf = sfOf(o), T = o.tinf > 0 ? o.tinf : 0, tp = o.tPeakAfterEnd || 0;
-      const k = ln(o.peak / o.trough) / o.dt;
+      // No valid fit unless the level falls between the samples: return NaN rather than a negative K and V.
+      const k = o.peak > o.trough && o.trough > 0 && o.dt > 0 ? ln(o.peak / o.trough) / o.dt : NaN;
       const infFactor = T > 0 ? omexp(k * T) / (k * T) : 1;
       const V = (sf * o.dose * infFactor * exp(-k * tp)) / (o.peak * omexp(k * o.tau));
       const CL = k * V;
@@ -318,6 +329,7 @@
       const cmin = cmax * exp(-k * (o.tau - T));
       const flags = [];
       if (!(o.peak > o.trough)) flags.push({ code: "peak<=trough", lvl: "crit", text: "Peak must be higher than trough." });
+      else if (!(o.trough > 0 && o.dt > 0)) flags.push({ code: "badLevels", lvl: "crit", text: "Trough and the time between levels must be > 0." });
       return { k, V, CL, halfLife: one.halfLife(k), cmax, cmin, auc24: one.auc24Dose(o.dose, CL, o.tau, o),
         auc24TrapLog: one.auc24TrapLog(cmax, cmin, k, T, o.tau), flags, source: "sawchukZaske" };
     },
@@ -658,7 +670,8 @@
       return +(fnr(q - (mode === "up" ? 1e-9 : mode === "down" ? -1e-9 : 0)) * inc).toFixed(10);
     },
     // Nearest deliverable total from product strengths (e.g. [300], [100, 30]). Ties prefer fewer units, then lower dose.
-    // Returns { total, units: [{ strength, count }], count, diff }.
+    // Returns { total, units: [{ strength, count }], count, diff, capped }. capped: maxUnits stopped the total
+    // short of the dose by more than half the smallest strength (more units would get closer).
     roundToStrengths(dose, strengths, { maxUnits = 12 } = {}) {
       const st = [...strengths].sort((a, b) => b - a);
       let best = null;
@@ -673,6 +686,7 @@
         for (let c = 0; c <= left; c++) rec(i + 1, left - c, [...counts, c], used + c, total + c * st[i]);
       };
       rec(0, maxUnits, [], 0, 0);
+      if (best) best.capped = best.count === maxUnits && dose - best.total > st[st.length - 1] / 2;
       return best;
     },
     // Snap an interval to an allowed list. mode 'nearest' | 'down' | 'up'.
@@ -690,7 +704,7 @@
     sig: (x, n = 3) => (isNum(x) ? String(+x.toPrecision(n)) : "—"),
   };
 
-  const PK = { version: "0.1.0", LN2_SITE, sources, policies, body, renal, one, binding, two, fit, round, _omexp: omexp };
+  const PK = { version: "0.1.1", LN2_SITE, sources, policies, body, renal, one, binding, two, fit, round, _omexp: omexp };
   root.PK = PK;
   if (typeof module !== "undefined" && module.exports) module.exports = PK;
 })(typeof globalThis !== "undefined" ? globalThis : this);

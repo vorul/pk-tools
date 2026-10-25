@@ -5,9 +5,6 @@
 <title>Phenytoin Dose Adjuster</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="lib/pk.css">
 <style>
 /* Page-specific additions to lib/pk.css (PK Suite). Layout: compact order entry. One column: patient strip, situation switcher,
@@ -373,7 +370,7 @@ const FORM_LABEL = {
   inj: "IV phenytoin sodium (S 0.92)",
   fos: "Fosphenytoin, mg PE (S 0.92)",
 };
-// PK Suite version of the user's phenytoin-calculator.html. Pure math only (no DOM).
+// PK Suite version of ../phenytoin/index.html. Pure math only (no DOM).
 // Shared math comes from lib/pkcore.js: PK.body (IBW, adjusted weight, dosing weight), PK.renal (Cockcroft-Gault),
 // PK.round (rounding) and PK.fit (MAP / least squares). pkcore has no Michaelis-Menten (`mm`) module yet
 // (README §2 item 6), so the phenytoin-specific MM and Lambert W helpers below are local to this page.
