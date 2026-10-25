@@ -41,7 +41,8 @@ details.card summary { list-style-position: inside; }
     <h2>Indication</h2>
     <div class="fields">
       <label class="wide">Indication
-        <select id="indication">
+        <select id="indication" data-patient>
+          <option value="">Select</option>
           <option value="hse">HSV encephalitis</option>
           <option value="hsvImm">HSV mucocutaneous, immunocompromised</option>
           <option value="genital">Herpes genitalis, initial episode (severe)</option>
@@ -60,38 +61,38 @@ details.card summary { list-style-position: inside; }
   <section class="card">
     <h2>Patient</h2>
     <div class="fields">
-      <label>Age <span class="ig"><input id="age" type="number" min="0" step="any" value="55"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="178"><button class="ub" id="htU"></button></span></label>
-      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
+      <label>Age <span class="ig"><input id="age" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+      <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button class="ub" id="htU"></button></span></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button class="ub" id="wtU"></button></span></label>
       <label>Renal function from
         <select id="crclMode">
           <option value="cg">SCr (Cockcroft-Gault)</option>
           <option value="entered">Enter CrCl</option>
         </select>
       </label>
-      <label id="scrRow">SCr <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button class="ub" id="scrU"></button></span></label>
-      <label id="crclRow" hidden>CrCl <span class="ig"><input id="crcl" type="number" min="0" step="any" value="90"><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
+      <label id="scrRow">SCr <span class="ig"><input id="scr" type="number" min="0" step="any" data-patient><button class="ub" id="scrU"></button></span></label>
+      <label id="crclRow" hidden>CrCl <span class="ig"><input id="crcl" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
       <label>Dialysis
-        <select id="dialysis">
+        <select id="dialysis" data-patient>
           <option value="none">None</option>
           <option value="hd">Intermittent hemodialysis</option>
           <option value="pd">Peritoneal dialysis</option>
           <option value="crrt">CRRT</option>
         </select>
       </label>
-      <label class="check" id="severeRow" hidden><input type="checkbox" id="r_severe"> Severe infection (CRRT high dose)</label>
+      <label class="check" id="severeRow" hidden><input type="checkbox" id="r_severe" data-patient> Severe infection (CRRT high dose)</label>
     </div>
     <h2 style="margin-top:12px">Nephrotoxicity and neurotoxicity risk factors</h2>
     <div class="checks">
-      <label class="check"><input type="checkbox" id="r_vanco"> Vancomycin</label>
-      <label class="check"><input type="checkbox" id="r_nsaid"> NSAID</label>
-      <label class="check"><input type="checkbox" id="r_nephro"> Other nephrotoxins</label>
-      <label class="check"><input type="checkbox" id="r_dehyd"> Dehydration / low urine output</label>
-      <label class="check"><input type="checkbox" id="r_ckd"> Known CKD</label>
-      <label class="check"><input type="checkbox" id="r_dm"> Diabetes</label>
-      <label class="check"><input type="checkbox" id="r_neuro"> Underlying neurologic disease</label>
-      <label class="check"><input type="checkbox" id="r_aki"> AKI or unstable SCr</label>
+      <label class="check"><input type="checkbox" id="r_vanco" data-patient> Vancomycin</label>
+      <label class="check"><input type="checkbox" id="r_nsaid" data-patient> NSAID</label>
+      <label class="check"><input type="checkbox" id="r_nephro" data-patient> Other nephrotoxins</label>
+      <label class="check"><input type="checkbox" id="r_dehyd" data-patient> Dehydration / low urine output</label>
+      <label class="check"><input type="checkbox" id="r_ckd" data-patient> Known CKD</label>
+      <label class="check"><input type="checkbox" id="r_dm" data-patient> Diabetes</label>
+      <label class="check"><input type="checkbox" id="r_neuro" data-patient> Underlying neurologic disease</label>
+      <label class="check"><input type="checkbox" id="r_aki" data-patient> AKI or unstable SCr</label>
     </div>
   </section>
 
@@ -601,9 +602,8 @@ function readInputs() {
 let currentNote = "";
 function update() {
   fillPolicies();
-  if (!INDICATIONS[$("indication").value]) $("indication").value = "hse";
   const ind = INDICATIONS[$("indication").value];
-  $("mgkgRow").hidden = ind.mgkg !== null;
+  $("mgkgRow").hidden = !ind || ind.mgkg !== null;
   $("vzvRow").hidden = $("indication").value !== "vzvEnc";
   $("severeRow").hidden = $("dialysis").value !== "crrt" || model !== "literature";
   $("scrRow").hidden = $("crclMode").value !== "cg";
@@ -612,12 +612,16 @@ function update() {
   $("bpRow").hidden = pol !== "bmiBpAdjTbw";
   $("policyNote").innerHTML = `${esc(WEIGHT_POLICIES[pol].note)} ${badge(WEIGHT_POLICIES[pol].src)}`;
   const inp = readInputs();
-  const r = calc(inp);
+  const lim = PKUI.checkLimits({ age: inp.age, wtKg: inp.tbw, htCm: inp.heightCm, scr: inp.crclMode === "cg" ? inp.scr : NaN, sex: inp.sex },
+    { set: "adult", cg: inp.crclMode === "cg" });
+  const blocked = PKUI.limitGate($("result"), lim, update);
+  const r = blocked ? { ok: false, error: "" } : !ind ? { ok: false, error: "Select the indication." } : calc(inp);
   save();
   if (!r.ok) {
     $("alerts").innerHTML = "";
-    $("result").innerHTML = `<section class="card order"><p class="hint" style="font-size:.9rem">${esc(r.error)}</p></section>`;
-    $("strip").innerHTML = ""; currentNote = ""; return;
+    $("result").innerHTML = blocked ? "" : `<section class="card order"><p class="hint" style="font-size:.9rem">${esc(r.error)}</p></section>`;
+    for (const id of ["strip", "policyTable", "renalTable", "exposure"]) $(id).innerHTML = "";
+    currentNote = ""; return;
   }
   renderStrip(r); renderResult(r); renderPolicyTable(inp, r); renderRenalTable(r); renderExposure(r);
   PKUI.renderBanners($("alerts"), [...r.alerts].sort((a, b) => rank(a.lvl) - rank(b.lvl)));
@@ -736,8 +740,8 @@ $("themeBtn").addEventListener("click", () => { applyTheme(THEMES[(THEMES.indexO
 
 // Persistence (per-viewer convenience only)
 const KEY = "pk-acyclovir-v1";
-const FIELDS = ["indication", "mgkg", "age", "sex", "ht", "wt", "crclMode", "scr", "crcl", "dialysis", "policy", "adjFactor", "bp", "infusionH", "volume", "roundInc", "bandBasis", "vdModel", "urineFlow", "fe",
-  "r_vanco", "r_nsaid", "r_nephro", "r_dehyd", "r_ckd", "r_dm", "r_neuro", "r_aki", "r_severe", "vzvDose"];
+// Settings only: patient details (indication, demographics, renal function, dialysis, risk factors) start blank on every load.
+const FIELDS = ["mgkg", "crclMode", "policy", "adjFactor", "bp", "infusionH", "volume", "roundInc", "bandBasis", "vdModel", "urineFlow", "fe", "vzvDose"];
 function save() {
   try {
     const s = { _model: model, _theme: theme, _u: { ht: htT.unit(), wt: wtT.unit(), scr: scrT.unit() } };

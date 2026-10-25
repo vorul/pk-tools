@@ -10,6 +10,7 @@
   - The per-tool specs (site behaviour, including the live-server verification) and the workbook comparisons are in the private repo `vorul/pk-tools-research` (`specs/`, `workbook-checks/`), because they describe third-party material in detail. Source tags such as `specs/vanco-auc.md §8` refer to it. Clone it next to this repository to run the vancomycin chart regression tests; without it those 4 tests are skipped.
   - `lit/` holds the literature cross-checks.
   - `decisions/` and `DECISIONS.md` hold the sign-off research and recommended defaults. All of them are applied to the Literature models; builder notes are in the "Applied with notes" section.
+- **Safety (2026-10-25):** patient fields start blank on every load, and no tool stores patient values (settings only). Values outside plausible ranges withhold the result until confirmed, and a Cockcroft-Gault CrCl of 0 or below cannot be overridden (see `ARCHITECTURE.md`). Vancomycin keeps the rounded regimen inside AUC 400–600 when one exists (Literature and Workbook models; Site is unchanged).
 - **Still open:** institutional limits (infusion hard maxima, HD protocol details) and the unverified items listed at the end of `DECISIONS.md`.
 
 The sections below are the original build reference compiled from the specs. Where they conflict with `DECISIONS.md`, `DECISIONS.md` wins.

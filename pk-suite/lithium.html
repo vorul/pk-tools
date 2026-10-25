@@ -53,16 +53,16 @@ td.flaw { color: var(--warn); }
 
   <div class="strip" id="strip" aria-label="Patient summary"></div>
 
-  <section class="card" id="patientPanel" hidden>
+  <section class="card" id="patientPanel">
     <h2>Patient</h2>
     <div class="fields">
-      <label>Age (y) <input id="age" type="number" min="18" step="any" value="30"></label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="72"><button class="ub" id="htU"></button></span></label>
-      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="100"><button class="ub" id="wtU"></button></span></label>
-      <label>SCr, most recent <span class="ig"><input id="scr" type="number" min="0" step="any" value="1"><button class="ub" id="scrU"></button></span></label>
-      <label>SCr, previous (optional) <span class="ig"><input id="scrPrev" type="number" min="0" step="any" placeholder="same"><button class="ub" id="scrPrevU"></button></span></label>
-      <label>Hours between SCr values <input id="scrHours" type="number" min="0" step="any" value="24"></label>
+      <label>Age (y) <input id="age" type="number" min="18" step="any" data-patient></label>
+      <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button class="ub" id="htU"></button></span></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button class="ub" id="wtU"></button></span></label>
+      <label>SCr, most recent <span class="ig"><input id="scr" type="number" min="0" step="any" data-patient><button class="ub" id="scrU"></button></span></label>
+      <label>SCr, previous (optional) <span class="ig"><input id="scrPrev" type="number" min="0" step="any" placeholder="same" data-patient><button class="ub" id="scrPrevU"></button></span></label>
+      <label>Hours between SCr values <input id="scrHours" type="number" min="0" step="any" data-patient></label>
       <label>SCr floor
         <select id="scrFloor"><option value="">Off (default)</option><option value="0.7">Round up to 0.7 mg/dL</option><option value="0.8">Round up to 0.8 mg/dL</option></select>
       </label>
@@ -127,12 +127,12 @@ td.flaw { color: var(--warn); }
 
   <section class="card sentence tabpanel" id="panel-adjust" role="tabpanel" aria-labelledby="tab-adjust" hidden>
     <div class="line"><span class="k">Taking</span>
-      <input id="a_dose" type="number" min="0" step="any" value="600" aria-label="Current dose per administration"> <span class="uLbl">mg</span> per dose, schedule above, for
-      <input id="a_days" class="w4" type="number" min="0" step="any" value="7" aria-label="Days on this regimen"> days
+      <input id="a_dose" type="number" min="0" step="any" aria-label="Current dose per administration" data-patient> <span class="uLbl">mg</span> per dose, schedule above, for
+      <input id="a_days" class="w4" type="number" min="0" step="any" aria-label="Days on this regimen" data-patient> days
     </div>
     <div class="line"><span class="k">Level</span>
-      <input id="a_level" type="number" min="0" step="any" value="0.5" aria-label="Measured level"> mEq/L drawn
-      <input id="a_hours" class="w4" type="number" min="0" step="any" value="12" aria-label="Hours after start of the previous dose"> h after the previous (evening) dose
+      <input id="a_level" type="number" min="0" step="any" aria-label="Measured level" data-patient> mEq/L drawn
+      <input id="a_hours" class="w4" type="number" min="0" step="any" aria-label="Hours after start of the previous dose" data-patient> h after the previous (evening) dose
     </div>
     <p class="hint">Steady state needs about 5 half-lives on an unchanged regimen. If not there yet, use Non-steady state.</p>
   </section>
@@ -146,34 +146,34 @@ td.flaw { color: var(--warn); }
     </div>
     <div id="mlBox" hidden>
       <div class="line"><span class="k">Test dose</span>
-        <input id="m_dose" type="number" min="0" step="any" value="600" aria-label="Test dose"> <span class="uLbl">mg</span> (optional; for the comparison with population levels)
+        <input id="m_dose" type="number" min="0" step="any" aria-label="Test dose" data-patient> <span class="uLbl">mg</span> (optional; for the comparison with population levels)
       </div>
       <div class="line"><span class="k">Level 1</span>
-        <input id="m_c1" class="w4" type="number" min="0" step="any" value="0.3" aria-label="Level 1 (mEq/L)"> mEq/L at
-        <input id="m_t1" class="w4" type="number" min="0" step="any" value="12" aria-label="Level 1 hours after the test dose"> h
+        <input id="m_c1" class="w4" type="number" min="0" step="any" aria-label="Level 1 (mEq/L)" data-patient> mEq/L at
+        <input id="m_t1" class="w4" type="number" min="0" step="any" aria-label="Level 1 hours after the test dose" data-patient> h
       </div>
       <div class="line"><span class="k">Level 2</span>
-        <input id="m_c2" class="w4" type="number" min="0" step="any" value="0.22" aria-label="Level 2 (mEq/L)"> mEq/L at
-        <input id="m_t2" class="w4" type="number" min="0" step="any" value="24" aria-label="Level 2 hours after the test dose"> h
+        <input id="m_c2" class="w4" type="number" min="0" step="any" aria-label="Level 2 (mEq/L)" data-patient> mEq/L at
+        <input id="m_t2" class="w4" type="number" min="0" step="any" aria-label="Level 2 hours after the test dose" data-patient> h
       </div>
       <div class="line"><span class="k">Level 3</span>
-        <input id="m_c3" class="w4" type="number" min="0" step="any" placeholder="optional" aria-label="Level 3 (mEq/L)"> mEq/L at
-        <input id="m_t3" class="w4" type="number" min="0" step="any" placeholder="h" aria-label="Level 3 hours after the test dose"> h
+        <input id="m_c3" class="w4" type="number" min="0" step="any" placeholder="optional" aria-label="Level 3 (mEq/L)" data-patient> mEq/L at
+        <input id="m_t3" class="w4" type="number" min="0" step="any" placeholder="h" aria-label="Level 3 hours after the test dose" data-patient> h
       </div>
       <p class="hint">Give one test dose (immediate release, in the evening) and draw 2–3 levels 12 h or more after it. K = −slope of ln(level) vs time; Vd stays at the population value; CL = K × Vd. <span id="mlBadge"></span></p>
     </div>
     <div id="histBox">
     <div class="line"><span class="k">Regimen</span>
-      <input id="n_dose" type="number" min="0" step="any" value="300" aria-label="Dose per administration"> <span class="uLbl">mg</span> per dose, schedule above, first dose
-      <input id="n_start" type="datetime-local" aria-label="First dose date and time">
+      <input id="n_dose" type="number" min="0" step="any" aria-label="Dose per administration" data-patient> <span class="uLbl">mg</span> per dose, schedule above, first dose
+      <input id="n_start" type="datetime-local" aria-label="First dose date and time" data-patient>
       <button type="button" class="ub" id="buildHist" style="border-left:1px solid var(--line);border-radius:4px;padding:5px 8px">Build dose list</button>
     </div>
     <div class="line"><span class="k">Level</span>
-      <input id="n_level" type="number" min="0" step="any" value="0.4" aria-label="Measured level"> mEq/L at
-      <input id="n_levelAt" type="datetime-local" aria-label="Level date and time">
+      <input id="n_level" type="number" min="0" step="any" aria-label="Measured level" data-patient> mEq/L at
+      <input id="n_levelAt" type="datetime-local" aria-label="Level date and time" data-patient>
     </div>
     <label>Dose history, one per line: <code>YYYY-MM-DD HH:MM amount</code> (delete missed doses, add extra or test doses)
-      <textarea id="n_hist" class="hist" spellcheck="false"></textarea></label>
+      <textarea id="n_hist" class="hist" spellcheck="false" data-patient></textarea></label>
     <p class="hint">A single test dose followed by one level is Winter's single-point method. K is fitted with the population Vd held fixed.</p>
     </div>
   </section>
@@ -388,6 +388,7 @@ function patientModel(p, model = "literature") {
   const flags = [];
   const err = (text) => ({ error: text, flags: [{ lvl: "crit", text }] });
   if (!(p.age > 0)) return err("Enter the patient's age.");
+  if (!(p.sex === "M" || p.sex === "F")) return err("Select the patient's sex.");
   if (p.age >= 140) return err("Age must be below 140 years (Cockcroft-Gault gives CrCl ≤ 0).");
   if (!(p.ht > 0) || !(p.wt > 0)) return err("Enter height and weight.");
   if (!(p.scr > 0)) return err("Serum creatinine must be greater than 0.");
@@ -1139,6 +1140,9 @@ function go() {
   if ($("form").value === "elixir" && p.unit === "mg") { $("unit").value = "mL"; return go(); }
   if ($("form").value !== "elixir" && p.unit === "mL") { $("unit").value = "mg"; return go(); }
   $("F").placeholder = `by form: ${defaultF(p.form, model)}`;
+  const lim = PKUI.checkLimits({ age: p.age, wtKg: p.wtUnit === "lb" ? p.wt * 0.45359237 : p.wt, htCm: p.htUnit === "cm" ? p.ht : p.ht * 2.54, scr: p.scr, sex: p.sex },
+    { set: "adult", cg: true });
+  if (PKUI.limitGate($("result"), lim, go)) { $("result").innerHTML = ""; $("strip").innerHTML = ""; currentNote = ""; save(); return; }
   const pm = patientModel(p, model);
   renderStrip(p, pm);
   if (pm.error) { $("result").innerHTML = alertsHTML(pm.flags); currentNote = ""; return; }
@@ -1188,21 +1192,16 @@ function applyTheme() { if (theme === "auto") document.documentElement.removeAtt
 $("themeBtn").addEventListener("click", () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; applyTheme(); save(); });
 
 const KEY = "pk-lithium-v1";
-const inputs = () => [...document.querySelectorAll("#patientPanel input, #patientPanel select, .card.sentence input, .card.sentence select, .card.sentence textarea")];
+// Settings only: patient fields (data-patient) and interaction ticks start blank on every load and are never stored.
+const inputs = () => [...document.querySelectorAll("#patientPanel input, #patientPanel select, .card.sentence input, .card.sentence select, .card.sentence textarea")]
+  .filter((el) => !el.hasAttribute("data-patient") && !el.closest("#interBox"));
 function save() {
   try {
     const s = { _tab: activeTab, _model: model, _theme: theme };
     for (const el of inputs()) if (el.id) s[el.id] = el.type === "checkbox" ? el.checked : el.value;
-    // Unit toggles restart in their first unit, so store those fields in that unit.
-    for (const [id, t] of [["ht", ht], ["wt", wt], ["scr", scrT], ["scrPrev", scrPT]]) { const v = t.getValue(); s[id] = isN(v) ? String(+v.toFixed(3)) : $(id).value; }
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch (e) {}
 }
-// Default dates for the non-steady-state example: first dose 3 days ago at 20:00, level this morning 08:00.
-(function defaults() {
-  const now = new Date(), d = (off, h) => { const x = new Date(now.getFullYear(), now.getMonth(), now.getDate() + off, h, 0); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}T${String(h).padStart(2, "0")}:00`; };
-  $("n_start").value = d(-3, 20); $("n_levelAt").value = d(0, 8);
-})();
 fillSchedules();
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
@@ -1212,7 +1211,6 @@ if (saved) {
   theme = THEMES.includes(saved._theme) ? saved._theme : "auto";
 }
 applyTheme();
-if (!$("n_hist").value) $("n_hist").value = buildHistory(scheduleOf($("sched").value, $("customTimes").value) || scheduleOf("q12h"), parseFloat($("n_dose").value), parseDateTime($("n_start").value), parseDateTime($("n_levelAt").value));
 $("methods").innerHTML = methodsHTML();
 setTab(saved && saved._tab);
 </script>

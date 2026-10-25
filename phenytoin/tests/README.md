@@ -25,4 +25,4 @@ These load the calculation code straight out of `../index.html`, so they always 
 
 The script clicks through every tab, unit toggle, country preset, panel and the copy note, and returns a pass/fail list.
 
-When it runs on a local file, the saved-inputs check reports as skipped, because browsers don't give local files storage.
+The saved-settings check confirms that settings are kept and patient values are not. When it runs on a local file it reports as skipped if the browser gives the page no storage.

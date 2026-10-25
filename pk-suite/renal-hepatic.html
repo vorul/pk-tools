@@ -44,13 +44,13 @@
     <section class="card">
       <h2>Patient</h2>
       <div class="fields">
-        <label>Age <span class="ig"><input id="age" type="number" min="0" max="120" step="any" value="65"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
-        <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-        <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button class="ub" id="htU"></button></span></label>
-        <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
-        <label>SCr (most recent) <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.2"><button class="ub" id="scrU"></button></span></label>
-        <label>Earlier SCr (optional) <span class="ig"><input id="scr0" type="number" min="0" step="any" placeholder="for changing function"><button class="ub" id="scr0U"></button></span></label>
-        <label>Hours between the two SCr <span class="ig"><input id="hrs" type="number" min="0" step="any" placeholder="e.g. 48"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Age <span class="ig"><input id="age" type="number" min="0" max="120" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+        <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+        <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button class="ub" id="htU"></button></span></label>
+        <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button class="ub" id="wtU"></button></span></label>
+        <label>SCr (most recent) <span class="ig"><input id="scr" type="number" min="0" step="any" data-patient><button class="ub" id="scrU"></button></span></label>
+        <label>Earlier SCr (optional) <span class="ig"><input id="scr0" type="number" min="0" step="any" placeholder="for changing function" data-patient><button class="ub" id="scr0U"></button></span></label>
+        <label>Hours between the two SCr <span class="ig"><input id="hrs" type="number" min="0" step="any" placeholder="e.g. 48" data-patient><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
         <label>Amputation (IBW reduction)
           <select id="ampSel">
             <option value="0">None</option>
@@ -64,8 +64,8 @@
             <option value="custom">Custom %</option>
           </select>
         </label>
-        <label>Amputation % (total) <span class="ig"><input id="ampPct" type="number" min="0" max="60" step="any" value="0"><button type="button" class="ub" tabindex="-1" disabled>%</button></span></label>
-        <label class="check" style="align-self:end"><input type="checkbox" id="sci"> Spinal cord injury</label>
+        <label>Amputation % (total) <span class="ig"><input id="ampPct" type="number" min="0" max="60" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>%</button></span></label>
+        <label class="check" style="align-self:end"><input type="checkbox" id="sci" data-patient> Spinal cord injury</label>
         <label class="check" style="align-self:end" id="sciCorrRow" hidden><input type="checkbox" id="sciCorr"> Apply CG × 0.8 (SCI) <span id="sciBadge"></span></label>
       </div>
     </section>
@@ -176,13 +176,13 @@
     <section class="card">
       <h2>Labs and clinical findings</h2>
       <div class="fields">
-        <label>Total bilirubin <span class="ig"><input id="bili" type="number" min="0" step="any" value="1"><button class="ub" id="biliU"></button></span></label>
-        <label class="check" style="align-self:end"><input type="checkbox" id="chol"> Cholestatic disease (PBC / PSC) cutoffs</label>
-        <label>Albumin <span class="ig"><input id="alb" type="number" min="0" step="any" value="3.8"><button class="ub" id="albU"></button></span></label>
+        <label>Total bilirubin <span class="ig"><input id="bili" type="number" min="0" step="any" data-patient><button class="ub" id="biliU"></button></span></label>
+        <label class="check" style="align-self:end"><input type="checkbox" id="chol" data-patient> Cholestatic disease (PBC / PSC) cutoffs</label>
+        <label>Albumin <span class="ig"><input id="alb" type="number" min="0" step="any" data-patient><button class="ub" id="albU"></button></span></label>
         <label>Coagulation measure
           <select id="coagMode"><option value="inr" selected>INR</option><option value="pt">PT, seconds over control</option></select>
         </label>
-        <label><span id="coagLbl">INR</span> <span class="ig"><input id="coag" type="number" min="0" step="any" value="1.1"><button type="button" class="ub" tabindex="-1" disabled id="coagUnit">ratio</button></span></label>
+        <label><span id="coagLbl">INR</span> <span class="ig"><input id="coag" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled id="coagUnit">ratio</button></span></label>
         <label>Ascites
           <select id="ascites">
             <option value="1">None</option>
@@ -548,10 +548,12 @@ function calcCrcl() {
   $("policyFs").disabled = site; $("siteNote").hidden = !site;
   $("ampSel").disabled = site; $("ampPct").disabled = site; $("sci").disabled = site; $("ped").disabled = site;
   $("sciCorrRow").hidden = site || !$("sci").checked;
-  const r = crclCalc(inp);
-  if (r.error) {
-    PKUI.renderBanners($("crclAlerts"), [{ lvl: "info", text: r.error }]);
-    $("crclResult").innerHTML = `<p class="hint">${esc(r.error)}</p>`;
+  const lim = PKUI.checkLimits({ age: inp.age, wtKg: inp.tbw, htCm: inp.heightIn * 2.54, scr: inp.scr, sex: inp.sex }, { set: "all", cg: !(inp.age < 18) });
+  const blocked = PKUI.limitGate($("crclAlerts"), lim, calcCrcl);
+  const r = blocked ? { error: "" } : !(inp.sex === "M" || inp.sex === "F") ? { error: [inp.age, inp.heightIn, inp.tbw, inp.scr].every((x) => x > 0) ? "Select sex." : "Enter age, sex, height, weight and SCr." } : crclCalc(inp);
+  if (r.error !== undefined) {
+    PKUI.renderBanners($("crclAlerts"), r.error ? [{ lvl: "info", text: r.error }] : []);
+    $("crclResult").innerHTML = r.error ? `<p class="hint">${esc(r.error)}</p>` : "";
     $("bodyDl").innerHTML = ""; $("cgTable").innerHTML = ""; $("nssCard").hidden = true; $("pedCard").hidden = true;
     return;
   }

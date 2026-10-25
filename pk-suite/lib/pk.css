@@ -121,3 +121,5 @@ footer { color: var(--muted); font-size: .76rem; }
 footer a, details a { color: var(--accent); }
 @media (max-width: 480px) { .order .right { text-align: left; justify-items: start; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.limitgate .alert ul { margin: 4px 0 6px; padding-left: 20px; }
+.limitgate .alert label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; cursor: pointer; }

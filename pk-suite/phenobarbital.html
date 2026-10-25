@@ -54,12 +54,12 @@ td.l { text-align: left; font-family: var(--font-body); white-space: normal; }
     <h2>Patient</h2>
     <div class="fields">
       <label>Age
-        <span class="ig"><input id="age" type="number" min="0" step="any" value="45" aria-label="Age">
-        <select id="ageUnit" aria-label="Age unit" style="border-radius:0 4px 4px 0"><option value="y">years</option><option value="mo">months</option><option value="wk">weeks</option><option value="d">days</option></select></span>
+        <span class="ig"><input id="age" type="number" min="0" step="any" aria-label="Age" data-patient>
+        <select id="ageUnit" aria-label="Age unit" style="border-radius:0 4px 4px 0" data-patient><option value="y">years</option><option value="mo">months</option><option value="wk">weeks</option><option value="d">days</option></select></span>
       </label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Weight (dosing = total) <span class="ig"><input id="wt" type="number" min="0" step="any" value="70"><button type="button" class="ub" id="wtU"></button></span></label>
-      <label>Height (optional) <span class="ig"><input id="ht" type="number" min="0" step="any" value="175"><button type="button" class="ub" id="htU"></button></span></label>
+      <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Weight (dosing = total) <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button type="button" class="ub" id="wtU"></button></span></label>
+      <label>Height (optional) <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button type="button" class="ub" id="htU"></button></span></label>
     </div>
   </section>
 
@@ -93,27 +93,27 @@ td.l { text-align: left; font-family: var(--font-body); white-space: normal; }
       <summary>Interactions and conditions <span id="interSummary"></span></summary>
       <div class="body" style="max-width:none">
         <div class="fields">
-          <label>Valproic acid (mg/day, 0 = none) <input id="vpa" type="number" min="0" step="any" value="0"></label>
+          <label>Valproic acid (mg/day, 0 = none) <input id="vpa" type="number" min="0" step="any" data-patient></label>
           <label>Dialysis / CRRT
-            <select id="dialysis"><option value="none">None</option><option value="hd">Conventional HD (~30% removed)</option><option value="hfhd">High-flux HD (~50% removed)</option><option value="pd">Peritoneal dialysis (7.5–15%)</option><option value="crrt">CRRT</option></select>
+            <select id="dialysis" data-patient><option value="none">None</option><option value="hd">Conventional HD (~30% removed)</option><option value="hfhd">High-flux HD (~50% removed)</option><option value="pd">Peritoneal dialysis (7.5–15%)</option><option value="crrt">CRRT</option></select>
           </label>
         </div>
         <p class="subhead">Change clearance (multiplier applied)</p>
         <div class="grid-checks">
-          <label class="check"><input type="checkbox" id="chloramphenicol"> Chloramphenicol ×0.6</label>
-          <label class="check"><input type="checkbox" id="pyridoxine"> Pyridoxine ×1.4</label>
-          <label class="check"><input type="checkbox" id="phenothiazine"> Thioridazine / mesoridazine / phenothiazines ×1.3</label>
-          <label class="check"><input type="checkbox" id="carbamazepine"> Carbamazepine ×0.91 (&gt; 65 y)</label>
-          <label class="check"><input type="checkbox" id="phenytoin"> Phenytoin ×0.8 (&gt; 65 y)</label>
+          <label class="check"><input type="checkbox" id="chloramphenicol" data-patient> Chloramphenicol ×0.6</label>
+          <label class="check"><input type="checkbox" id="pyridoxine" data-patient> Pyridoxine ×1.4</label>
+          <label class="check"><input type="checkbox" id="phenothiazine" data-patient> Thioridazine / mesoridazine / phenothiazines ×1.3</label>
+          <label class="check"><input type="checkbox" id="carbamazepine" data-patient> Carbamazepine ×0.91 (&gt; 65 y)</label>
+          <label class="check"><input type="checkbox" id="phenytoin" data-patient> Phenytoin ×0.8 (&gt; 65 y)</label>
         </div>
         <p class="subhead">Warn only (effect not quantified)</p>
         <div class="grid-checks">
-          <label class="check"><input type="checkbox" id="rifampin"> Rifampin</label>
-          <label class="check"><input type="checkbox" id="alkalinization"> Urine alkalinization / forced diuresis</label>
-          <label class="check"><input type="checkbox" id="liver"> Cirrhosis / hepatorenal</label>
-          <label class="check"><input type="checkbox" id="renalFail"> Severe renal failure</label>
-          <label class="check"><input type="checkbox" id="pregnancy"> Pregnancy</label>
-          <label class="check"><input type="checkbox" id="benzo"> Recent benzodiazepine / other CNS depressant</label>
+          <label class="check"><input type="checkbox" id="rifampin" data-patient> Rifampin</label>
+          <label class="check"><input type="checkbox" id="alkalinization" data-patient> Urine alkalinization / forced diuresis</label>
+          <label class="check"><input type="checkbox" id="liver" data-patient> Cirrhosis / hepatorenal</label>
+          <label class="check"><input type="checkbox" id="renalFail" data-patient> Severe renal failure</label>
+          <label class="check"><input type="checkbox" id="pregnancy" data-patient> Pregnancy</label>
+          <label class="check"><input type="checkbox" id="benzo" data-patient> Recent benzodiazepine / other CNS depressant</label>
         </div>
       </div>
     </details>
@@ -130,19 +130,19 @@ td.l { text-align: left; font-family: var(--font-body); white-space: normal; }
     <div class="fields">
       <label class="check" style="align-self:end"><input type="checkbox" id="i_load" checked> Give a loading dose</label>
       <label>Loading route <select id="i_ldRoute"><option value="iv">IV</option><option value="im">IM</option><option value="po">PO tablets</option><option value="rectal">Rectal</option></select></label>
-      <label>Current level, if any <span class="ig"><input id="i_cur" class="lvl" type="number" min="0" step="any" placeholder="0 (naive)"><button type="button" class="ub lu" tabindex="-1"></button></span></label>
+      <label>Current level, if any <span class="ig"><input id="i_cur" class="lvl" type="number" min="0" step="any" placeholder="0 (naive)" data-patient><button type="button" class="ub lu" tabindex="-1"></button></span></label>
     </div>
   </section>
 
   <section class="card tabpanel" id="panel-ss" role="tabpanel" aria-labelledby="tab-ss" hidden>
     <h2>Current regimen and steady-state level</h2>
     <div class="fields">
-      <label>Current dose (mg) <input id="s_dose" type="number" min="0" step="any" value="100"></label>
-      <label>Current route <select id="s_route"><option value="po">PO</option><option value="iv">IV</option><option value="im">IM</option><option value="rectal">Rectal</option></select></label>
-      <label>Current interval <select id="s_tau"><option value="24">q24h</option><option value="12">q12h</option><option value="8">q8h</option></select></label>
-      <label>Days on this regimen <input id="s_days" type="number" min="0" step="any" value="28"></label>
-      <label>Measured level <span class="ig"><input id="s_level" class="lvl" type="number" min="0" step="any" value="14"><button type="button" class="ub lu" tabindex="-1"></button></span></label>
-      <label>Sample timing <select id="s_sample"><option value="trough">Trough (before a dose)</option><option value="random">Random / mid-interval</option><option value="peak">Peak (2–3 h post dose)</option></select></label>
+      <label>Current dose (mg) <input id="s_dose" type="number" min="0" step="any" data-patient></label>
+      <label>Current route <select id="s_route" data-patient><option value="po">PO</option><option value="iv">IV</option><option value="im">IM</option><option value="rectal">Rectal</option></select></label>
+      <label>Current interval <select id="s_tau" data-patient><option value="24">q24h</option><option value="12">q12h</option><option value="8">q8h</option></select></label>
+      <label>Days on this regimen <input id="s_days" type="number" min="0" step="any" data-patient></label>
+      <label>Measured level <span class="ig"><input id="s_level" class="lvl" type="number" min="0" step="any" data-patient><button type="button" class="ub lu" tabindex="-1"></button></span></label>
+      <label>Sample timing <select id="s_sample" data-patient><option value="trough">Trough (before a dose)</option><option value="random">Random / mid-interval</option><option value="peak">Peak (2–3 h post dose)</option></select></label>
       <label>Top-up load route <select id="s_ldRoute"><option value="iv">IV</option><option value="im">IM</option><option value="po">PO tablets</option></select></label>
     </div>
     <p class="hint" style="margin-top:8px">The new maintenance dose uses the route, product and interval set under "Regimen and target".</p>
@@ -170,7 +170,7 @@ td.l { text-align: left; font-family: var(--font-body); white-space: normal; }
       <label>Fit volume too <select id="n_fitV"><option value="auto">Auto (MAP: yes; LS: if ≥ 2 levels)</option><option value="yes">Yes</option><option value="no">No, fix at population</option></select></label>
       <label>CV of clearance prior <input id="n_cvCL" type="number" min="0.05" step="0.05" value="0.3"></label>
       <label>CV of volume prior <input id="n_cvV" type="number" min="0.05" step="0.05" value="0.3"></label>
-      <label>Continue: dose now ordered (mg) <input id="n_dose" type="number" min="0" step="any" placeholder="last dose"></label>
+      <label>Continue: dose now ordered (mg) <input id="n_dose" type="number" min="0" step="any" placeholder="last dose" data-patient></label>
     </div>
     <p class="hint" style="margin-top:8px">Continuing doses are projected every interval set above, on the route set above. Each dose is modeled as a bolus with its own salt factor and bioavailability.</p>
   </section>
@@ -421,7 +421,7 @@ function pbPatient(p) {
   if (p.htCm > 0) {
     bmi = PK.body.bmi(p.wt, p.htCm);
     bsa = PK.body.bsa(p.wt, p.htCm);
-    if (age.years >= 18) ibw = PK.body.ibw(p.sex, p.htCm / 2.54);
+    if (age.years >= 18 && (p.sex === "M" || p.sex === "F")) ibw = PK.body.ibw(p.sex, p.htCm / 2.54);
   }
   if (band.key === "neonate") flags.push({ lvl: "warn", text: "Neonate: clearance rises quickly over the first 10 postnatal days, so population estimates are unreliable. Check levels." });
   if (age.years >= 18 && bmi >= 30) flags.push({ lvl: "warn", text: `BMI ${bmi.toFixed(1)}: total body weight is used (site; one case report, Wilkes 1992). Dose cautiously and monitor levels.` });
@@ -771,7 +771,8 @@ function fillHistory() {
 }
 
 // ---- Read all inputs ----
-const ID_INPUTS = () => [...document.querySelectorAll("#patientPanel input, #patientPanel select, .card input[id], .card select[id]")].filter((el) => !el.closest(".row"));
+// Settings only: patient fields (data-patient) and the dose/level rows start blank on every load and are never stored.
+const ID_INPUTS = () => [...document.querySelectorAll("#patientPanel input, #patientPanel select, .card input[id], .card select[id]")].filter((el) => !el.closest(".row") && !el.hasAttribute("data-patient"));
 function read() {
   const v = (id) => $(id).value, n = (id) => parseFloat($(id).value), c = (id) => $(id).checked;
   const ht = htT.getValue();
@@ -989,6 +990,8 @@ function render() {
   $("formRow").hidden = p.route !== "po";
   const ia = p.inter, nInter = [ia.vpa > 0, ia.chloramphenicol, ia.pyridoxine, ia.phenothiazine, ia.carbamazepine, ia.phenytoin, ia.rifampin, ia.alkalinization, ia.liver, ia.renalFail, ia.pregnancy, ia.benzo, ia.dialysis !== "none"].filter(Boolean).length;
   $("interSummary").textContent = nInter ? `(${nInter} selected)` : "";
+  const ageY = p.ageValue / ({ y: 1, mo: 12, wk: 52.1775, d: 365.25 }[p.ageUnit] || 1);
+  if (PKUI.limitGate($("result"), PKUI.checkLimits({ age: ageY, wtKg: p.wt, htCm: p.htCm }, { set: "all" }), render)) { $("result").innerHTML = ""; currentNote = ""; return; }
   const errs = [];
   if (!(p.target > 0)) errs.push("Enter a target level above 0.");
   if (!(p.range[0] > 0 && p.range[1] > p.range[0])) errs.push("Enter a valid range (low < high).");
@@ -1069,7 +1072,7 @@ document.addEventListener("input", (e) => { if (e.target.matches("input")) { ren
 const KEY = "pk-phenobarbital-v1";
 function save() {
   try {
-    const s = { _tab: activeTab, _model: model, _work: showWork, _theme: theme, _LU: LU, _doses: doseRows, _levels: levelRows, _wtU: wtT.unit(), _htU: htT.unit() };
+    const s = { _tab: activeTab, _model: model, _work: showWork, _theme: theme, _LU: LU, _wtU: wtT.unit(), _htU: htT.unit() };
     for (const el of ID_INPUTS()) s[el.id] = el.type === "checkbox" ? el.checked : el.value;
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch (e) {}
@@ -1077,17 +1080,11 @@ function save() {
 function restore() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
-  // Defaults: 200 mg IV q24h × 7 with a trough before dose 8.
-  doseRows = pbHistory({ dose: 200, route: "iv", tau: 24, n: 7 });
-  levelRows = [{ t: 168, c: 15 }];
+  doseRows = []; levelRows = [];
   if (s) {
-    for (const el of ID_INPUTS()) if (el.id in s && el.id !== "wt" && el.id !== "ht") { if (el.type === "checkbox") el.checked = s[el.id]; else el.value = s[el.id]; }
+    for (const el of ID_INPUTS()) if (el.id in s) { if (el.type === "checkbox") el.checked = s[el.id]; else el.value = s[el.id]; }
     if (s._wtU === "lb") $("wtU").click();
     if (s._htU === "in") $("htU").click();
-    if ("wt" in s) $("wt").value = s.wt;
-    if ("ht" in s) $("ht").value = s.ht;
-    if (Array.isArray(s._doses)) doseRows = s._doses;
-    if (Array.isArray(s._levels)) levelRows = s._levels;
     if (s._LU) LU = s._LU;
     showWork = !!s._work; theme = s._theme || "auto";
     model = PB_MODELS[s._model] ? s._model : "literature";

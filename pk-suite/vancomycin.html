@@ -59,11 +59,11 @@
   <section class="card">
     <h2>Patient</h2>
     <div class="fields">
-      <label>Age <span class="ig"><input id="age" type="number" min="0" max="120" step="any" value="60"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button class="ub" id="htU"></button></span></label>
-      <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
-      <label>SCr (most recent) <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button class="ub" id="scrU"></button></span></label>
+      <label>Age <span class="ig"><input id="age" type="number" min="0" max="120" step="any"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+      <label>Sex <select id="sex"><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any"><button class="ub" id="htU"></button></span></label>
+      <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any"><button class="ub" id="wtU"></button></span></label>
+      <label>SCr (most recent) <span class="ig"><input id="scr" type="number" min="0" step="any"><button class="ub" id="scrU"></button></span></label>
       <label>Earlier SCr (if changing) <span class="ig"><input id="scr0" type="number" min="0" step="any" placeholder="blank = stable"><button class="ub" id="scr0U"></button></span></label>
       <label>Hours between SCr values <span class="ig"><input id="hrs" type="number" min="0" step="any" placeholder="e.g. 48"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
     </div>
@@ -157,25 +157,25 @@
       </div>
       <p class="sub">Regimen the levels were drawn on (steady state)</p>
       <div class="fields">
-        <label>Dose <span class="ig"><input id="l_dose" type="number" min="0" step="any" value="1250"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
-        <label>Interval <span class="ig"><input id="l_tau" type="number" min="1" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
-        <label>Infusion time <span class="ig"><input id="l_tinf" type="number" min="0.5" step="any" value="2"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Dose <span class="ig"><input id="l_dose" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+        <label>Interval <span class="ig"><input id="l_tau" type="number" min="1" step="any"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Infusion time <span class="ig"><input id="l_tinf" type="number" min="0.5" step="any"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
       </div>
       <div id="l_ptF">
         <p class="sub">Levels after the same dose</p>
         <div class="fields">
-          <label>Peak <span class="ig"><input id="l_pk" type="number" min="0" step="any" value="30"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
-          <label>Peak drawn after END of infusion <span class="ig"><input id="l_tpk" type="number" min="0" step="any" value="2"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
-          <label>Trough <span class="ig"><input id="l_tr" type="number" min="0" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
-          <label>Trough drawn before START of next dose <span class="ig"><input id="l_ttr" type="number" min="0" step="any" value="0.5"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+          <label>Peak <span class="ig"><input id="l_pk" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+          <label>Peak drawn after END of infusion <span class="ig"><input id="l_tpk" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+          <label>Trough <span class="ig"><input id="l_tr" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+          <label>Trough drawn before START of next dose <span class="ig"><input id="l_ttr" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
           <label class="check wide"><input type="checkbox" id="l_before"> Trough was drawn before this dose (around a dose; assumes steady state)</label>
         </div>
       </div>
       <div id="l_trF" hidden>
         <p class="sub">One steady-state level</p>
         <div class="fields">
-          <label>Level <span class="ig"><input id="l_lv" type="number" min="0" step="any" value="15"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
-          <label>Drawn after START of the dose <span class="ig"><input id="l_tlv" type="number" min="0" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+          <label>Level <span class="ig"><input id="l_lv" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>mg/L</button></span></label>
+          <label>Drawn after START of the dose <span class="ig"><input id="l_tlv" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
         </div>
         <p class="note" id="l_vdNote"></p>
       </div>
@@ -504,6 +504,40 @@ function doseForAuc(CL, tau, target, inc = LIT.doseInc) {
 }
 const autoTau = (pm, tinf, menu = LIT.tauAuto) => PK.round.snapInterval(Math.LN2 / kTerm(pm) + tinf, menu, "nearest");
 
+// Regimen for a target AUC in 250 mg steps that stays inside the AUC range when one exists (review 2026-10-25).
+// 1. The nearest step at tau, if its AUC is in range (unchanged behaviour).
+// 2. Otherwise the other step at the same tau (rounded the other way), if in range.
+// 3. Otherwise, with auto: true, the in-range step at the neighbouring menu intervals closest to the target.
+//    With a chosen interval the neighbour is only suggested (alt), never applied.
+// Returns { tau, md, auc, change: null | 'dose' | 'tau', from, alt, noFit, flags }.
+function aucRegimen(CL, tau, target, { auto = false, menu = LIT.tauAuto, range = LIT.aucRange, inc = LIT.doseInc } = {}) {
+  const auc = (dose, t) => PK.one.auc24Dose(dose, CL, t);
+  const ok = (a) => a >= range[0] - 1e-9 && a <= range[1] + 1e-9;
+  const steps = (t) => {
+    const exact = doseForAuc(CL, t, target, inc).exact;
+    return [...new Set([PK.round.roundTo(exact, inc, "down"), PK.round.roundTo(exact, inc, "up")].map((d) => Math.max(inc, d)))]
+      .map((dose) => ({ tau: t, md: { exact, dose }, auc: auc(dose, t) }));
+  };
+  const near = (c) => Math.abs(c.auc - target);
+  const first = (() => { const md = doseForAuc(CL, tau, target, inc); return { tau, md, auc: auc(md.dose, tau) }; })();
+  const rng = `${range[0]}–${range[1]}`, flags = [];
+  if (ok(first.auc)) return { ...first, change: null, flags };
+  const same = steps(tau).filter((c) => ok(c.auc)).sort((a, b) => near(a) - near(b))[0];
+  if (same) {
+    flags.push({ code: "aucRoundDose", lvl: "info", text: `Rounded ${same.md.dose > first.md.dose ? "up" : "down"} to ${same.md.dose} mg: the nearest 250 mg step (${first.md.dose} mg) gives AUC24 ${Math.round(first.auc)}, outside ${rng}.` });
+    return { ...same, change: "dose", from: first, flags };
+  }
+  const below = [...menu].reverse().find((t) => t < tau - 1e-9), above = menu.find((t) => t > tau + 1e-9);
+  const nb = [below, above].filter(isFin).flatMap(steps).filter((c) => ok(c.auc)).sort((a, b) => near(a) - near(b))[0];
+  if (nb && auto) {
+    flags.push({ code: "aucRoundTau", lvl: "info", text: `Interval q${nb.tau}h instead of q${tau}h: no 250 mg step at q${tau}h gives AUC24 ${rng} (${first.md.dose} mg gives ${Math.round(first.auc)}); ${nb.md.dose} mg q${nb.tau}h gives ${Math.round(nb.auc)}.` });
+    return { ...nb, change: "tau", from: first, flags };
+  }
+  if (nb) flags.push({ code: "aucAltTau", lvl: "warn", text: `No 250 mg step at q${tau}h gives AUC24 ${rng} (${first.md.dose} mg gives ${Math.round(first.auc)}). ${nb.md.dose} mg q${nb.tau}h would give ${Math.round(nb.auc)}.` });
+  else flags.push({ code: "aucNoFit", lvl: "warn", text: `No 250 mg step at q${tau}h${auto ? " or the neighbouring intervals" : ""} gives AUC24 ${rng}: choose the regimen by hand.` });
+  return { ...first, change: null, alt: nb || null, noFit: !nb, flags };
+}
+
 // Literature loading dose: mg/kg TBW (20–35; ≤ 25 if BMI ≥ 30), rounded to 250 mg, capped 3000 mg.
 function litLoadingDose(tbw, perKg, obese, cap = LIT.ldCap) {
   const used = clamp(isFin(perKg) ? perKg : LIT.ldPerKg, LIT.ldRange[0], obese ? LIT.ldObeseMaxPerKg : LIT.ldRange[1]);
@@ -546,12 +580,14 @@ function initialCalc(i) {
   }
   const cov = covariates(i);
   const pm = popModel(cov, i.model || "reg1c", mode, i);
-  const tau = i.tau === "auto" || !isFin(i.tau) ? autoTau(pm, tinf) : i.tau;
-  const md = doseForAuc(pm.p.CL, tau, target);
+  const auto = i.tau === "auto" || !isFin(i.tau);
+  const reg = isFin(i.dose) ? null : aucRegimen(pm.p.CL, auto ? autoTau(pm, tinf) : i.tau, target, { auto });
+  const tau = reg ? reg.tau : auto ? autoTau(pm, tinf) : i.tau;
+  const md = reg ? reg.md : doseForAuc(pm.p.CL, tau, target);
   const dose = isFin(i.dose) ? i.dose : md.dose;
   const ld = litLoadingDose(cov.tbw, i.ldPerKg, cov.obese, i.ldCap === LIT.ldCapAlt ? LIT.ldCapAlt : LIT.ldCap);
   const pred = predictSS(pm, { dose, tau, tinf });
-  const flags = cov.flags.concat(clinicalFlags({ auc: pred.auc, trough: pred.trough, dose, tau, tinf, nephrotoxins: i.nephrotoxins, empiric: true }));
+  const flags = cov.flags.concat(reg ? reg.flags : [], clinicalFlags({ auc: pred.auc, trough: pred.trough, dose, tau, tinf, nephrotoxins: i.nephrotoxins, empiric: true }));
   if (cov.obese) flags.push({ code: "obese", lvl: "info", text: `BMI ${cov.bmi.toFixed(1)} ≥ 30: ${pm.struct !== "1c" ? "" : pm.fixed75 ? "fixed Vd 75 L (BMI ≥ 40, Dunn 2019), " : "Vd 0.5 L/kg TBW, "}loading dose ≤ 25 mg/kg (Rybak 2020; Adane 2015). Obesity Vd is a sign-off item.` });
   if (ld.capped) flags.push({ code: "ldCap", lvl: "info", text: `Loading dose capped at ${ld.cap} mg (${ld.perKg} mg/kg would be ${Math.round(ld.exact)} mg).` });
   if (ld.clampedFrom !== null) flags.push({ code: "ldClamp", lvl: "info", text: `Loading dose ${ld.clampedFrom} mg/kg limited to ${ld.perKg} mg/kg (range 20–35, ≤ 25 if BMI ≥ 30).` });
@@ -565,7 +601,9 @@ function initialCalc(i) {
 function twoLevelCalc(i) {
   const flags = [];
   const dt = i.tau - i.tinf - i.tPeak - i.tTrough;
+  if (!(i.dose > 0 && i.tau > 0 && i.tinf > 0)) return { error: "Enter the dose, interval and infusion time the levels were drawn on." };
   if (!(i.peak > 0 && i.trough > 0)) return { error: "Enter both levels." };
+  if (!(isFin(i.tPeak) && isFin(i.tTrough))) return { error: "Enter when each level was drawn." };
   if (!(i.peak > i.trough)) return { error: "Peak must be higher than trough." };
   if (!(dt > 0)) return { error: "Time between levels must be > 0: check the interval, infusion time and sampling times." };
   const sz = PK.one.sawchukZaske({ peak: i.peak, trough: i.trough, dt, tPeakAfterEnd: i.tPeak, dose: i.dose, tinf: i.tinf, tau: i.tau });
@@ -577,8 +615,10 @@ function twoLevelCalc(i) {
   if (isFin(vkg) && (vkg < 0.4 || vkg > 1.0)) flags.push({ code: "vdOdd", lvl: "warn", text: `Fitted Vd ${vkg.toFixed(2)} L/kg is outside 0.4–1.0: check sampling and infusion times.` });
   const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
   const newTinf = isFin(i.newTinf) ? i.newTinf : i.tinf, newTau = isFin(i.newTau) ? i.newTau : i.tau;
-  const md = doseForAuc(sz.CL, newTau, target);
+  const reg = !isFin(i.newDose) && i.mode !== "site" ? aucRegimen(sz.CL, newTau, target) : null;
+  const md = reg ? reg.md : doseForAuc(sz.CL, newTau, target);
   const newDose = isFin(i.newDose) ? i.newDose : md.dose;
+  if (reg) flags.push(...reg.flags);
   const pred = predictSS(pm, { dose: newDose, tau: newTau, tinf: newTinf });
   const site = i.mode === "site" ? siteDisplay(sz.k, sz.V, { dose: newDose, tau: newTau, tinf: newTinf }) : null;
   flags.push(...clinicalFlags({ auc: pred.auc, trough: pred.trough, dose: newDose, tau: newTau, tinf: newTinf, nephrotoxins: i.nephrotoxins }));
@@ -594,7 +634,9 @@ function siteDisplay(k, V, r) {
 // One steady-state level (from the START of the dose), Vd fixed at population. Less reliable (Rybak 2020; Neely 2014).
 // i: { dose, tau, tinf, level, t, V, newTau, newTinf, aucTarget, mode }
 function troughOnlyCalc(i) {
+  if (!(i.dose > 0 && i.tau > 0 && i.tinf > 0)) return { error: "Enter the dose, interval and infusion time the level was drawn on." };
   if (!(i.level > 0)) return { error: "Enter the level." };
+  if (!isFin(i.t)) return { error: "Enter when the level was drawn." };
   if (!(i.t >= i.tinf)) return { error: "Level time must be at or after the end of the infusion (time is from the START of the dose)." };
   if (!(i.t <= i.tau)) return { error: "Level time must be within the dosing interval." };
   const k = solveKSS({ dose: i.dose, tau: i.tau, tinf: i.tinf, V: i.V, level: i.level, t: i.t });
@@ -603,10 +645,11 @@ function troughOnlyCalc(i) {
   const cur = predictSS(pm, { dose: i.dose, tau: i.tau, tinf: i.tinf });
   const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
   const newTau = isFin(i.newTau) ? i.newTau : i.tau, newTinf = isFin(i.newTinf) ? i.newTinf : i.tinf;
-  const md = doseForAuc(pm.p.CL, newTau, target);
+  const reg = !isFin(i.newDose) && i.mode !== "site" ? aucRegimen(pm.p.CL, newTau, target) : null;
+  const md = reg ? reg.md : doseForAuc(pm.p.CL, newTau, target);
   const newDose = isFin(i.newDose) ? i.newDose : md.dose;
   const pred = predictSS(pm, { dose: newDose, tau: newTau, tinf: newTinf });
-  const flags = [{ code: "troughOnly", lvl: "warn", text: "Trough-only first-order AUC assumes the population Vd and is not a guideline method (Rybak 2020): use two levels or Bayesian estimation." }];
+  const flags = [...(reg ? reg.flags : []), { code: "troughOnly", lvl: "warn", text: "Trough-only first-order AUC assumes the population Vd and is not a guideline method (Rybak 2020): use two levels or Bayesian estimation." }];
   if (i.t < i.tau - 2) flags.push({ code: "notTrough", lvl: "info", text: "Level is not a trough; still valid at steady state (time from the start of the dose)." });
   flags.push(...clinicalFlags({ auc: pred.auc, trough: pred.trough, dose: newDose, tau: newTau, tinf: newTinf, nephrotoxins: i.nephrotoxins }));
   return { k, pm, current: cur, md: { ...md, dose: newDose }, newTau, newTinf, pred, flags, target,
@@ -706,8 +749,10 @@ function bayesCalc(i) {
   const current = predictSS(fm, { dose: last.dose, tau: curTau, tinf: last.tinf });
   const target = isFin(i.aucTarget) ? i.aucTarget : LIT.aucTarget;
   const newTau = isFin(i.newTau) ? i.newTau : curTau, newTinf = isFin(i.newTinf) ? i.newTinf : last.tinf;
-  const md = doseForAuc(params.CL, newTau, target);
+  const reg = !isFin(i.newDose) && mode !== "site" ? aucRegimen(params.CL, newTau, target) : null;
+  const md = reg ? reg.md : doseForAuc(params.CL, newTau, target);
   const newDose = isFin(i.newDose) ? i.newDose : md.dose;
+  if (reg) flags.push(...reg.flags);
   const pred = predictSS(fm, { dose: newDose, tau: newTau, tinf: newTinf });
   const seCL = fitR.se && isFin(fitR.se.CL) ? fitR.se.CL : NaN;
   const aucRange = isFin(seCL) ? [pred.auc * Math.exp(-1.96 * seCL), pred.auc * Math.exp(1.96 * seCL)] : null;
@@ -948,6 +993,7 @@ function orderText(o) {
   if (isFin(o.peak)) p.push(`peak ${o.peak.toFixed(1)}`);
   if (isFin(o.trough)) p.push(`trough ${o.trough.toFixed(1)} mg/L`);
   if (p.length) lines.push(`Predicted at steady state: ${p.join(", ")}.`);
+  if (isFin(o.auc) && (o.auc < LIT.aucRange[0] || o.auc > LIT.aucRange[1])) lines.push(`Note: predicted AUC24 is outside ${LIT.aucRange[0]}–${LIT.aucRange[1]} mg·h/L; review the regimen before ordering.`);
   lines.push(`Basis: ${o.basis}.`);
   lines.push(o.monitor || "Monitor: SCr daily; peak 1–2 h after end of infusion and trough before the next dose (same dose) or Bayesian levels within 24–48 h.");
   return lines.join("\n");
@@ -1064,7 +1110,9 @@ function patient() {
     mode, model: $("pmodel").value, aucTarget: +$("target").value,
   };
 }
-const validPatient = (p) => [p.age, p.htIn, p.wtKg, p.scr].every((x) => x > 0);
+const validPatient = (p) => (p.sex === "M" || p.sex === "F") && [p.age, p.htIn, p.wtKg, p.scr].every((x) => x > 0);
+const RESULT_IDS = { i: ["i_order", "i_plot", "i_params", "i_pred", "i_chart"], l: ["l_order", "l_plot", "l_table", "l_wbPop", "l_wbFit"], b: ["b_order", "b_plot", "b_params", "b_fitTbl"] };
+function clearResults(tabs = ["i", "l", "b"]) { for (const t of tabs) for (const id of RESULT_IDS[t]) if ($(id)) $(id).innerHTML = ""; }
 
 // ---------- Rendering helpers ----------
 function aucBar(auc) {
@@ -1299,14 +1347,8 @@ $("b_addDose").addEventListener("click", () => {
   doseRow(toLocal(t), last ? last.cells[1].firstElementChild.value : 1000, last ? last.cells[2].firstElementChild.value : 1); calcAll();
 });
 $("b_addLevel").addEventListener("click", () => { levelRow(toLocal(new Date()), ""); });
-// Example history: 1000 mg q12h × 4 (1 h infusions), peak 1 h and trough 0.5 h before dose 5... after dose 4.
-(function seed() {
-  const s = new Date(2026, 9, 20, 8, 0);
-  $("g_start").value = toLocal(s);
-  for (let j = 0; j < 4; j++) doseRow(toLocal(new Date(s.getTime() + j * 12 * 3600e3)), 1000, 1);
-  levelRow(toLocal(new Date(s.getTime() + (36 + 3) * 3600e3)), 28);
-  levelRow(toLocal(new Date(s.getTime() + (36 + 11.5) * 3600e3)), 12);
-})();
+// The dose history starts empty (no sample patient); the series generator starts at the current hour.
+(function seedGenerator() { const s = new Date(); s.setMinutes(0, 0, 0); $("g_start").value = toLocal(s); })();
 function readHistory() {
   const doses = [...$("b_doses").tBodies[0].rows].map((r) => ({ ms: new Date(r.cells[0].firstElementChild.value).getTime(), dose: parseFloat(r.cells[1].firstElementChild.value), tinf: parseFloat(r.cells[2].firstElementChild.value) }))
     .filter((d) => isFinite(d.ms) && d.dose > 0 && d.tinf >= 0);
@@ -1352,7 +1394,13 @@ function calcBayes(p) {
 // ---------- Main ----------
 function calcAll() {
   const p = patient();
-  if (!validPatient(p)) { for (const id of ["i_alerts", "l_alerts", "b_alerts"]) PKUI.renderBanners($(id), [{ lvl: "info", text: "Enter age, height, weight and SCr." }]); return; }
+  const lim = PKUI.checkLimits({ age: p.age, wtKg: p.wtKg, htCm: p.htIn * 2.54, scr: p.scr, sex: p.sex }, { set: "adult", cg: true });
+  const blocked = PKUI.limitGate(document.querySelector("nav.tabs"), lim, calcAll);
+  if (!validPatient(p) || blocked) {
+    clearResults();
+    for (const id of ["i_alerts", "l_alerts", "b_alerts"]) PKUI.renderBanners($(id), blocked ? [] : [{ lvl: "info", text: "Enter age, sex, height, weight and SCr." }]);
+    return;
+  }
   try {
     if (activeTab === "init") calcInit(p); else if (activeTab === "levels") calcLevels(p); else calcBayes(p);
   } catch (e) { PKUI.renderBanners($(`${activeTab === "init" ? "i" : activeTab === "levels" ? "l" : "b"}_alerts`), [{ lvl: "crit", text: `Calculation error: ${e.message}` }]); }

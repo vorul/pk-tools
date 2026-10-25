@@ -20,9 +20,11 @@
 
   try { localStorage.clear(); } catch (e) {}
   click('[data-country="ca"]');
-  // Start from Winter's Q2 sample regardless of what the browser restored.
+  // The page opens with blank patient fields. Start from Winter's Q2 sample, plus sample values for the other tabs.
   const start = { age: 45, sex: "M", wt: 70, ht: 178, alb: 44, renal: "normal", bind: "alb", cyp: "normal", kmMode: "winter", inc: "auto",
-    a_form: "cap", a_dose: 100, a_tau: 8, a_days: 21, a_level: 32, a_target: 60, a_trough: false };
+    a_form: "cap", a_dose: 100, a_tau: 8, a_days: 21, a_level: 32, a_target: 60, a_trough: false,
+    t_dose1: 150, t_lvl1: 32, t_dose2: 175, t_lvl2: 79, t_dose: 300, t_c1: 79, t_c2: 103, t_days: 10,
+    x_c1: 120, x_c2: 95, x_hours: 24, x_since: 0, l_level: 32, l_fromDose: 100, l_curLevel: 60, i_level: 32, i_hours: 10 };
   for (const [k, v] of Object.entries(start)) set(k, v);
 
   // 1. Every tab renders an order card with no calculation error.
@@ -106,7 +108,10 @@
   click('#result button[data-act="opts"]'); click('#result button[data-act="work"]');
   check("panels close again", !/Daily dose options/.test($("result").textContent));
 
-  // 10. Patient panel and strip.
+  // 10. Patient panel and strip. The panel starts open (blank patient fields).
+  check("patient panel is open on load", !$("patientPanel").hidden);
+  $("editPatient").click();
+  check("Done closes the panel", $("patientPanel").hidden);
   $("editPatient").click();
   check("Edit patient opens the panel", !$("patientPanel").hidden);
   set("wt", "41.5"); set("sex", "F"); set("ht", "165"); set("alb", "48");
@@ -116,8 +121,6 @@
   set("bind", "vpa");
   check("valproate field appears", !$("vpaRow").hidden && $("freeRow").hidden);
   set("bind", "alb");
-  $("editPatient").click();
-  check("Done closes the panel", $("patientPanel").hidden);
 
   // 11. The user's patient case end to end.
   set("a_dose", "100"); set("a_tau", "8"); set("a_days", "30"); set("a_level", "109"); set("a_target", "60");
@@ -131,11 +134,13 @@
   check("blank level shows a prompt, not an error", /Enter the dose, interval and level/.test($("result").innerText), $("result").innerText.slice(0, 120));
   set("a_level", "109");
 
-  // 13. Saved inputs.
+  // 13. Saved settings: settings are kept for this browser; patient values are never stored.
   let saved = null, storage = true;
   try { localStorage.setItem("_t", "1"); localStorage.removeItem("_t"); saved = JSON.parse(localStorage.getItem("phenytoin-adjuster-v4")); } catch (e) { storage = false; }
-  if (storage) check("inputs are saved for this browser", saved && saved.a_level === "109" && saved._country === "ca", JSON.stringify(saved || {}).slice(0, 120));
-  else results.push({ name: "inputs are saved for this browser", ok: true, detail: "skipped: this page has no browser storage (local preview)" });
+  if (storage) {
+    check("settings are saved for this browser", saved && saved.a_target === "60" && saved._country === "ca", JSON.stringify(saved || {}).slice(0, 120));
+    check("patient values are not saved", saved && !["age", "sex", "wt", "ht", "alb", "a_dose", "a_level"].some((k) => k in saved), Object.keys(saved || {}).join(","));
+  } else results.push({ name: "settings are saved for this browser", ok: true, detail: "skipped: this page has no browser storage (local preview)" });
 
   // 14. No sideways scrolling at the current width on any tab.
   if (innerWidth > 0) for (const t of tabs) { tab(t); check(`${t}: no horizontal page scroll`, document.documentElement.scrollWidth <= innerWidth + 1, `${document.documentElement.scrollWidth} > ${innerWidth}`); }

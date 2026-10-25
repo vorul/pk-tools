@@ -53,17 +53,17 @@ td.ok { color: var(--ok); } td.bad { color: var(--crit); }
     <h2>Patient and drug</h2>
     <div class="fields">
       <label>Drug <select id="drug"><option value="gent">Gentamicin</option><option value="tobra">Tobramycin</option><option value="amik">Amikacin</option></select></label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Age (y) <input id="age" type="number" min="0" step="any" value="50"></label>
-      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button class="ub" id="htU"></button></span></label>
-      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
-      <label>SCr, most recent <span class="ig"><input id="scr" type="number" min="0" step="any" value="1"><button class="ub" id="scrU"></button></span></label>
+      <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Age (y) <input id="age" type="number" min="0" step="any" data-patient></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button class="ub" id="htU"></button></span></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button class="ub" id="wtU"></button></span></label>
+      <label>SCr, most recent <span class="ig"><input id="scr" type="number" min="0" step="any" data-patient><button class="ub" id="scrU"></button></span></label>
       <label>Infusion time T′ (h) <input id="tinf" type="number" min="0" step="any" value="0.5"></label>
-      <label>MIC (mg/L, optional) <input id="mic" type="number" min="0" step="any" placeholder="unknown"></label>
+      <label>MIC (mg/L, optional) <input id="mic" type="number" min="0" step="any" placeholder="unknown" data-patient></label>
       <label>Organism <select id="org"><option value="other">Unknown / other</option><option value="entero">Enterobacterales</option><option value="pseudo">P. aeruginosa</option></select></label>
-      <label class="check wide"><input id="changing" type="checkbox"> Renal function changing (two SCr values; Chow non-steady-state CrCl)</label>
-      <label id="prevRow" hidden>Previous SCr <span class="ig"><input id="scrPrev" type="number" min="0" step="any" value="1"><button class="ub" id="scrPrevU"></button></span></label>
-      <label id="hoursRow" hidden>Hours between SCr values <input id="scrHours" type="number" min="0" step="any" value="24"></label>
+      <label class="check wide"><input id="changing" type="checkbox" data-patient> Renal function changing (two SCr values; Chow non-steady-state CrCl)</label>
+      <label id="prevRow" hidden>Previous SCr <span class="ig"><input id="scrPrev" type="number" min="0" step="any" data-patient><button class="ub" id="scrPrevU"></button></span></label>
+      <label id="hoursRow" hidden>Hours between SCr values <input id="scrHours" type="number" min="0" step="any" data-patient></label>
     </div>
     <details id="policyBox">
       <summary>Renal and weight policies</summary>
@@ -99,12 +99,12 @@ td.ok { color: var(--ok); } td.bad { color: var(--crit); }
     <div class="fields">
       <label>Dose basis <select id="eid_mgkg"></select></label>
       <label>Interval <select id="eid_tau"><option value="auto">From model</option><option value="24">q24h</option><option value="36">q36h</option><option value="48">q48h</option></select></label>
-      <label>Dose given / to give (mg) <input id="eid_dose" type="number" min="0" step="any" placeholder="suggested"></label>
+      <label>Dose given / to give (mg) <input id="eid_dose" type="number" min="0" step="any" placeholder="suggested" data-patient></label>
       <label>Max trough (mg/L) <input id="eid_trough" type="number" min="0" step="any" placeholder="default"></label>
       <label id="amikTroughRow">Amikacin trough target <select id="eid_amikTrough"><option value="2.5">&lt; 2.5 (ICM 2020, default)</option><option value="1">&lt; 1 (strict / site)</option></select></label>
       <p class="subhead">Random level (optional)</p>
-      <label>Level (mg/L) <input id="eid_level" type="number" min="0" step="any" placeholder="none"></label>
-      <label>Drawn at (h from START of dose) <input id="eid_tLevel" type="number" min="0" step="any" value="10"></label>
+      <label>Level (mg/L) <input id="eid_level" type="number" min="0" step="any" placeholder="none" data-patient></label>
+      <label>Drawn at (h from START of dose) <input id="eid_tLevel" type="number" min="0" step="any" data-patient></label>
       <label>Level after <select id="eid_form"><option value="ss">Steady state (3rd dose or later)</option><option value="first">First dose</option></select></label>
       <label>Nomogram <select id="eid_chart"><option value="auto">Site chart for this dose</option><option value="g3">Site 3 mg/kg</option><option value="g5">Site 5 mg/kg</option><option value="g7">Site 7 mg/kg</option><option value="a15">Site amikacin 15 mg/kg</option></select></label>
     </div>
@@ -119,19 +119,19 @@ td.ok { color: var(--ok); } td.bad { color: var(--crit); }
       <label>Interval <select id="tr_tau"><option value="auto">From targets</option><option value="8">q8h</option><option value="12">q12h</option><option value="16">q16h</option><option value="24">q24h</option><option value="36">q36h</option><option value="48">q48h</option></select></label>
       <label>Snap interval <select id="tr_snap"><option value="up">Up (lower trough)</option><option value="nearest">Nearest</option><option value="down">Down (higher trough)</option></select></label>
       <label>Dose basis <select id="tr_basis"><option value="label">Label mg/kg</option><option value="target">Model dose for target peak</option></select></label>
-      <label>New dose (mg, optional) <input id="tr_dose" type="number" min="0" step="any" placeholder="suggested"></label>
-      <label class="check wide"><input id="tr_have" type="checkbox"> I have a steady-state peak and trough (Sawchuk-Zaske)</label>
+      <label>New dose (mg, optional) <input id="tr_dose" type="number" min="0" step="any" placeholder="suggested" data-patient></label>
+      <label class="check wide"><input id="tr_have" type="checkbox" data-patient> I have a steady-state peak and trough (Sawchuk-Zaske)</label>
     </div>
     <div class="fields" id="tr_levels" hidden>
       <p class="subhead">Regimen the levels were drawn on</p>
-      <label>Dose (mg) <input id="tr_dDose" type="number" min="0" step="any" value="120"></label>
-      <label>Interval (h) <input id="tr_dTau" type="number" min="0" step="any" value="8"></label>
-      <label>Infusion time (h) <input id="tr_dTinf" type="number" min="0" step="any" value="0.5"></label>
+      <label>Dose (mg) <input id="tr_dDose" type="number" min="0" step="any" data-patient></label>
+      <label>Interval (h) <input id="tr_dTau" type="number" min="0" step="any" data-patient></label>
+      <label>Infusion time (h) <input id="tr_dTinf" type="number" min="0" step="any" data-patient></label>
       <p class="subhead">Levels</p>
-      <label>Peak (mg/L) <input id="tr_pk" type="number" min="0" step="any" value="7"></label>
-      <label>Peak drawn (h after END of infusion) <input id="tr_tPk" type="number" min="0" step="any" value="0.5"></label>
-      <label>Trough (mg/L) <input id="tr_tr" type="number" min="0" step="any" value="1.2"></label>
-      <label>Trough drawn (h before START of next dose) <input id="tr_tTr" type="number" min="0" step="any" value="0.5"></label>
+      <label>Peak (mg/L) <input id="tr_pk" type="number" min="0" step="any" data-patient></label>
+      <label>Peak drawn (h after END of infusion) <input id="tr_tPk" type="number" min="0" step="any" data-patient></label>
+      <label>Trough (mg/L) <input id="tr_tr" type="number" min="0" step="any" data-patient></label>
+      <label>Trough drawn (h before START of next dose) <input id="tr_tTr" type="number" min="0" step="any" data-patient></label>
     </div>
   </section>
 
@@ -139,13 +139,12 @@ td.ok { color: var(--ok); } td.bad { color: var(--crit); }
     <h2>Two-level / Bayesian (MAP) fit over the actual dose history</h2>
     <p class="hint">Times are hours from the start of the first dose. One line per dose: <code>start dose_mg infusion_h</code>; one line per level: <code>time level_mg/L</code>.</p>
     <div class="fields">
-      <label class="wide">Doses <textarea id="by_doses" spellcheck="false">0 530 0.5</textarea></label>
+      <label class="wide">Doses <textarea id="by_doses" spellcheck="false" data-patient></textarea></label>
       <label>Fill: dose (mg) <input id="by_gDose" type="number" min="0" step="any" value="530"></label>
       <label>every (h) <input id="by_gTau" type="number" min="0" step="any" value="24"></label>
       <label>number of doses <input id="by_gN" type="number" min="1" step="1" value="1"></label>
       <div class="actions" style="align-self:end"><button type="button" id="by_fill">Fill doses</button></div>
-      <label class="wide">Levels <textarea id="by_levels" spellcheck="false">1.5 21
-10 4.2</textarea></label>
+      <label class="wide">Levels <textarea id="by_levels" spellcheck="false" data-patient></textarea></label>
       <p class="subhead">Target for the new regimen</p>
       <label>Strategy <select id="by_mode"><option value="eid">Extended interval (peak + max trough)</option><option value="trad">Traditional (peak / trough)</option><option value="auc">AUC24 target</option></select></label>
       <label>Target peak (mg/L) <input id="by_peak" type="number" min="0" step="any" placeholder="default"></label>
@@ -1179,7 +1178,14 @@ const wbFitOptions = (pt, fitV = true) => ({ cvK: WB.prior.cvK, cvV: WB.prior.cv
     let html;
     try {
       const p = readPatient();
-      if (!(p.age > 0 && p.ht > 0 && p.wt > 0 && p.scr > 0 && num("tinf") > 0)) { $("result").innerHTML = card("Inputs needed", '<p class="hint">Enter age, height, weight, SCr and infusion time.</p>'); return; }
+      const htCm = p.htUnit === "cm" ? p.ht : p.ht * 2.54, wtKg = p.wtUnit === "lb" ? p.wt * 0.45359237 : p.wt;
+      const lim = PKUI.checkLimits({ age: p.age, wtKg, htCm, scr: p.scr, sex: p.sex }, { set: "all", cg: !(p.age < 18) });
+      const blocked = PKUI.limitGate($("result"), lim, update);
+      if (!(p.sex && p.age >= 0 && $("age").value !== "" && p.ht > 0 && p.wt > 0 && p.scr > 0 && num("tinf") > 0) || blocked) {
+        $("strip").innerHTML = "";
+        $("result").innerHTML = blocked ? "" : card("Inputs needed", '<p class="hint">Enter sex, age, height, weight, SCr and infusion time.</p>');
+        save(); return;
+      }
       const pt = patient(p);
       strip(pt);
       html = tab === "eid" ? renderEID(pt) : tab === "trad" ? renderTrad(pt) : renderBayes(pt);
@@ -1221,12 +1227,12 @@ const wbFitOptions = (pt, fitV = true) => ({ cvK: WB.prior.cvK, cvV: WB.prior.cv
 
   // ---- Persistence (per-viewer convenience only) ----
   const KEY = "pk-aminoglycosides-v1";
-  const persisted = () => [...document.querySelectorAll(".card input, .card select, .card textarea")].filter((el) => el.id && !el.closest("#result"));
+  // Settings only: patient fields (data-patient) start blank on every load and are never stored.
+  const persisted = () => [...document.querySelectorAll(".card input, .card select, .card textarea")].filter((el) => el.id && !el.closest("#result") && !el.hasAttribute("data-patient"));
   function save() {
     try {
       const s = { _model: model, _tab: tab };
       for (const el of persisted()) s[el.id] = el.type === "checkbox" ? el.checked : el.value;
-      s.ht = String(htT.getValue()); s.wt = String(wtT.getValue()); s.scr = String(scrT.getValue()); s.scrPrev = String(scrPT.getValue());
       localStorage.setItem(KEY, JSON.stringify(s));
     } catch (e) {}
   }

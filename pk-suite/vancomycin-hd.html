@@ -81,11 +81,11 @@
     <section class="card">
       <h2>Patient</h2>
       <div class="fields">
-        <label>Age <span class="ig"><input id="age" type="number" min="18" max="120" step="any" value="60"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
-        <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-        <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button class="ub" id="htU"></button></span></label>
-        <label>Weight (actual, TBW) <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button class="ub" id="wtU"></button></span></label>
-        <label>SCr <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button class="ub" id="scrU"></button></span></label>
+        <label>Age <span class="ig"><input id="age" type="number" min="18" max="120" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+        <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+        <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button class="ub" id="htU"></button></span></label>
+        <label>Weight (actual, TBW) <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button class="ub" id="wtU"></button></span></label>
+        <label>SCr <span class="ig"><input id="scr" type="number" min="0" step="any" data-patient><button class="ub" id="scrU"></button></span></label>
         <label class="check" style="align-self:end"><input type="checkbox" id="floor07"> Round SCr up to 0.7 mg/dL (author's institution)</label>
       </div>
     </section>
@@ -117,7 +117,7 @@
       <div class="fields">
         <label>Current dose (chart) <select id="rMgkg"></select></label>
         <label>Current interval <select id="rTau"></select></label>
-        <label>Measured SS trough <span class="ig"><input id="rLevel" type="number" min="0" step="any" value="28"><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
+        <label>Measured SS trough <span class="ig"><input id="rLevel" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
         <label>New dose (chart) <select id="rNew"></select></label>
       </div>
       <div id="retroOut" style="margin-top:10px"></div>
@@ -158,12 +158,12 @@
     <section class="card">
       <h2>Patient and dialysis</h2>
       <div class="fields">
-        <label>Weight (actual, TBW) <span class="ig"><input id="hWt" type="number" min="0" step="any" value="80"><button class="ub" id="hWtU"></button></span></label>
+        <label>Weight (actual, TBW) <span class="ig"><input id="hWt" type="number" min="0" step="any" data-patient><button class="ub" id="hWtU"></button></span></label>
         <label>Dose timing <select id="hTiming"><option value="post" selected>After HD</option><option value="during">During HD (intradialytic)</option></select></label>
         <label>Membrane <select id="hMem"><option value="high" selected>High-flux</option><option value="low">Low-flux</option></select></label>
         <label>Session length <span class="ig"><input id="hT" type="number" min="1" max="8" step="any" value="4"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
         <label>Schedule <select id="hFirst"><option value="0" selected>M/W/F (load Mon)</option><option value="1">M/W/F (load Wed)</option><option value="2">M/W/F (load Fri)</option></select></label>
-        <label>Residual CrCl (optional) <span class="ig"><input id="hRes" type="number" min="0" step="any" placeholder="mL/min"><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
+        <label>Residual CrCl (optional) <span class="ig"><input id="hRes" type="number" min="0" step="any" placeholder="mL/min" data-patient><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
         <label>Pre-HD goal <select id="hGoal"></select></label>
       </div>
     </section>
@@ -218,10 +218,10 @@
     <section class="card">
       <h2>Adjust by pre-HD level</h2>
       <div class="fields">
-        <label>Measured level <span class="ig"><input id="aLevel" type="number" min="0" step="any" value="12"><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
-        <label>Current maintenance dose <span class="ig"><input id="aDose" type="number" min="0" step="any" value="750"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+        <label>Measured level <span class="ig"><input id="aLevel" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>mcg/mL</button></span></label>
+        <label>Current maintenance dose <span class="ig"><input id="aDose" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
         <label>Drawn <select id="aWhen"><option value="pre" selected>Pre-HD</option><option value="post">After HD</option></select></label>
-        <label>Hours after end of HD <span class="ig"><input id="aHrs" type="number" min="0" step="any" placeholder="if after HD"><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
+        <label>Hours after end of HD <span class="ig"><input id="aHrs" type="number" min="0" step="any" placeholder="if after HD" data-patient><button type="button" class="ub" tabindex="-1" disabled>h</button></span></label>
       </div>
       <div id="adjOut" style="margin-top:10px"></div>
       <div class="tablewrap" style="margin-top:10px"><table id="adjTable"></table></div>
@@ -707,9 +707,10 @@ function renderCharts() {
   const goal = [fnum("goalLo"), fnum("goalHi")];
   const mgkg = parseFloat($("mgkg").value), inc = parseFloat($("inc").value);
   const alerts = [];
-  const ok = [i.age, i.heightIn, i.tbw, i.scr].every((x) => isFin(x) && x > 0) && goal.every(isFin) && goal[0] < goal[1];
+  const blocked = PKUI.limitGate($("chAlerts"), PKUI.checkLimits({ age: i.age, wtKg: i.tbw, htCm: i.heightIn * 2.54, scr: i.scr, sex: i.sex }, { set: "adult", cg: true }), renderAll);
+  const ok = !blocked && (i.sex === "M" || i.sex === "F") && [i.age, i.heightIn, i.tbw, i.scr].every((x) => isFin(x) && x > 0) && goal.every(isFin) && goal[0] < goal[1];
   if (!ok) {
-    PKUI.renderBanners($("chAlerts"), [{ lvl: "warn", text: "Enter age, height, weight, SCr and a goal range (low < high)." }]);
+    PKUI.renderBanners($("chAlerts"), blocked ? [] : [{ lvl: "warn", text: "Enter age, sex, height, weight, SCr and a goal range (low < high)." }]);
     $("chOrder").innerHTML = ""; $("tauTable").innerHTML = ""; lastChart = null; renderChartTable(); renderRetro(goal); return;
   }
   if (i.age < 18) alerts.push({ lvl: "crit", text: "Adults only (18 years and older)." });
@@ -855,7 +856,12 @@ function renderHD(changed) {
   const tbw = hWtT.getValue(), timing = $("hTiming").value, membrane = $("hMem").value, tHD = fnum("hT");
   const res = fnum("hRes"), goal = $("hGoal").value.split("-").map(Number), rule = $("hRule").value;
   const alerts = [{ lvl: "info", text: "Chronic intermittent HD only: not for CRRT or HD for acute kidney injury (excluded from the MUEs)." }];
-  if (!(tbw > 0) || !(tHD > 0)) { PKUI.renderBanners($("hdAlerts"), [{ lvl: "warn", text: "Enter weight and session length." }]); $("hdOrder").innerHTML = ""; $("predOut").innerHTML = ""; return; }
+  const hdBlocked = PKUI.limitGate($("hdAlerts"), PKUI.checkLimits({ wtKg: tbw }, { set: "adult" }), renderAll);
+  if (hdBlocked || !(tbw > 0) || !(tHD > 0)) {
+    PKUI.renderBanners($("hdAlerts"), hdBlocked ? [] : [{ lvl: "warn", text: "Enter weight and session length." }]);
+    for (const id of ["hdOrder", "predOut", "adjOut", "adjTable", "levelPlan"]) if ($(id)) $(id).innerHTML = "";
+    return;
+  }
   if (goal[0] === 20) alerts.push({ lvl: "warn", text: "Pre-HD goal 20–25 is not guideline-supported (Rybak 2020 recommends 15–20); needs clinician sign-off." });
   const resPresent = isFin(res) && res > 0;
   if (goal[0] === 15 && goal[1] === 25) alerts.push({ lvl: resPresent ? "warn" : "info", text: `Goal 15–25 (severe infection): a pre-HD level of 25 maps to an AUC of about ${f0(hdAucFromTrough(25))}–${f0(25 * 27)} mg·h/L, above 600${resPresent ? "; residual renal function is present, so nephrotoxicity matters" : ""}.` });

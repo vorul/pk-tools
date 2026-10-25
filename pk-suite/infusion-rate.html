@@ -58,7 +58,7 @@ tr.sel td { background: var(--accent-soft); }
     <div class="fields">
       <label class="wide">Drug <select id="drug"></select></label>
       <label class="wide">Concentration <select id="conc"></select></label>
-      <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" value="70" inputmode="decimal"><button type="button" class="ub" id="wtUnit">kg</button></span></label>
+      <label>Weight (actual) <span class="ig"><input id="wt" type="number" min="0" step="any" inputmode="decimal" data-patient><button type="button" class="ub" id="wtUnit">kg</button></span></label>
       <label>Direction
         <span class="seg" id="dirSeg" role="group" aria-label="Direction">
           <button data-value="dose" aria-pressed="true">Dose → mL/h</button>
@@ -67,13 +67,13 @@ tr.sel td { background: var(--accent-soft); }
       </label>
       <label id="doseRow">Ordered dose <span class="ig"><input id="dose" type="number" min="0" step="any" inputmode="decimal"><button type="button" class="ub" id="doseUnit" tabindex="-1" disabled>unit</button></span></label>
       <label id="rateRow" hidden>Pump rate <span class="ig"><input id="rate" type="number" min="0" step="any" inputmode="decimal"><button type="button" class="ub" tabindex="-1" disabled>mL/h</button></span></label>
-      <label id="crclRow" hidden>CrCl <span class="ig"><input id="crcl" type="number" min="0" step="any" placeholder="mL/min"><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
+      <label id="crclRow" hidden>CrCl <span class="ig"><input id="crcl" type="number" min="0" step="any" placeholder="mL/min" data-patient><button type="button" class="ub" tabindex="-1" disabled>mL/min</button></span></label>
       <label id="dialRow" hidden>Dialysis
         <select id="dialysis"><option value="none">Not on dialysis</option><option value="hd">Hemodialysis (dialysis-dependent)</option><option value="pd">Peritoneal / other dialysis</option></select>
       </label>
-      <label id="scrRow" hidden>SCr (if no CrCl) <span class="ig"><input id="scr" type="number" min="0" step="any" placeholder="mg/dL"><button type="button" class="ub" tabindex="-1" disabled>mg/dL</button></span></label>
+      <label id="scrRow" hidden>SCr (if no CrCl) <span class="ig"><input id="scr" type="number" min="0" step="any" placeholder="mg/dL" data-patient><button type="button" class="ub" tabindex="-1" disabled>mg/dL</button></span></label>
       <label id="instRow" hidden>Hard max <span class="src verify" title="No label maximum: institutional value pending P&amp;T sign-off. Changes last for this session only.">Institutional — P&amp;T</span> <span class="ig"><input id="instMax" type="number" min="0" step="any"><button type="button" class="ub" id="instUnit" tabindex="-1" disabled>unit</button></span></label>
-      <label id="cpRow" hidden>Child-Pugh score <span class="ig"><input id="childPugh" type="number" min="5" max="15" step="1" placeholder="5–15"><button type="button" class="ub" tabindex="-1" disabled>pts</button></span></label>
+      <label id="cpRow" hidden>Child-Pugh score <span class="ig"><input id="childPugh" type="number" min="5" max="15" step="1" placeholder="5–15" data-patient><button type="button" class="ub" tabindex="-1" disabled>pts</button></span></label>
     </div>
     <p class="hint" id="renalHint" hidden></p>
   </section>
@@ -87,9 +87,9 @@ tr.sel td { background: var(--accent-soft); }
       <label id="argaTrackRow">Track
         <select id="argaTrack"><option value="auto">Auto (Child-Pugh ≥ 7 → reduced)</option><option value="standard">Standard (start 2)</option><option value="reduced">Critically ill / hepatic (start 0.5)</option></select>
       </label>
-      <label id="argaBaseRow">Baseline aPTT <span class="ig"><input id="apttBase" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>s</button></span></label>
-      <label id="argaRateRow">Current rate <span class="ig"><input id="argaRate" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>mL/h</button></span></label>
-      <label>aPTT <span class="ig"><input id="aptt" type="number" min="0" step="any"><button type="button" class="ub" tabindex="-1" disabled>s</button></span></label>
+      <label id="argaBaseRow">Baseline aPTT <span class="ig"><input id="apttBase" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>s</button></span></label>
+      <label id="argaRateRow">Current rate <span class="ig"><input id="argaRate" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>mL/h</button></span></label>
+      <label>aPTT <span class="ig"><input id="aptt" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>s</button></span></label>
     </div>
     <p id="argaOut" class="hint"></p>
   </section>
@@ -97,7 +97,7 @@ tr.sel td { background: var(--accent-soft); }
   <section class="card" id="procCard" hidden>
     <h2>Procainamide loading infusion <span id="procBadge"></span></h2>
     <div class="fields">
-      <label>Loading dose <span class="ig"><input id="procMg" type="number" min="0" step="any" placeholder="17 mg/kg"><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
+      <label>Loading dose <span class="ig"><input id="procMg" type="number" min="0" step="any" placeholder="17 mg/kg" data-patient><button type="button" class="ub" tabindex="-1" disabled>mg</button></span></label>
       <label>Loading rate <span class="ig"><input id="procRate" type="number" min="0" step="any" value="20"><button type="button" class="ub" tabindex="-1" disabled>mg/min</button></span></label>
     </div>
     <p id="procOut" class="hint"></p>
@@ -899,6 +899,11 @@ const fmtKg = (x) => (isNum(x) ? (+x.toFixed(1)).toString() : "—");
 function render() {
   const inp = read();
   memory[state.model] = { drug: inp.drugId, conc: inp.concId };
+  const wtKg = isNum(inp.weight) ? toKg(inp.weight, state.wtUnit, state.model) : NaN;
+  if (PKUI.limitGate($("result"), PKUI.checkLimits({ wtKg }, { set: "adult" }), render)) {
+    for (const id of ["result", "strip", "tbl"]) $(id).innerHTML = "";
+    return;
+  }
   const r = compute(inp);
   const d = r.drug, u = d.unit;
   // Strip

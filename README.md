@@ -9,7 +9,9 @@ Clinical pharmacokinetic dosing tools. Each tool is a single HTML page that runs
 
 ## Using a tool
 
-Open the tool's `index.html` in a browser. If GitHub Pages is turned on for this repository, the tools are also served at `https://<user>.github.io/pk-tools/`.
+Open the tool's `index.html` in a browser. The tools are also served at https://vorul.github.io/pk-tools/.
+
+Patient fields start blank every time a tool opens, and the tools never store patient values in the browser; only settings such as units, model and targets are remembered. A value outside the plausible range (for example age 145 or weight 400 kg) holds back the result until you confirm it.
 
 ## Tests
 

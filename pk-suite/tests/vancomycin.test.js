@@ -12,7 +12,7 @@ const PK = require(path.join(__dirname, "..", "lib", "pkcore.js"));
 const html = fs.readFileSync(path.join(__dirname, "..", "vancomycin.html"), "utf8");
 const block = html.split("// CALC-START")[1].split("// CALC-END")[0];
 const M = new Function("PK", `${block}; return { R, SITE, LIT, GOTI, siteCalc, solveKSS, popChartRow, covariates, popModel, predictSS,
-  doseForAuc, litLoadingDose, initialCalc, twoLevelCalc, troughOnlyCalc, bayesCalc, mapPred, levelKinds, clinicalFlags, orderText, regimenEvents, profile,
+  doseForAuc, aucRegimen, litLoadingDose, initialCalc, twoLevelCalc, troughOnlyCalc, bayesCalc, mapPred, levelKinds, clinicalFlags, orderText, regimenEvents, profile,
   WB, CARRENO, MODELS, wbRenal, wbPop, wbSS, wbInitialCalc, wbBayesCalc, aucWbCalc, boxMin };`)(PK);
 
 const near = (actual, expected, tol, msg) =>
@@ -475,4 +475,37 @@ test("Carreno (site MUE 3/2023): Vc 25.76, Q 58.99, Vp 40.97, CL 0.043292·CrCl 
   const doses = PK.one.regimen({ dose: 1000, tau: 12, n: 6, tinf: 1 });
   const b = M.bayesCalc({ ...B, mode: "site", model: "carrenoSite", doses, levels: [{ t: 62, c: 30 }, { t: 71.5, c: 14 }] });
   assert.equal(b.pm.struct, "2c"); assert.equal(b.params.Vp, b.pm.p.Vp); assert.equal(b.params.Q, b.pm.p.Q); assert.ok(isFinite(b.pred.auc));
+});
+
+// ---------- Review 2026-10-25: 250 mg rounding keeps AUC24 in 400–600 when a regimen exists ----------
+test("aucRegimen: auto interval moves to a neighbour when no 250 mg step fits (88 F, 45 kg, SCr 5: q48h 344 → q36h 459)", () => {
+  const p = { sex: "F", age: 88, htIn: 62, wtKg: 45, scr: 5, tinf: 2, mode: "literature", model: "reg1c", tau: "auto" };
+  const r = M.initialCalc(p);
+  assert.equal(r.tau, 36); assert.equal(r.md.dose, 250);
+  near(r.pred.auc, 459, 1); assert.ok(r.flags.some((f) => f.code === "aucRoundTau"));
+  assert.ok(!r.flags.some((f) => f.code === "auc<400"));
+  // A chosen interval is kept; the neighbour is only suggested.
+  const fixed = M.initialCalc({ ...p, tau: 48 });
+  assert.equal(fixed.tau, 48); assert.equal(fixed.md.dose, 250);
+  const alt = fixed.flags.find((f) => f.code === "aucAltTau");
+  assert.ok(alt && /q36h/.test(alt.text));
+});
+
+test("aucRegimen: unchanged when the nearest step is in range; rounds the other way when only that fits", () => {
+  const ok = M.aucRegimen(4, 12, 500);
+  assert.equal(ok.change, null); assert.equal(ok.md.dose, 1000); assert.deepEqual(ok.flags, []);
+  // CL 3.85 L/h q12h, target 400: exact 770 mg → nearest 750 (AUC 390, out); 1000 (AUC 519) is in range.
+  const dn = M.aucRegimen(3.85, 12, 400);
+  assert.equal(dn.change, "dose"); assert.equal(dn.md.dose, 1000); near(dn.auc, 519.5, 0.1);
+  assert.ok(dn.flags.some((f) => f.code === "aucRoundDose"));
+  // No fit anywhere: keep the nearest step and warn.
+  const none = M.aucRegimen(0.05, 72, 500, { auto: true });
+  assert.ok(none.noFit); assert.ok(none.flags.some((f) => f.code === "aucNoFit"));
+});
+
+test("site mode keeps the site's own rounding; order text notes an out-of-range AUC", () => {
+  const s = M.initialCalc({ sex: "F", age: 88, htIn: 62, wtKg: 45, scr: 5, tinf: 2, mode: "site", model: "reg1c", tau: "auto" });
+  assert.ok(!s.flags.some((f) => /^auc(Round|Alt|NoFit)/.test(f.code)));
+  assert.match(M.orderText({ dose: 250, tau: 48, tinf: 2, auc: 344, basis: "t" }), /outside 400–600/);
+  assert.doesNotMatch(M.orderText({ dose: 1000, tau: 12, tinf: 1, auc: 500, basis: "t" }), /outside/);
 });

@@ -64,7 +64,7 @@ details p { margin: 0; }
 
   <div class="strip" id="strip" aria-label="Patient summary"></div>
 
-  <section class="card" id="patientPanel" hidden>
+  <section class="card" id="patientPanel">
     <h2>Patient, binding and model</h2>
     <div class="fields">
       <label class="wide">Model
@@ -73,21 +73,21 @@ details p { margin: 0; }
           <option value="site">Site workbook: Winter 0.9·Alb/4.4 + 0.1 (HD × 0.48), Vmax 7 at 60 y and older</option>
         </select>
       </label>
-      <label>Age <span class="ig"><input id="age" type="number" min="0" step="any" value="45"><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="70" data-q="wt"><button type="button" class="ub" data-for="wt"></button></span></label>
-      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="178" data-q="ht"><button type="button" class="ub" data-for="ht"></button></span></label>
-      <label>Albumin <span class="ig"><input id="alb" type="number" min="0" step="any" value="44" data-q="alb"><button type="button" class="ub" data-for="alb"></button></span></label>
+      <label>Age <span class="ig"><input id="age" type="number" min="0" step="any" data-patient><button type="button" class="ub" tabindex="-1" disabled>y</button></span></label>
+      <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" data-q="wt" data-patient><button type="button" class="ub" data-for="wt"></button></span></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-q="ht" data-patient><button type="button" class="ub" data-for="ht"></button></span></label>
+      <label>Albumin <span class="ig"><input id="alb" type="number" min="0" step="any" data-q="alb" data-patient><button type="button" class="ub" data-for="alb"></button></span></label>
       <label>Renal status
-        <select id="renal">
+        <select id="renal" data-patient>
           <option value="normal">CrCl &gt; 25 mL/min</option>
           <option value="mid">CrCl 10–25, no dialysis</option>
           <option value="lt10">CrCl &lt; 10, not on dialysis</option>
           <option value="hd">ESRD on hemodialysis</option>
         </select>
       </label>
-      <label>Creatinine (optional) <span class="ig"><input id="scr" type="number" min="0" step="any" placeholder="checks CrCl" data-q="scr"><button type="button" class="ub" data-for="scr"></button></span></label>
-      <label class="check"><input id="icu" type="checkbox"> ICU or neuro-ICU patient</label>
+      <label>Creatinine (optional) <span class="ig"><input id="scr" type="number" min="0" step="any" placeholder="checks CrCl" data-q="scr" data-patient><button type="button" class="ub" data-for="scr"></button></span></label>
+      <label class="check"><input id="icu" type="checkbox" data-patient> ICU or neuro-ICU patient</label>
       <label>Correct levels using
         <select id="bind">
           <option value="alb">Albumin equation</option>
@@ -102,11 +102,11 @@ details p { margin: 0; }
           <option value="st">Sheiner-Tozer 0.2·Alb + 0.1 (ESRD 0.1)</option>
         </select>
       </label>
-      <label id="freeRow" hidden>Free level <span class="ig"><input id="free" type="number" min="0" step="any" value="3.6" data-q="phenFree"><button type="button" class="ub" data-for="free"></button></span></label>
-      <label id="freeTotRow" hidden>Total, same draw <span class="ig"><input id="freeTot" type="number" min="0" step="any" placeholder="tab level" data-q="phen"><button type="button" class="ub" data-for="freeTot"></button></span></label>
-      <label id="vpaRow" hidden>Valproic acid <span class="ig"><input id="vpa" type="number" min="0" step="any" value="485" data-q="vpa"><button type="button" class="ub" data-for="vpa"></button></span></label>
+      <label id="freeRow" hidden>Free level <span class="ig"><input id="free" type="number" min="0" step="any" data-q="phenFree" data-patient><button type="button" class="ub" data-for="free"></button></span></label>
+      <label id="freeTotRow" hidden>Total, same draw <span class="ig"><input id="freeTot" type="number" min="0" step="any" placeholder="tab level" data-q="phen" data-patient><button type="button" class="ub" data-for="freeTot"></button></span></label>
+      <label id="vpaRow" hidden>Valproic acid <span class="ig"><input id="vpa" type="number" min="0" step="any" data-q="vpa" data-patient><button type="button" class="ub" data-for="vpa"></button></span></label>
       <label>CYP2C9
-        <select id="cyp">
+        <select id="cyp" data-patient>
           <option value="normal">Normal or unknown</option>
           <option value="im">Intermediate (Vmax × 0.75)</option>
           <option value="pm">Poor (Vmax × 0.5)</option>
@@ -144,16 +144,16 @@ details p { margin: 0; }
   <!-- Adjust -->
   <section class="card sentence tabpanel" id="panel-adjust" role="tabpanel" aria-labelledby="tab-adjust">
     <div class="line"><span class="k">Taking</span>
-      <select id="a_form" class="form-select" aria-label="Product"></select>
-      <input id="a_dose" type="number" min="0" step="any" value="100" aria-label="Dose"> mg
-      <select id="a_tau" class="tau-select" aria-label="Interval"></select>
-      for <input id="a_days" class="w4" type="number" min="0" step="any" value="21" aria-label="Days on regimen"> days
+      <select id="a_form" class="form-select" aria-label="Product" data-patient></select>
+      <input id="a_dose" type="number" min="0" step="any" aria-label="Dose" data-patient> mg
+      <select id="a_tau" class="tau-select" aria-label="Interval" data-patient></select>
+      for <input id="a_days" class="w4" type="number" min="0" step="any" aria-label="Days on regimen" data-patient> days
     </div>
     <div class="line"><span class="k">Level</span>
-      <span class="ig"><input id="a_level" type="number" min="0" step="any" value="32" data-q="phen" aria-label="Measured total level"><button type="button" class="ub" data-for="a_level"></button></span>
+      <span class="ig"><input id="a_level" type="number" min="0" step="any" data-q="phen" aria-label="Measured total level" data-patient><button type="button" class="ub" data-for="a_level"></button></span>
       <span class="arrow" aria-hidden="true">→</span><span class="k">target</span>
       <span class="ig"><input id="a_target" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Target level, normal binding"><button type="button" class="ub" data-for="a_target"></button></span>
-      <label class="check"><input id="a_trough" type="checkbox"> trough on once-daily</label>
+      <label class="check"><input id="a_trough" type="checkbox" data-patient> trough on once-daily</label>
     </div>
     <div class="line"><span class="k">Method</span>
       <select id="a_method" aria-label="One-level method">
@@ -194,28 +194,28 @@ details p { margin: 0; }
       </select>
     </div>
     <div class="line t-ss"><span class="k">Was</span>
-      <select id="t_form1" class="form-select" aria-label="First product"></select>
-      <input id="t_dose1" type="number" min="0" step="any" value="150" aria-label="First dose"> mg
-      <select id="t_tau1" class="tau-select" aria-label="First interval"></select>
+      <select id="t_form1" class="form-select" aria-label="First product" data-patient></select>
+      <input id="t_dose1" type="number" min="0" step="any" aria-label="First dose" data-patient> mg
+      <select id="t_tau1" class="tau-select" aria-label="First interval" data-patient></select>
       <span class="arrow" aria-hidden="true">→</span>
-      <span class="ig"><input id="t_lvl1" type="number" min="0" step="any" value="32" data-q="phen" aria-label="First steady-state level"><button type="button" class="ub" data-for="t_lvl1"></button></span>
+      <span class="ig"><input id="t_lvl1" type="number" min="0" step="any" data-q="phen" aria-label="First steady-state level" data-patient><button type="button" class="ub" data-for="t_lvl1"></button></span>
     </div>
     <div class="line t-ss"><span class="k">Now</span>
-      <select id="t_form2" class="form-select" aria-label="Current product"></select>
-      <input id="t_dose2" type="number" min="0" step="any" value="175" aria-label="Current dose"> mg
-      <select id="t_tau2" class="tau-select" aria-label="Current interval"></select>
+      <select id="t_form2" class="form-select" aria-label="Current product" data-patient></select>
+      <input id="t_dose2" type="number" min="0" step="any" aria-label="Current dose" data-patient> mg
+      <select id="t_tau2" class="tau-select" aria-label="Current interval" data-patient></select>
       <span class="arrow" aria-hidden="true">→</span>
-      <span class="ig"><input id="t_lvl2" type="number" min="0" step="any" value="79" data-q="phen" aria-label="Current steady-state level"><button type="button" class="ub" data-for="t_lvl2"></button></span>
+      <span class="ig"><input id="t_lvl2" type="number" min="0" step="any" data-q="phen" aria-label="Current steady-state level" data-patient><button type="button" class="ub" data-for="t_lvl2"></button></span>
     </div>
     <div class="line t-nss" hidden><span class="k">Taking</span>
-      <select id="t_form" class="form-select" aria-label="Product"></select>
-      <input id="t_dose" type="number" min="0" step="any" value="300" aria-label="Dose"> mg
-      <select id="t_tau" class="tau-select" aria-label="Interval"></select>
+      <select id="t_form" class="form-select" aria-label="Product" data-patient></select>
+      <input id="t_dose" type="number" min="0" step="any" aria-label="Dose" data-patient> mg
+      <select id="t_tau" class="tau-select" aria-label="Interval" data-patient></select>
     </div>
     <div class="line t-nss" hidden><span class="k">Level</span>
-      <span class="ig"><input id="t_c1" type="number" min="0" step="any" value="79" data-q="phen" aria-label="First level"><button type="button" class="ub" data-for="t_c1"></button></span>
-      then <span class="ig"><input id="t_c2" type="number" min="0" step="any" value="103" data-q="phen" aria-label="Second level"><button type="button" class="ub" data-for="t_c2"></button></span>
-      after <input id="t_days" class="w4" type="number" min="0" step="any" value="10" aria-label="Days between levels"> days
+      <span class="ig"><input id="t_c1" type="number" min="0" step="any" data-q="phen" aria-label="First level" data-patient><button type="button" class="ub" data-for="t_c1"></button></span>
+      then <span class="ig"><input id="t_c2" type="number" min="0" step="any" data-q="phen" aria-label="Second level" data-patient><button type="button" class="ub" data-for="t_c2"></button></span>
+      after <input id="t_days" class="w4" type="number" min="0" step="any" aria-label="Days between levels" data-patient> days
       <select id="t_method" aria-label="Fit method">
         <option value="mb">mass balance (Km assumed)</option>
         <option value="bayes">Bayesian fit, levels</option>
@@ -230,27 +230,27 @@ details p { margin: 0; }
   <!-- Dose history -->
   <section class="card sentence tabpanel" id="panel-hist" role="tabpanel" aria-labelledby="tab-hist" hidden>
     <div class="line"><span class="k">Given</span>
-      <select id="h_form" class="form-select" aria-label="Product"></select>
-      load <input id="h_load" type="number" min="0" step="any" placeholder="none" aria-label="First (loading) dose, mg, blank if none"> mg, then
-      <input id="h_dose" type="number" min="0" step="any" value="100" aria-label="Maintenance dose"> mg
-      <select id="h_tau" class="tau-select" aria-label="Interval"></select>
-      × <input id="h_n" class="w4" type="number" min="1" step="1" value="8" aria-label="Number of doses given so far"> doses
+      <select id="h_form" class="form-select" aria-label="Product" data-patient></select>
+      load <input id="h_load" type="number" min="0" step="any" placeholder="none" aria-label="First (loading) dose, mg, blank if none" data-patient> mg, then
+      <input id="h_dose" type="number" min="0" step="any" aria-label="Maintenance dose" data-patient> mg
+      <select id="h_tau" class="tau-select" aria-label="Interval" data-patient></select>
+      × <input id="h_n" class="w4" type="number" min="1" step="1" aria-label="Number of doses given so far" data-patient> doses
     </div>
     <div class="line"><span class="k">Before</span>
-      dose 1 <span class="ig"><input id="h_pre" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level before dose 1"><button type="button" class="ub" data-for="h_pre"></button></span>
-      drawn <input id="h_preH" class="w4" type="number" min="0" step="any" placeholder="0" aria-label="Hours before dose 1"> h earlier
+      dose 1 <span class="ig"><input id="h_pre" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level before dose 1" data-patient><button type="button" class="ub" data-for="h_pre"></button></span>
+      drawn <input id="h_preH" class="w4" type="number" min="0" step="any" placeholder="0" aria-label="Hours before dose 1" data-patient> h earlier
     </div>
     <div class="line"><span class="k">Levels</span>
-      <span class="ig"><input id="h_c1" type="number" min="0" step="any" value="16" data-q="phen" aria-label="Level 1"><button type="button" class="ub" data-for="h_c1"></button></span>
-      at <input id="h_t1" class="w4" type="number" step="any" value="42" aria-label="Level 1, hours after dose 1"> h ·
-      <span class="ig"><input id="h_c2" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 2"><button type="button" class="ub" data-for="h_c2"></button></span>
-      at <input id="h_t2" class="w4" type="number" step="any" aria-label="Level 2, hours after dose 1"> h
+      <span class="ig"><input id="h_c1" type="number" min="0" step="any" data-q="phen" aria-label="Level 1" data-patient><button type="button" class="ub" data-for="h_c1"></button></span>
+      at <input id="h_t1" class="w4" type="number" step="any" aria-label="Level 1, hours after dose 1" data-patient> h ·
+      <span class="ig"><input id="h_c2" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 2" data-patient><button type="button" class="ub" data-for="h_c2"></button></span>
+      at <input id="h_t2" class="w4" type="number" step="any" aria-label="Level 2, hours after dose 1" data-patient> h
     </div>
     <div class="line"><span class="k">More</span>
-      <span class="ig"><input id="h_c3" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 3"><button type="button" class="ub" data-for="h_c3"></button></span>
-      at <input id="h_t3" class="w4" type="number" step="any" aria-label="Level 3, hours after dose 1"> h ·
-      <span class="ig"><input id="h_c4" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 4"><button type="button" class="ub" data-for="h_c4"></button></span>
-      at <input id="h_t4" class="w4" type="number" step="any" aria-label="Level 4, hours after dose 1"> h
+      <span class="ig"><input id="h_c3" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 3" data-patient><button type="button" class="ub" data-for="h_c3"></button></span>
+      at <input id="h_t3" class="w4" type="number" step="any" aria-label="Level 3, hours after dose 1" data-patient> h ·
+      <span class="ig"><input id="h_c4" type="number" min="0" step="any" placeholder="optional" data-q="phen" aria-label="Level 4" data-patient><button type="button" class="ub" data-for="h_c4"></button></span>
+      at <input id="h_t4" class="w4" type="number" step="any" aria-label="Level 4, hours after dose 1" data-patient> h
     </div>
     <div class="line"><span class="k">Fit</span>
       <select id="h_fit" aria-label="Parameters to fit">
@@ -266,15 +266,15 @@ details p { margin: 0; }
   <!-- After stopping -->
   <section class="card sentence tabpanel" id="panel-stop" role="tabpanel" aria-labelledby="tab-stop" hidden>
     <div class="line"><span class="k">Levels</span>
-      <span class="ig"><input id="x_c1" type="number" min="0" step="any" value="120" data-q="phen" aria-label="Earlier level"><button type="button" class="ub" data-for="x_c1"></button></span>
-      then <span class="ig"><input id="x_c2" type="number" min="0" step="any" value="95" data-q="phen" aria-label="Later level, blank if only one" placeholder="optional"><button type="button" class="ub" data-for="x_c2"></button></span>
-      after <input id="x_hours" class="w4" type="number" min="0" step="any" value="24" aria-label="Hours between levels"> h,
-      latest drawn <input id="x_since" class="w4" type="number" min="0" step="any" value="0" aria-label="Hours since the latest level"> h ago
+      <span class="ig"><input id="x_c1" type="number" min="0" step="any" data-q="phen" aria-label="Earlier level" data-patient><button type="button" class="ub" data-for="x_c1"></button></span>
+      then <span class="ig"><input id="x_c2" type="number" min="0" step="any" data-q="phen" aria-label="Later level, blank if only one" placeholder="optional" data-patient><button type="button" class="ub" data-for="x_c2"></button></span>
+      after <input id="x_hours" class="w4" type="number" min="0" step="any" aria-label="Hours between levels" data-patient> h,
+      latest drawn <input id="x_since" class="w4" type="number" min="0" step="any" aria-label="Hours since the latest level" data-patient> h ago
     </div>
     <div class="line"><span class="k">Restart</span>
       at <span class="ig"><input id="x_target" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Restart level"><button type="button" class="ub" data-for="x_target"></button></span>
-      on <select id="x_form" class="form-select" aria-label="Restart product"></select>
-      <select id="x_tau" class="tau-select" aria-label="Interval"></select>
+      on <select id="x_form" class="form-select" aria-label="Restart product" data-patient></select>
+      <select id="x_tau" class="tau-select" aria-label="Interval" data-patient></select>
     </div>
   </section>
 
@@ -287,7 +287,7 @@ details p { margin: 0; }
       </select>
     </div>
     <div class="line l-load"><span class="k">Level</span>
-      <span class="ig"><input id="l_level" type="number" min="0" step="any" value="32" data-q="phen" aria-label="Current total level"><button type="button" class="ub" data-for="l_level"></button></span>
+      <span class="ig"><input id="l_level" type="number" min="0" step="any" data-q="phen" aria-label="Current total level" data-patient><button type="button" class="ub" data-for="l_level"></button></span>
       <span class="arrow" aria-hidden="true">→</span>
       <span class="ig"><input id="l_desired" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Desired level"><button type="button" class="ub" data-for="l_desired"></button></span>
       by <select id="l_route" aria-label="Route">
@@ -299,10 +299,10 @@ details p { margin: 0; }
       <label class="check"><input id="l_slow" type="checkbox"> elderly or cardiac</label>
     </div>
     <div class="line l-switch" hidden><span class="k">From</span>
-      <select id="l_from" class="form-select" aria-label="Current product"></select>
-      <input id="l_fromDose" type="number" min="0" step="any" value="100" aria-label="Current dose"> mg
-      <select id="l_fromTau" class="tau-select" aria-label="Current interval"></select>
-      level <span class="ig"><input id="l_curLevel" type="number" min="0" step="any" value="60" data-q="phen" aria-label="Current steady-state level, optional" placeholder="optional"><button type="button" class="ub" data-for="l_curLevel"></button></span>
+      <select id="l_from" class="form-select" aria-label="Current product" data-patient></select>
+      <input id="l_fromDose" type="number" min="0" step="any" aria-label="Current dose" data-patient> mg
+      <select id="l_fromTau" class="tau-select" aria-label="Current interval" data-patient></select>
+      level <span class="ig"><input id="l_curLevel" type="number" min="0" step="any" data-q="phen" aria-label="Current steady-state level, optional" placeholder="optional" data-patient><button type="button" class="ub" data-for="l_curLevel"></button></span>
     </div>
     <div class="line l-switch" hidden><span class="k">To</span>
       <select id="l_to" class="form-select" aria-label="New product"></select>
@@ -313,8 +313,8 @@ details p { margin: 0; }
   <!-- Interpret -->
   <section class="card sentence tabpanel" id="panel-interp" role="tabpanel" aria-labelledby="tab-interp" hidden>
     <div class="line"><span class="k">Level</span>
-      <span class="ig"><input id="i_level" type="number" min="0" step="any" value="32" data-q="phen" aria-label="Measured total level"><button type="button" class="ub" data-for="i_level"></button></span>
-      drawn <input id="i_hours" class="w4" type="number" min="0" step="any" value="10" aria-label="Hours since last dose"> h after
+      <span class="ig"><input id="i_level" type="number" min="0" step="any" data-q="phen" aria-label="Measured total level" data-patient><button type="button" class="ub" data-for="i_level"></button></span>
+      drawn <input id="i_hours" class="w4" type="number" min="0" step="any" aria-label="Hours since last dose" data-patient> h after
       <select id="i_route" aria-label="Last dose">
         <option value="maint">an oral maintenance dose</option>
         <option value="iv">IV phenytoin</option>
@@ -324,7 +324,7 @@ details p { margin: 0; }
     </div>
     <div class="line"><span class="k">CRRT</span>
       effluent <input id="i_eff" class="w4" type="number" min="0" step="any" placeholder="none" aria-label="CRRT effluent flow, L/h"> L/h, replace with
-      <select id="i_form" class="form-select" aria-label="Replacement product"></select>
+      <select id="i_form" class="form-select" aria-label="Replacement product" data-patient></select>
     </div>
   </section>
 
@@ -1702,7 +1702,9 @@ function render() {
   if (p.kmMode !== "custom") $("km").value = p.kmMode === "winter" ? 4 : (popFor(p.age, p.model) || { km: 4.3 }).km;
   $("albEqRow").hidden = p.bind === "free";
   renderStrip(p);
-  if (!(p.wt > 0) || !(p.ht > 0)) { $("result").innerHTML = invalidHTML("Enter the patient's weight and height (Edit patient)."); return; }
+  const lim = PKUI.checkLimits({ age: p.age, wtKg: p.wt, htCm: p.ht * 2.54, scr: p.scr > 0 ? p.scr : NaN, sex: p.sex }, { set: "all", cg: p.scr > 0 && p.age >= 18 });
+  if (PKUI.limitGate($("result"), lim, render)) { $("result").innerHTML = ""; currentNote = ""; return; }
+  if (!(p.age >= 0) || !(p.sex === "M" || p.sex === "F") || !(p.wt > 0) || !(p.ht > 0)) { $("result").innerHTML = invalidHTML("Enter the patient's age, sex, weight and height."); currentNote = ""; return; }
   try { $("result").innerHTML = RENDER[activeTab](p); }
   catch (e) { $("result").innerHTML = invalidHTML("Something in the inputs can't be calculated. Check for blank or zero values."); console.error(e); }
 }
@@ -1745,10 +1747,12 @@ document.addEventListener("click", (e) => {
 });
 
 const KEY = "pk-suite-phenytoin-v1";
+// Settings only: patient fields (data-patient) start blank on every load and are never stored.
+const settingInputs = () => inputs().filter((el) => !el.hasAttribute("data-patient"));
 function save() {
   try {
     const s = { _tab: activeTab, _country: country, _ru: RU, _opts: showOpts, _work: showWork, _units: {} };
-    for (const el of inputs()) s[el.id] = el.type === "checkbox" ? el.checked : el.value;
+    for (const el of settingInputs()) s[el.id] = el.type === "checkbox" ? el.checked : el.value;
     for (const el of unitFields()) s._units[el.id] = unitOf(el);
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch (e) {}
@@ -1758,7 +1762,7 @@ applyCountry("ca", false);
 try {
   const s = JSON.parse(localStorage.getItem(KEY) || "null");
   if (s) {
-    for (const el of inputs()) if (el.id in s) { if (el.type === "checkbox") el.checked = s[el.id]; else el.value = s[el.id]; }
+    for (const el of settingInputs()) if (el.id in s) { if (el.type === "checkbox") el.checked = s[el.id]; else el.value = s[el.id]; }
     if (s._country) applyCountry(s._country, false);
     for (const el of unitFields()) if (s._units && s._units[el.id]) setFieldUnit(el, s._units[el.id], false);
     if (s._ru) RU = s._ru;

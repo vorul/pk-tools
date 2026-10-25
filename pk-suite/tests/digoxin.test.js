@@ -175,7 +175,7 @@ test("CHF input Yes / No / Unknown: Unknown uses the CHF Sheiner equation; no fl
   near(u.CL, y.CL, 1e-12); assert.ok(u.chfAssumed); assert.ok(!y.chfAssumed);
   rel(y.CL, (0.33 * 73 + 0.9 * 76.04) * 0.06, 1e-3); rel(n.CL, (0.8 * 73 + 76.04) * 0.06, 1e-3);
   assert.ok(Math.abs(y.CL / n.CL - 0.4) > 0.1, "CHF is not a flat ×0.4");
-  assert.match(html, /<select id="chf"><option value="unknown">/);
+  assert.match(html, /<select id="chf"[^>]*><option value="unknown">/);
 });
 test("literature Ex 1 K-fit (V fixed): 0.125 mg QD tablet, 0.9 at 24 h, first-order ka 1.6 — matches an independent bisection on PK.one.oralSS", () => {
   const { par } = lit(EX1);

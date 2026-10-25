@@ -57,5 +57,48 @@
     return { value: () => (btns.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.value, set };
   }
 
-  root.PKUI = { CONVERT, unitToggle, num, renderBanners, badge, segmented, esc };
+  // ---------- Plausibility limits (review 2026-10-25) ----------
+  // Values outside these ranges block the result until the user confirms them ("Use these values anyway").
+  // A Cockcroft-Gault CrCl of 0 or below (age ≥ 140, or a height that gives IBW ≤ 0) blocks with no override.
+  // Values are in internal units: years, kg, cm, mg/dL.
+  const LIMITS = {
+    adult: { age: [18, 110], wtKg: [25, 350], htCm: [120, 230], scr: [0.1, 20] },
+    all: { age: [0, 110], wtKg: [0.4, 350], htCm: [30, 230], scr: [0.1, 20] },
+  };
+  const LIMIT_LABEL = {
+    age: (v) => `Age ${+v.toFixed(1)} y`, wtKg: (v) => `Weight ${+v.toFixed(1)} kg`,
+    htCm: (v) => `Height ${+v.toFixed(1)} cm (${+(v / 2.54).toFixed(1)} in)`, scr: (v) => `SCr ${+v.toFixed(2)} mg/dL (${Math.round(v * 88.4)} µmol/L)`,
+  };
+  const LIMIT_RANGE = { age: (a, b) => `${a}–${b} y`, wtKg: (a, b) => `${a}–${b} kg`, htCm: (a, b) => `${a}–${b} cm`, scr: (a, b) => `${a}–${b} mg/dL` };
+  // vals: { age, wtKg, htCm, scr, sex } (missing keys are skipped). opts: { set: 'adult' | 'all', cg: uses Cockcroft-Gault }.
+  // Returns { soft: [text], hard: [text], key }.
+  function checkLimits(vals, { set = "adult", cg = false } = {}) {
+    const L = LIMITS[set], soft = [], hard = [];
+    for (const k of Object.keys(L)) {
+      const v = vals[k];
+      if (typeof v !== "number" || !isFinite(v)) continue;
+      if (v < L[k][0] || v > L[k][1]) soft.push(`${LIMIT_LABEL[k](v)} is outside ${LIMIT_RANGE[k](L[k][0], L[k][1])}.`);
+    }
+    if (cg && isFinite(vals.age) && vals.age >= 140) hard.push(`Cockcroft-Gault gives a CrCl of 0 or below at age ${vals.age} (140 or over).`);
+    if (cg && isFinite(vals.htCm) && PK && PK.body.ibw(vals.sex, vals.htCm / 2.54) <= 0) hard.push(`Height ${+vals.htCm.toFixed(1)} cm gives an ideal body weight of 0 or below, so CrCl cannot be estimated.`);
+    return { soft, hard, key: soft.concat(hard).join("|") };
+  }
+  // Show the gate above `anchor` and report whether the result must be withheld. rerun() is called when the user
+  // ticks the override. The override holds only for the exact set of out-of-range values it was given for.
+  const accepted = new Set();
+  function limitGate(anchor, lim, rerun) {
+    let box = anchor.previousElementSibling;
+    if (!box || !box.classList.contains("limitgate")) { box = document.createElement("div"); box.className = "limitgate"; anchor.parentNode.insertBefore(box, anchor); }
+    if (!lim.soft.length && !lim.hard.length) { box.innerHTML = ""; return false; }
+    const ok = !lim.hard.length && accepted.has(lim.key);
+    const items = lim.hard.concat(lim.soft).map((t) => `<li>${esc(t)}</li>`).join("");
+    const head = lim.hard.length ? "Cannot calculate with these values." : ok ? "Using values outside the usual range (confirmed). Check them before acting on the result." : "Check these values. No result is shown until you confirm them.";
+    box.innerHTML = `<div class="alert ${ok ? "" : "crit"}" role="alert"><b>${esc(head)}</b><ul>${items}</ul>${lim.hard.length ? "" :
+      `<label><input type="checkbox" ${ok ? "checked" : ""}> Use these values anyway</label>`}</div>`;
+    const cb = box.querySelector("input[type=checkbox]");
+    if (cb) cb.addEventListener("change", () => { if (cb.checked) accepted.add(lim.key); else accepted.delete(lim.key); rerun(); });
+    return !ok;
+  }
+
+  root.PKUI = { CONVERT, unitToggle, num, renderBanners, badge, segmented, esc, LIMITS, checkLimits, limitGate };
 })(typeof globalThis !== "undefined" ? globalThis : this);

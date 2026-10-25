@@ -47,16 +47,16 @@ dl.calc dd.full { grid-column: 1 / -1; text-align: left; font-family: var(--font
   <section class="card" id="patientPanel">
     <h2>Patient</h2>
     <div class="fields">
-      <label>Age (years) <input id="age" type="number" min="0" step="any" value="65"></label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="70"><button type="button" class="ub" data-units="in,cm" data-for="ht">in</button></span></label>
-      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="80"><button type="button" class="ub" data-units="kg,lb" data-for="wt">kg</button></span></label>
-      <label>SCr, most recent <span class="ig"><input id="scr" type="number" min="0" step="any" value="1.0"><button type="button" class="ub" data-units="mg/dL,µmol/L" data-for="scr" data-pair="scrOld">mg/dL</button></span></label>
-      <label>Earlier SCr (optional) <span class="ig"><input id="scrOld" type="number" min="0" step="any" placeholder="stable"><button type="button" class="ub" tabindex="-1" disabled data-mirror="scr">mg/dL</button></span></label>
-      <label>Hours between SCr values <input id="scrHours" type="number" min="0" step="any" value="24"></label>
-      <label>Heart failure (CHF) <select id="chf"><option value="unknown">Unknown (uses CHF equation)</option><option value="no">No</option><option value="yes">Yes</option></select></label>
+      <label>Age (years) <input id="age" type="number" min="0" step="any" data-patient></label>
+      <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button type="button" class="ub" data-units="in,cm" data-for="ht">in</button></span></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button type="button" class="ub" data-units="kg,lb" data-for="wt">kg</button></span></label>
+      <label>SCr, most recent <span class="ig"><input id="scr" type="number" min="0" step="any" data-patient><button type="button" class="ub" data-units="mg/dL,µmol/L" data-for="scr" data-pair="scrOld">mg/dL</button></span></label>
+      <label>Earlier SCr (optional) <span class="ig"><input id="scrOld" type="number" min="0" step="any" placeholder="stable" data-patient><button type="button" class="ub" tabindex="-1" disabled data-mirror="scr">mg/dL</button></span></label>
+      <label>Hours between SCr values <input id="scrHours" type="number" min="0" step="any" data-patient></label>
+      <label>Heart failure (CHF) <select id="chf" data-patient><option value="unknown">Unknown (uses CHF equation)</option><option value="no">No</option><option value="yes">Yes</option></select></label>
       <label>Indication
-        <select id="ind">
+        <select id="ind" data-patient>
           <option value="hf">Heart failure (HFrEF)</option>
           <option value="af">AF / flutter rate control</option>
           <option value="afhf">AF with heart failure</option>
@@ -71,16 +71,16 @@ dl.calc dd.full { grid-column: 1 / -1; text-align: left; font-family: var(--font
         </select>
       </label>
       <label>Thyroid status
-        <select id="thyroid"><option value="normal">Normal</option><option value="hypo">Hypothyroid</option><option value="hyper">Hyperthyroid</option></select>
+        <select id="thyroid" data-patient><option value="normal">Normal</option><option value="hypo">Hypothyroid</option><option value="hyper">Hyperthyroid</option></select>
       </label>
-      <label>Serum K⁺ (mmol/L, optional) <input id="kplus" type="number" min="0" step="any" placeholder="—"></label>
-      <label>Serum Mg (mmol/L, optional) <input id="mg" type="number" min="0" step="any" placeholder="—"></label>
+      <label>Serum K⁺ (mmol/L, optional) <input id="kplus" type="number" min="0" step="any" placeholder="—" data-patient></label>
+      <label>Serum Mg (mmol/L, optional) <input id="mg" type="number" min="0" step="any" placeholder="—" data-patient></label>
       <div class="wide">
         <span class="hint">Interacting drugs (CL multipliers multiply; the site suggests using only the strongest to stay conservative)</span>
         <div class="checks" id="interChecks"></div>
       </div>
-      <label class="check"><input type="checkbox" id="paraMal"> Paralysis or malnutrition (workbook SCr floor 0.5)</label>
-      <label>Other CL multiplier (optional) <input id="otherMult" type="number" min="0" step="any" placeholder="1.0"></label>
+      <label class="check"><input type="checkbox" id="paraMal" data-patient> Paralysis or malnutrition (workbook SCr floor 0.5)</label>
+      <label>Other CL multiplier (optional) <input id="otherMult" type="number" min="0" step="any" placeholder="1.0" data-patient></label>
       <label>Target
         <select id="targetSet">
           <option value="lit">Guideline (HF 0.5–0.9; AF &lt;1.2)</option>
@@ -115,19 +115,19 @@ dl.calc dd.full { grid-column: 1 / -1; text-align: left; font-family: var(--font
   <section class="card tabpanel" id="panel-level" hidden>
     <h2>Dose history and levels</h2>
     <div class="fields">
-      <label>Current dose (mcg) <input id="hDose" type="number" min="0" step="any" value="125"></label>
+      <label>Current dose (mcg) <input id="hDose" type="number" min="0" step="any" data-patient></label>
       <label>Schedule
-        <select id="hPat">
+        <select id="hPat" data-patient>
           <option value="7">Every day</option><option value="6">6 days/week (Mon–Sat)</option><option value="5">5 days/week (Mon–Fri)</option>
           <option value="4">4 days/week (Mon/Wed/Fri/Sat)</option><option value="3">3 days/week (Mon/Wed/Fri)</option>
           <option value="2">2 days/week (Mon/Fri)</option><option value="1">1 day/week (Mon)</option>
         </select>
       </label>
-      <label>Dose on other days (mcg) <input id="hDose2" type="number" min="0" step="any" value="0"></label>
-      <label>Regimen form <select id="hForm"><option value="same">Same as dosage form</option><option value="tablet">Tablet</option><option value="elixir">Oral solution</option><option value="iv">IV</option><option value="capsule">Capsule</option></select></label>
-      <label>Regimen started (first dose, usual time) <input id="hStart" type="datetime-local"></label>
-      <label>Loading dose given (total mcg, 0 = none) <input id="hLd" type="number" min="0" step="any" value="0"></label>
-      <label>Loading started (50/25/25 % q6h) <input id="hLdStart" type="datetime-local"></label>
+      <label>Dose on other days (mcg) <input id="hDose2" type="number" min="0" step="any" data-patient></label>
+      <label>Regimen form <select id="hForm" data-patient><option value="same">Same as dosage form</option><option value="tablet">Tablet</option><option value="elixir">Oral solution</option><option value="iv">IV</option><option value="capsule">Capsule</option></select></label>
+      <label>Regimen started (first dose, usual time) <input id="hStart" type="datetime-local" data-patient></label>
+      <label>Loading dose given (total mcg, 0 = none) <input id="hLd" type="number" min="0" step="any" data-patient></label>
+      <label>Loading started (50/25/25 % q6h) <input id="hLdStart" type="datetime-local" data-patient></label>
       <label>Fit method
         <select id="fitMethod">
           <option value="auto">Auto (MAP Bayesian; site: K only; workbook: K and V)</option>
@@ -140,11 +140,11 @@ dl.calc dd.full { grid-column: 1 / -1; text-align: left; font-family: var(--font
       <label>History model
         <select id="ssMode"><option value="auto">Auto (site: steady state)</option><option value="history">Actual dose history (superposition)</option><option value="ss">Assume steady state</option></select>
       </label>
-      <div class="wide lvlrow"><label>Level 1 drawn <input id="l1t" type="datetime-local"></label><label>Level 1 (ng/mL) <input id="l1c" type="number" min="0" step="any" value="0.9"></label></div>
-      <div class="wide lvlrow"><label>Level 2 drawn (optional) <input id="l2t" type="datetime-local"></label><label>Level 2 (ng/mL) <input id="l2c" type="number" min="0" step="any" placeholder="—"></label></div>
-      <div class="wide lvlrow"><label>Level 3 drawn (optional) <input id="l3t" type="datetime-local"></label><label>Level 3 (ng/mL) <input id="l3c" type="number" min="0" step="any" placeholder="—"></label></div>
+      <div class="wide lvlrow"><label>Level 1 drawn <input id="l1t" type="datetime-local" data-patient></label><label>Level 1 (ng/mL) <input id="l1c" type="number" min="0" step="any" data-patient></label></div>
+      <div class="wide lvlrow"><label>Level 2 drawn (optional) <input id="l2t" type="datetime-local" data-patient></label><label>Level 2 (ng/mL) <input id="l2c" type="number" min="0" step="any" placeholder="—" data-patient></label></div>
+      <div class="wide lvlrow"><label>Level 3 drawn (optional) <input id="l3t" type="datetime-local" data-patient></label><label>Level 3 (ng/mL) <input id="l3c" type="number" min="0" step="any" placeholder="—" data-patient></label></div>
       <label class="wide">Changed or missed doses (one per line: <code>YYYY-MM-DD HH:MM mcg</code>; 0 removes a scheduled dose)
-        <textarea id="hEdits" spellcheck="false" placeholder="2026-10-20 09:00 0"></textarea>
+        <textarea id="hEdits" spellcheck="false" placeholder="2026-10-20 09:00 0" data-patient></textarea>
       </label>
     </div>
   </section>
@@ -955,7 +955,13 @@ function render() {
   $("panel-initial").hidden = activeTab !== "initial";
   $("panel-level").hidden = activeTab === "initial";
   renderStrip(p, cfg);
-  if (!(p.wt > 0) || !(p.ht > 0) || !(p.scr > 0) || !(p.age > 0)) { $("result").innerHTML = `<section class="card order"><p class="hint" style="font-size:.9rem">Enter age, height, weight and SCr.</p></section>`; return; }
+  const lim = PKUI.checkLimits({ age: p.age, wtKg: p.wtUnit === "lb" ? p.wt * 0.45359237 : p.wt, htCm: p.htUnit === "cm" ? p.ht : p.ht * 2.54,
+    scr: p.scrUnit === "umol" ? p.scr / 88.4 : p.scr, sex: p.sex }, { set: "adult", cg: true });
+  const blocked = PKUI.limitGate($("result"), lim, render);
+  if (!(p.sex === "M" || p.sex === "F") || !(p.wt > 0) || !(p.ht > 0) || !(p.scr > 0) || !(p.age > 0) || blocked) {
+    $("result").innerHTML = blocked ? "" : `<section class="card order"><p class="hint" style="font-size:.9rem">Enter age, sex, height, weight and SCr.</p></section>`;
+    $("strip").innerHTML = ""; return;
+  }
   try {
     $("result").innerHTML = activeTab === "initial" ? renderInitial(p, cfg) : activeTab === "interp" ? renderInterp(p, cfg, cv) : renderAdjust(p, cfg, cv);
   } catch (e) {
@@ -1008,29 +1014,21 @@ function applyTheme() {
 }
 
 const KEY = "pk-suite-digoxin-v1";
-const fields = () => [...document.querySelectorAll("input, select, textarea")].filter((el) => el.id);
+// Settings only: patient fields (data-patient) and interaction ticks start blank on every load and are never stored.
+const fields = () => [...document.querySelectorAll("input, select, textarea")].filter((el) => el.id && !el.hasAttribute("data-patient"));
 function save() {
   try {
     const s = { _tab: activeTab, _model: model, _opts: showOpts, _work: showWork, _theme: themeMode, _units: {}, _inter: [] };
     fields().forEach((el) => (s[el.id] = el.type === "checkbox" ? el.checked : el.value));
     document.querySelectorAll("button.ub[data-for]").forEach((b) => (s._units[b.dataset.for] = b.textContent));
-    s._inter = [...document.querySelectorAll("[data-inter]")].filter((c) => c.checked).map((c) => c.dataset.inter);
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch (e) {}
 }
-// Default dates: regimen started 10 days ago at 09:00; level today at 08:00 (24 h after yesterday's dose would be 09:00).
-function isoLocal(d) { const z = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; }
-(function defaults() {
-  const today = new Date(); today.setHours(9, 0, 0, 0);
-  const start = new Date(today.getTime() - 10 * 86400e3), lvl = new Date(today.getTime() - 60 * 60e3);
-  $("hStart").value = isoLocal(start); $("hLdStart").value = isoLocal(new Date(start.getTime() - 24 * 3600e3)); $("l1t").value = isoLocal(lvl);
-})();
 try {
   const s = JSON.parse(localStorage.getItem(KEY) || "null");
   if (s) {
     fields().forEach((el) => { if (el.id in s) { if (el.type === "checkbox") el.checked = s[el.id]; else el.value = s[el.id]; } });
     Object.entries(s._units || {}).forEach(([id, u]) => setUnit(id, u, false));
-    (s._inter || []).forEach((id) => { const c = document.querySelector(`[data-inter="${id}"]`); if (c) c.checked = true; });
     model = ["site", "workbook"].includes(s._model) ? s._model : "literature"; showOpts = !!s._opts; showWork = !!s._work; themeMode = s._theme || "auto"; activeTab = s._tab || "initial";
   }
 } catch (e) {}

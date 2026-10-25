@@ -46,10 +46,10 @@ td.l { text-align: left; white-space: normal; font-family: var(--font-body); }
   <section class="card">
     <h2>Patient</h2>
     <div class="fields">
-      <label>Age (years, ≥ 1) <input id="age" type="number" min="1" step="any" value="40"></label>
-      <label>Sex <select id="sex"><option value="M">Male</option><option value="F">Female</option></select></label>
-      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" value="177.8"><button class="ub" id="htU"></button></span></label>
-      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" value="70"><button class="ub" id="wtU"></button></span></label>
+      <label>Age (years, ≥ 1) <input id="age" type="number" min="1" step="any" data-patient></label>
+      <label>Sex <select id="sex" data-patient><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+      <label>Height <span class="ig"><input id="ht" type="number" min="0" step="any" data-patient><button class="ub" id="htU"></button></span></label>
+      <label>Weight <span class="ig"><input id="wt" type="number" min="0" step="any" data-patient><button class="ub" id="wtU"></button></span></label>
       <label>Product (salt) <select id="salt"></select></label>
       <label id="elderlyRow">CL if &gt; 60 y <select id="elderlyCL"><option value="0.028">0.028 L/kg/h (label −30%)</option><option value="0.025">0.025 (Table I mean)</option><option value="0.03">0.03 (Table V)</option></select></label>
       <label>Heart failure <select id="chf"><option value="no">No</option><option value="yes">Yes</option><option value="severe">Severe / decompensated</option></select></label>
@@ -78,14 +78,14 @@ td.l { text-align: left; white-space: normal; font-family: var(--font-body); }
 
   <section class="card sentence" id="panel-start">
     <div class="line"><span class="k">Load</span>
-      current level <input id="s_cur" type="number" min="0" step="any" placeholder="0"> mg/L
+      current level <input id="s_cur" type="number" min="0" step="any" placeholder="0" data-patient> mg/L
       → <input id="s_ldTarget" class="w4" type="number" min="0" step="any" value="10"> mg/L
       <select id="s_ldRoute" aria-label="Loading route"><option value="iv">IV over 30 min</option><option value="po">oral, immediate release</option><option value="none">no load</option></select>
     </div>
     <div class="line"><span class="k">Maintain</span>
       <select id="s_form" class="formSel" aria-label="Dosage form"></select>
       <select id="s_code" class="codeSel" aria-label="Schedule"></select>
-      <input id="s_dose" type="number" min="0" step="any" placeholder="auto"> <span id="s_doseU">mg</span>
+      <input id="s_dose" type="number" min="0" step="any" placeholder="auto" data-patient> <span id="s_doseU">mg</span>
     </div>
     <div class="line"><span class="k">Target</span> average <input id="s_target" class="w4" type="number" min="0" step="any" value="10"> mg/L</div>
     <p class="hint">Leave the dose blank to get a rounded suggestion; type a dose to see its predicted steady-state levels.</p>
@@ -96,22 +96,22 @@ td.l { text-align: left; white-space: normal; font-family: var(--font-body); }
       <select id="l_state"><option value="ss">at steady state</option><option value="nss">not at steady state (superposition)</option></select>
     </div>
     <div class="line nss" hidden><span class="k">Load</span>
-      <input id="n_ld" type="number" min="0" step="any" placeholder="none"> mg
+      <input id="n_ld" type="number" min="0" step="any" placeholder="none" data-patient> mg
       <select id="n_ldRoute"><option value="iv">IV</option><option value="po">oral IR</option></select> at time 0;
-      level before it <input id="n_c0" class="w4" type="number" min="0" step="any" placeholder="0"> mg/L
+      level before it <input id="n_c0" class="w4" type="number" min="0" step="any" placeholder="0" data-patient> mg/L
     </div>
     <div class="line"><span class="k">Taking</span>
       <select id="l_form" class="formSel" aria-label="Dosage form"></select>
-      <input id="l_dose" type="number" min="0" step="any" value="300"> <span id="l_doseU">mg</span>
+      <input id="l_dose" type="number" min="0" step="any" data-patient> <span id="l_doseU">mg</span>
       <select id="l_code" class="codeSel" aria-label="Schedule"></select>
-      <span class="nss" hidden>first dose at <input id="n_start" class="w4" type="number" min="0" step="any" value="0"> h</span>
+      <span class="nss" hidden>first dose at <input id="n_start" class="w4" type="number" min="0" step="any" data-patient> h</span>
     </div>
     <div class="line"><span class="k">Level</span>
-      <input id="l_level" type="number" min="0" step="any" value="8"> mg/L drawn
-      <span class="ss"><input id="l_time" class="w4" type="number" min="0" step="any" value="12"> h after the previous dose</span>
-      <span class="nss" hidden><input id="n_time" class="w4" type="number" min="0" step="any" value="24"> h after time 0</span>
+      <input id="l_level" type="number" min="0" step="any" data-patient> mg/L drawn
+      <span class="ss"><input id="l_time" class="w4" type="number" min="0" step="any" data-patient> h after the previous dose</span>
+      <span class="nss" hidden><input id="n_time" class="w4" type="number" min="0" step="any" data-patient> h after time 0</span>
     </div>
-    <div class="line ss"><span class="k">On it for</span> <input id="l_hoursOn" class="w4" type="number" min="0" step="any" placeholder="?"> h <span class="hint">(optional; checks the steady-state assumption)</span></div>
+    <div class="line ss"><span class="k">On it for</span> <input id="l_hoursOn" class="w4" type="number" min="0" step="any" placeholder="?" data-patient> h <span class="hint">(optional; checks the steady-state assumption)</span></div>
     <p class="hint ss">Uneven schedules: the level is taken as drawn after the last dose of the day (the site assumes a trough before the first dose of the day).</p>
   </section>
 
@@ -122,7 +122,7 @@ td.l { text-align: left; white-space: normal; font-family: var(--font-body); }
     <div class="line"><span class="k">New</span>
       <select id="a_form" class="formSel" aria-label="Dosage form"></select>
       <select id="a_code" class="codeSel" aria-label="Schedule"></select>
-      <input id="a_dose" type="number" min="0" step="any" placeholder="auto"> <span id="a_doseU">mg</span>
+      <input id="a_dose" type="number" min="0" step="any" placeholder="auto" data-patient> <span id="a_doseU">mg</span>
     </div>
     <div class="line"><span class="k">Target</span> average <input id="a_target" class="w4" type="number" min="0" step="any" value="10"> mg/L</div>
   </section>
@@ -746,6 +746,15 @@ function render() {
   document.querySelectorAll("#panel-level .nss").forEach((e) => (e.hidden = !nss));
   document.querySelectorAll("#panel-level .ss").forEach((e) => (e.hidden = nss));
   for (const pre of ["s", "l", "a"]) $(pre + "_doseU").textContent = doseUnit(p[pre + "_code"]);
+  const n = (x) => (x === "" || x === undefined ? NaN : +x);
+  const lim = PKUI.checkLimits({ age: n(p.age), wtKg: p.weightKg, htCm: p.heightCm }, { set: "all" });
+  const blocked = PKUI.limitGate($("result"), lim, render);
+  if (blocked || !(p.sex === "M" || p.sex === "F")) {
+    copyText = "";
+    $("result").innerHTML = blocked ? "" : `<section class="card"><h2>Result</h2><div class="alerts"><div class="alert info" role="status">Enter age, sex, height and weight.</div></div></section>`;
+    document.querySelector("#params tbody").innerHTML = "";
+    return;
+  }
   let o, html = "", alerts = [];
   const pt = patient(p);
   if (tab === "start") {
