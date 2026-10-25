@@ -1,5 +1,5 @@
 // Tests for pk-suite/infusion-rate.html. Run from the project folder:  node --test pk-suite/tests/
-// Loads lib/pkcore.js, then the page's CALC-START…CALC-END block with new Function (same pattern as ../../phenytoin/tests/calc.test.js).
+// Loads lib/pkcore.js, then the page's CALC-START…CALC-END block with new Function.
 // Sources: specs/infusion-rate.md §8 (chart worked examples), §11 (live-server regression, 39 POSTs / 732 rows)
 // and lit/acyclovir-infusions-hepatic.md §1b/§2 (literature library). Display-rounded rates are compared exactly;
 // unrounded values use the tolerance stated in each test.

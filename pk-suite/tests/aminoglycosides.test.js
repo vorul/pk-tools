@@ -1,5 +1,5 @@
 // Tests for pk-suite/aminoglycosides.html. Run from the project folder:  node --test pk-suite/tests/
-// Loads lib/pkcore.js, then the page's CALC-START/CALC-END block with new Function (same pattern as ../../phenytoin/tests/calc.test.js).
+// Loads lib/pkcore.js, then the page's CALC-START/CALC-END block with new Function.
 // Covers: every live-server regression row in specs/ag-traditional.md and specs/ag-once-daily.md (site mode, exact
 // displayed values), the spec worked examples (stated tolerances), the nomogram curves vs the PDF-extracted table
 // (±0.5% or ±0.005 mg/L, the table's print precision), and literature-mode cases.

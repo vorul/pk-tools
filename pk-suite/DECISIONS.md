@@ -126,4 +126,4 @@ The site's Excel workbooks were downloaded on 2026-10-23 and read as text; no ma
   - a bounded fit in `PK.fit`. The tools use local bounded helpers for now.
 
 ## Still unverified (blocked or paywalled)
-Soriano 2017 full text (the 0.2 coefficient) · Anderson / Kane coefficients (ClinCalc only) · Hartford nomogram coordinates · Goti 2019 erratum text · 2022 AHA HF digoxin table · Sheiner, Reuning and Paulson–Welling primary PDFs · Blum 1982 coefficients · Trotman 2005 CRRT table · Canadian aminophylline salt form · traditional aminoglycoside peak bands by indication · per-NSAID lithium magnitudes.
+Soriano 2017 full text (the 0.2 coefficient; corroborated by Palumbo 2026's "CF 0.201") · Hartford nomogram coordinates · Goti 2019 erratum text · 2022 AHA HF digoxin table · Sheiner, Reuning and Paulson–Welling primary PDFs · Blum 1982 coefficients · Trotman 2005 CRRT table · Canadian aminophylline salt form · traditional aminoglycoside peak bands by indication · per-NSAID lithium magnitudes.

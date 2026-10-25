@@ -1,5 +1,5 @@
 // Tests for pk-suite/vancomycin.html. Run from the project folder:  node --test pk-suite/tests/
-// Loads lib/pkcore.js, then the page's CALC-START/CALC-END block via new Function (same pattern as ../../phenytoin/tests/calc.test.js).
+// Loads lib/pkcore.js, then the page's CALC-START/CALC-END block via new Function.
 // Sources: specs/vanco-auc.md (live-server regression rows: exact display values; §8 worked examples ±0.5%),
 // specs/vanco-bayesian.md §9.2 (±3 mg·h/L) and §9.3, specs/bayesian-engine.md TC-1/TC-2 (tolerances as tests/pkcore.test.js),
 // specs/two-comp-auc.md TC1/TC2 (±0.5%), lit/vancomycin.md (literature mode).

@@ -1,26 +1,7 @@
-# Phenytoin dose adjuster
+# Phenytoin (moved)
 
-[`index.html`](index.html) is the whole tool. Open it in a browser.
+The standalone phenytoin dose adjuster was merged into the PK suite on 2026-10-25: [`../pk-suite/phenytoin.html`](../pk-suite/phenytoin.html). It does everything the standalone tool did, plus a dose-history tab, CrCl, ICU and CYP2C9 options, and a Site model that reproduces the old Winter binding equations.
 
-## Scenarios
+[`index.html`](index.html) here only redirects, so old links and bookmarks keep working. It carries saved settings across once and removes the old saved data.
 
-- **Adjust:** a new dose from the current dose and one steady-state level
-- **Start:** an initial maintenance dose, with an optional loading dose
-- **Two levels:** Km and Vmax from two steady-state levels, or from two levels not at steady state (mass balance or Bayesian fit)
-- **After stopping:** time for a high level to fall to a target
-- **Load / switch:** a loading dose to raise a level, or switching between capsules, chewables, suspension, IV and fosphenytoin
-- **Interpret:** a level after correcting for albumin, renal failure, valproate or a free level, including CRRT
-
-Patient fields start blank on every load and are never saved; settings are. Ages, weights and heights outside 0–110 y, 0.4–350 kg and 30–230 cm hold back the result until confirmed.
-
-Each scenario returns an order in deliverable doses (100 and 30 mg capsules, 50 mg chewables), optional hold doses, a recheck schedule and a chart note. Units default to Canadian (µmol/L, g/L, cm). Every field can switch units, and a country switch resets every field at once.
-
-## Method
-
-Michaelis-Menten kinetics with population Km and Vmax by age, Winter-Tozer albumin correction when albumin is below 4.4 g/dL, and salt factors by product. The Methods section of the page lists every equation and source.
-
-Based on the phenytoin dosing work of Marshall Pierce, PharmD, at [pkineticdrugdosing.com](https://pkineticdrugdosing.com/index.html).
-
-## Tests
-
-See [tests/README.md](tests/README.md).
+The calculation tests are in `../pk-suite/tests/phenytoin.test.js` (every case from the old `calc.test.js` is there), and the browser self-check is `../pk-suite/tests/phenytoin-ui-smoke.js`.

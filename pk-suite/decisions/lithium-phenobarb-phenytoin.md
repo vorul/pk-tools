@@ -372,8 +372,8 @@ The two V values are both sourced and differ by 13%. Winter 0.7 is kept for pari
 
 ## Items still unverified (check before release)
 
-1. Soriano 2017 full text: exact revised equation form, assay temperature, mean albumin. The coefficient 0.2 is from ClinCalc and MDCalc only.
-2. Anderson 0.25 and Kane 0.29 coefficients: from ClinCalc; the abstracts don't print them.
+1. Soriano 2017 full text: exact revised equation form, assay temperature, mean albumin. The coefficient 0.2 is from ClinCalc and MDCalc; **partly checked 2026-10-25**: Palumbo 2026 (abstract) tested "CF 0.201" against 0.1 in its intermittent-HD cohort, which corroborates a coefficient of about 0.2. Soriano's own text is still unread (paywalled).
+2. ~~Anderson 0.25 and Kane 0.29 coefficients~~ **Verified 2026-10-25** in the peer-reviewed full text of Barra 2020 (PMC7377971): Anderson proposed "an interaction coefficient with albumin of 0.25 instead of the traditional 0.2" for free levels measured at room temperature; Kane proposed 0.29 in neuro-ICU patients. Barra's lab assayed free phenytoin at 37 °C, and there the original Winter-Tozer equation had the smallest bias while Anderson and Kane under-predicted free levels more. **The non-ESRD coefficient depends on the lab's free-assay temperature** (open question for sign-off).
 3. ter Heine 2019 mechanistic-model parameters, including the definition of "severe renal dysfunction".
 4. Palumbo 2026: size of the IHD subgroup and the free-assay method.
 5. NICE CG185 recommendation wording and numbers (page blocked); the CANMAT 2018 acute-mania range.

@@ -4,7 +4,7 @@ Clinical pharmacokinetic dosing tools. Each tool is a single HTML page that runs
 
 | Tool | What it does |
 | --- | --- |
-| [Phenytoin](phenytoin/) | Adjusts a dose from a level, starts therapy, fits two levels, predicts decline after stopping, plans loading doses and product switches, and interprets levels (including low albumin, renal failure, valproate and CRRT). Uses Michaelis-Menten kinetics. |
+| [Phenytoin](pk-suite/phenytoin.html) | Part of the PK suite. Adjusts a dose from a level, starts therapy, fits two levels, predicts decline after stopping, plans loading doses and product switches, and interprets levels (including low albumin, renal failure, valproate and CRRT). Uses Michaelis-Menten kinetics. The old standalone address, `phenytoin/`, redirects here. |
 | [PK suite](pk-suite/) | Eleven tools sharing one library: aminoglycosides, vancomycin (AUC, Bayesian and two-compartment), vancomycin in hemodialysis, acyclovir, digoxin, theophylline, lithium, phenobarbital, phenytoin, renal and hepatic function, and infusion rates. Each has a Literature model (the default) and a Site model that reproduces pkineticdrugdosing.com. Several also have a Workbook model that reproduces Pierce's spreadsheets. Literature checks and sign-off decisions are in the folder. |
 
 ## Using a tool
@@ -15,15 +15,17 @@ Patient fields start blank every time a tool opens, and the tools never store pa
 
 ## Tests
 
-Each tool keeps its tests in its own `tests/` folder. Run every calculation test from the repository root with Node 18 or later:
+The tests are in `pk-suite/tests/`. Run every calculation test from the repository root with Node 18 or later:
 
 ```bash
 npm test
 ```
 
+The phenytoin page also has a browser self-check, `pk-suite/tests/phenytoin-ui-smoke.js`: open the page, paste the file into the developer console and press Enter.
+
 ## Acknowledgements
 
-The phenytoin calculator is based on the phenytoin dosing work of **Marshall Pierce, PharmD**, at [pkineticdrugdosing.com](https://pkineticdrugdosing.com/index.html), including his [phenytoin page](https://pkineticdrugdosing.com/documents/phenytoin.html) and spreadsheet calculators. This repository reimplements those methods; it does not include his files, and any errors are its own.
+The phenytoin tool is based on the phenytoin dosing work of **Marshall Pierce, PharmD**, at [pkineticdrugdosing.com](https://pkineticdrugdosing.com/index.html), including his [phenytoin page](https://pkineticdrugdosing.com/documents/phenytoin.html) and spreadsheet calculators. This repository reimplements those methods; it does not include his files, and any errors are its own.
 
 The equations and worked examples also follow Winter, *Basic Clinical Pharmacokinetics*, 6th ed., chapter 14. Each tool's page lists its full sources.
 

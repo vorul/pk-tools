@@ -1,5 +1,5 @@
 // Tests for pk-suite/vancomycin-hd.html (trough charts + high-flux HD). Run: node --test pk-suite/tests/
-// Loads lib/pkcore.js, then the page's CALC-START…CALC-END block via new Function (same pattern as ../../phenytoin/tests/calc.test.js).
+// Loads lib/pkcore.js, then the page's CALC-START…CALC-END block via new Function.
 // Sources: specs/vanco-charts-hd.md §3c/§3d chart tables (parsed from the spec itself) and §8 TC1–TC9; lit/vancomycin.md §1e/§2.8.
 // The spec lives in the private pk-tools-research repo (cloned next to pk-tools, or set PK_RESEARCH). Without it the
 // four chart-table tests are skipped; every other test here runs.

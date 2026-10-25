@@ -1,5 +1,5 @@
-// Interface tests for the phenytoin calculator (../index.html).
-// Open the calculator in a browser, open the developer console, paste this whole file and press Enter.
+// Interface tests for the phenytoin tool (../phenytoin.html), moved here from the standalone tool when the two were merged.
+// Open the tool in a browser, open the developer console, paste this whole file and press Enter.
 // It clicks through the page and returns { passed, failed, results }. It resets saved inputs when done.
 (() => {
   const results = [];
@@ -16,7 +16,7 @@
   const errors = [];
   const onErr = (e) => errors.push(e.message);
   window.addEventListener("error", onErr);
-  const tabs = ["adjust", "start", "two", "stop", "load", "interp"];
+  const tabs = ["adjust", "start", "two", "hist", "stop", "load", "interp"];
 
   try { localStorage.clear(); } catch (e) {}
   click('[data-country="ca"]');
@@ -24,7 +24,7 @@
   const start = { age: 45, sex: "M", wt: 70, ht: 178, alb: 44, renal: "normal", bind: "alb", cyp: "normal", kmMode: "winter", inc: "auto",
     a_form: "cap", a_dose: 100, a_tau: 8, a_days: 21, a_level: 32, a_target: 60, a_trough: false,
     t_dose1: 150, t_lvl1: 32, t_dose2: 175, t_lvl2: 79, t_dose: 300, t_c1: 79, t_c2: 103, t_days: 10,
-    x_c1: 120, x_c2: 95, x_hours: 24, x_since: 0, l_level: 32, l_fromDose: 100, l_curLevel: 60, i_level: 32, i_hours: 10 };
+    h_dose: 100, h_n: 8, h_c1: 16, h_t1: 42, x_c1: 120, x_c2: 95, x_hours: 24, x_since: 0, l_level: 32, l_fromDose: 100, l_curLevel: 60, i_level: 32, i_hours: 10 };
   for (const [k, v] of Object.entries(start)) set(k, v);
 
   // 1. Every tab renders an order card with no calculation error.
@@ -136,7 +136,7 @@
 
   // 13. Saved settings: settings are kept for this browser; patient values are never stored.
   let saved = null, storage = true;
-  try { localStorage.setItem("_t", "1"); localStorage.removeItem("_t"); saved = JSON.parse(localStorage.getItem("phenytoin-adjuster-v4")); } catch (e) { storage = false; }
+  try { localStorage.setItem("_t", "1"); localStorage.removeItem("_t"); saved = JSON.parse(localStorage.getItem("pk-suite-phenytoin-v1")); } catch (e) { storage = false; }
   if (storage) {
     check("settings are saved for this browser", saved && saved.a_target === "60" && saved._country === "ca", JSON.stringify(saved || {}).slice(0, 120));
     check("patient values are not saved", saved && !["age", "sex", "wt", "ht", "alb", "a_dose", "a_level"].some((k) => k in saved), Object.keys(saved || {}).join(","));
