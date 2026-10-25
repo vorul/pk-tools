@@ -91,7 +91,7 @@ Evidence, citations and the alternatives for each item are in `decisions/*.md`. 
   - propofol warns above 66.7 mcg/kg/min;
   - phenylephrine keeps a provisional 6 mcg/kg/min hard stop pending sign-off.
 
-## Workbook findings applied 2026-10-24 (`workbook-checks/*.md`)
+## Workbook findings applied 2026-10-24 (`workbook-checks/*.md`, private research repo)
 The site's Excel workbooks were downloaded on 2026-10-23 and read as text; no macros were run. Changes:
 - **Library:** `PK.body.peckLBW` now returns kg. It had returned the pound polynomial. It uses the exact pound, which is 0.2% from the workbook's ÷ 2.2. It is tested against the workbook's 32 saved values.
 - **Phenobarbital Site:**

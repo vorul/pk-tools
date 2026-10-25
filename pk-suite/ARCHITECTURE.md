@@ -11,7 +11,7 @@ pk-suite/
   <tool>.html        one page per tool. Loads lib/pk.css, lib/pkcore.js and its own inline <script>
   index.html         launcher listing all tools
   tests/pkcore.test.js, tests/<tool>.test.js   node:test. Run with: node --test pk-suite/tests/
-  specs/             research specs (source of truth for formulas)
+  specs/             research specs (source of truth for formulas); kept in the private vorul/pk-tools-research repo
   lit/               literature cross-checks (source of truth where the site is wrong or outdated)
 ```
 

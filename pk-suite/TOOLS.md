@@ -1,7 +1,7 @@
 # PK tool inventory: pkineticdrugdosing.com
 
 Source: https://pkineticdrugdosing.com/index.html (crawled 2026-10-23). Author: Marshall Pierce, PharmD.
-One spec per tool goes in `specs/<slug>.md`.
+One spec per tool goes in `specs/<slug>.md` (private research repo `vorul/pk-tools-research`).
 
 | # | Tool (slug) | Type on site | Primary sources |
 |---|---|---|---|

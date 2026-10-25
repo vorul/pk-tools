@@ -2,22 +2,21 @@
 
 ## Status (2026-10-25)
 - **Built:** 11 tools and a launcher (`index.html`), with shared code in `lib/` (`pkcore.js`, `pk.css`, `pk-ui.js`). Every tool has a Literature model (the default) and a Site model that reproduces pkineticdrugdosing.com, including the live-server results.
-- **Workbook models:** digoxin, vancomycin, aminoglycosides and lithium also have a Workbook model that reproduces Pierce's Excel tools. Vancomycin-HD has a "Pierce HD workbook" preset under Site. The values saved in the workbooks are hard-coded as regression tests. See `workbook-checks/` and the "Applied 2026-10-24" section of `DECISIONS.md`.
+- **Workbook models:** digoxin, vancomycin, aminoglycosides and lithium also have a Workbook model that reproduces Pierce's Excel tools. Vancomycin-HD has a "Pierce HD workbook" preset under Site. The values saved in the workbooks are hard-coded as regression tests. The workbook comparisons are in the private research repo (below); see also the "Applied 2026-10-24" section of `DECISIONS.md`.
 - **Tests:** `npm test` from the repository root runs the suite and the standalone phenytoin tests (or `node --test pk-suite/tests/` for the suite alone). All pass.
 - **Source material:** the downloaded site (workbooks, PDFs, pages, and text dumps of the workbooks) is kept in a local `site-mirror` folder outside this repository. It is copyrighted reference material, so keep it out of any public repo.
 - **Run:** serve the `pk-suite` folder over HTTP (pages load `lib/` with relative paths). Opening a file directly works in a normal browser but not in the app's preview pane.
 - **Research trail:**
-  - `specs/` holds the site behaviour, including the live-server verification.
+  - The per-tool specs (site behaviour, including the live-server verification) and the workbook comparisons are in the private repo `vorul/pk-tools-research` (`specs/`, `workbook-checks/`), because they describe third-party material in detail. Source tags such as `specs/vanco-auc.md §8` refer to it. Clone it next to this repository to run the vancomycin chart regression tests; without it those 4 tests are skipped.
   - `lit/` holds the literature cross-checks.
   - `decisions/` and `DECISIONS.md` hold the sign-off research and recommended defaults. All of them are applied to the Literature models; builder notes are in the "Applied with notes" section.
-  - Paths in `specs/` and `workbook-checks/` that start with `scratch/`, `...\scratchpad\` or `site-mirror/` name working files and source dumps kept outside this repository. They record where a result came from; the files are not needed to run the tools or the tests.
 - **Still open:** institutional limits (infusion hard maxima, HD protocol details) and the unverified items listed at the end of `DECISIONS.md`.
 
 The sections below are the original build reference compiled from the specs. Where they conflict with `DECISIONS.md`, `DECISIONS.md` wins.
 
 # Build reference
 
-This reference is compiled from 17 per-tool specs (`specs/*.md`). Each spec was researched from https://pkineticdrugdosing.com on 2026-10-23. The tool inventory is in `TOOLS.md`.
+This reference is compiled from 17 per-tool specs (`specs/*.md`, now in the private research repo). Each spec was researched from https://pkineticdrugdosing.com on 2026-10-23. The tool inventory is in `TOOLS.md`.
 
 ## 1. How confident each spec is
 

@@ -1,6 +1,8 @@
 // Tests for pk-suite/vancomycin-hd.html (trough charts + high-flux HD). Run: node --test pk-suite/tests/
 // Loads lib/pkcore.js, then the page's CALC-START…CALC-END block via new Function (same pattern as ../../phenytoin/tests/calc.test.js).
 // Sources: specs/vanco-charts-hd.md §3c/§3d chart tables (parsed from the spec itself) and §8 TC1–TC9; lit/vancomycin.md §1e/§2.8.
+// The spec lives in the private pk-tools-research repo (cloned next to pk-tools, or set PK_RESEARCH). Without it the
+// four chart-table tests are skipped; every other test here runs.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -17,7 +19,9 @@ const near = (actual, expected, tol, msg) =>
   assert.ok(Math.abs(actual - expected) <= tol, `${msg || ""} expected ${expected} ± ${tol}, got ${actual}`);
 
 // ---------- Parse the spec's chart tables (§3c) and the source-vs-regenerated list (§3d) ----------
-const spec = fs.readFileSync(path.join(__dirname, "..", "specs", "vanco-charts-hd.md"), "utf8");
+const SPEC_PATH = path.join(process.env.PK_RESEARCH || path.join(__dirname, "..", "..", "..", "pk-tools-research"), "specs", "vanco-charts-hd.md");
+const spec = fs.existsSync(SPEC_PATH) ? fs.readFileSync(SPEC_PATH, "utf8") : "";
+const noSpec = spec ? false : `needs ${SPEC_PATH} (private pk-tools-research repo)`;
 const tables = {}; // mgkg → { tau → [25 values] }
 for (const sec of spec.split(/^#### /m).slice(1)) {
   const m = sec.match(/^(\d+) mg\/kg maintenance dose/);
@@ -30,7 +34,7 @@ for (const sec of spec.split(/^#### /m).slice(1)) {
   tables[+m[1]] = rows;
 }
 const sourceDiffs = []; // { mgkg, tau, crcl, source, regen }
-for (const line of spec.split("### 3d.")[1].split("**Recommendation")[0].split("\n")) {
+for (const line of (spec.split("### 3d.")[1] || "").split("**Recommendation")[0].split("\n")) {
   const m = line.match(/^- (\d+) mg\/kg: (.*)$/);
   if (!m) continue;
   let tau = null;
@@ -44,14 +48,14 @@ const key = (d, t, c) => `${d}|${t}|${c}`;
 const diffKeys = new Set(sourceDiffs.map((d) => key(d.mgkg, d.tau, d.crcl)));
 const cell = (mgkg, tau, crcl) => M.chartTable(mgkg).rows.find((r) => r.tau === tau).cells[M.CHART.CRCL.indexOf(crcl)];
 
-test("spec parse: 8 charts × 13 rows × 25 columns; 33 listed source differences, 31 in the τ 8/12/24 rows", () => {
+test("spec parse: 8 charts × 13 rows × 25 columns; 33 listed source differences, 31 in the τ 8/12/24 rows", { skip: noSpec }, () => {
   assert.deepEqual(Object.keys(tables).map(Number).sort((a, b) => b - a), M.CHART.DOSES);
   for (const d of M.CHART.DOSES) { assert.deepEqual(Object.keys(tables[d]).map(Number).sort((a, b) => a - b), M.CHART.TAUS); }
   assert.equal(sourceDiffs.length, 33);
   assert.equal(sourceDiffs.filter((d) => SRC_TAUS.includes(d.tau)).length, 31);
 });
 
-test("chart regeneration: 569 published cells (τ 8/12/24 × 25 CrCl × 8 doses) match exactly to 0.1", () => {
+test("chart regeneration: 569 published cells (τ 8/12/24 × 25 CrCl × 8 doses) match exactly to 0.1", { skip: noSpec }, () => {
   let n = 0;
   const bad = [];
   for (const d of M.CHART.DOSES) for (const t of SRC_TAUS) M.CHART.CRCL.forEach((c, j) => {
@@ -64,7 +68,7 @@ test("chart regeneration: 569 published cells (τ 8/12/24 × 25 CrCl × 8 doses)
   assert.deepEqual(bad, []);
 });
 
-test("chart regeneration: the 31 differing published cells are within ±0.3 (and equal the spec's regenerated value)", () => {
+test("chart regeneration: the 31 differing published cells are within ±0.3 (and equal the spec's regenerated value)", { skip: noSpec }, () => {
   const inSrc = sourceDiffs.filter((d) => SRC_TAUS.includes(d.tau));
   assert.equal(inSrc.length, 31);
   for (const d of inSrc) {
@@ -75,7 +79,7 @@ test("chart regeneration: the 31 differing published cells are within ±0.3 (and
   for (const d of sourceDiffs.filter((x) => !SRC_TAUS.includes(x.tau))) near(cell(d.mgkg, d.tau, d.crcl), d.source, 0.3 + 1e-9, `extra ${d.tau}`);
 });
 
-test("chart regeneration: every regenerated cell in all 13 rows equals the spec tables (2600 cells, ±0.1 rounding edge)", () => {
+test("chart regeneration: every regenerated cell in all 13 rows equals the spec tables (2600 cells, ±0.1 rounding edge)", { skip: noSpec }, () => {
   const bad = [];
   for (const d of M.CHART.DOSES) for (const t of M.CHART.TAUS) M.CHART.CRCL.forEach((c, j) => {
     if (Math.abs(cell(d, t, c) - tables[d][t][j]) > 0.1 + 1e-9) bad.push(`${d}/${t}/${c}`);

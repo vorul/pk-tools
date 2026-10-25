@@ -5,7 +5,7 @@ Clinical pharmacokinetic dosing tools. Each tool is a single HTML page that runs
 | Tool | What it does |
 | --- | --- |
 | [Phenytoin](phenytoin/) | Adjusts a dose from a level, starts therapy, fits two levels, predicts decline after stopping, plans loading doses and product switches, and interprets levels (including low albumin, renal failure, valproate and CRRT). Uses Michaelis-Menten kinetics. |
-| [PK suite](pk-suite/) | Eleven tools sharing one library: aminoglycosides, vancomycin (AUC, Bayesian and two-compartment), vancomycin in hemodialysis, acyclovir, digoxin, theophylline, lithium, phenobarbital, phenytoin, renal and hepatic function, and infusion rates. Each has a Literature model (the default) and a Site model that reproduces pkineticdrugdosing.com. Several also have a Workbook model that reproduces Pierce's spreadsheets. Specs, literature checks and sign-off decisions are in the folder. |
+| [PK suite](pk-suite/) | Eleven tools sharing one library: aminoglycosides, vancomycin (AUC, Bayesian and two-compartment), vancomycin in hemodialysis, acyclovir, digoxin, theophylline, lithium, phenobarbital, phenytoin, renal and hepatic function, and infusion rates. Each has a Literature model (the default) and a Site model that reproduces pkineticdrugdosing.com. Several also have a Workbook model that reproduces Pierce's spreadsheets. Literature checks and sign-off decisions are in the folder. |
 
 ## Using a tool
 
