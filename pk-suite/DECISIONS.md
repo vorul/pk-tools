@@ -48,7 +48,7 @@ Evidence, citations and the alternatives for each item are in `decisions/*.md`. 
 | Question | Recommended default | Conf. | Change to build |
 |---|---|---|---|
 | Phenytoin, dialysis / CrCl < 10 | Soriano C/(0.2·Alb + 0.1), capped at 1, with a mandatory free-level banner. CrCl 10–25 not on dialysis: standard correction plus a free level. Legacy 0.1·Alb + 0.1 is an option only (over-predicts free fraction 75–200%). | M (0.2 itself: L-M) | none, already built this way |
-| Albumin coefficient | Anderson 0.25; Kane 2013 0.29 for ICU; cap factor at 1 | M / M-H | none |
+| Albumin coefficient | **Signed off 2026-10-25:** by free-assay temperature. 25 °C: Anderson 0.25, ICU Kane 0.29. 37 °C or unknown (default): Winter-Tozer 0.9·Alb/4.4 + 0.1, the higher corrected level (safety). Cap factor at 1 | M / M-H | phenytoin: assay-temperature setting added |
 | Elderly Vmax | 6.0 mg/kg/day at 60–79 y; ≥ 80 y keep 6.0, flagged | H / L | none |
 | Graves-Cloyd | Graves 1986 (PMID 3824428): Dnew = Dold·(Cnew/Cold)^0.2; round up | H | update the source tag |
 | Single-level method | One-level Bayesian primary; Km 4 (Winter) as cross-check | M | phenytoin: Adjust default was Km 4 |

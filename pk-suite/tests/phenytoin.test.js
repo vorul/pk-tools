@@ -128,10 +128,12 @@ test("Q13/Q14 [changed by literature default]: HD, albumin 2.7, level 3 → 8.2 
   near(ol.range[1], 12.8, 1e-9);
 });
 
-test("Q16 [changed by literature default]: albumin 2.0, level 6 → 11.8 mg/L (site/Winter); 10.0 mg/L (literature, Anderson 0.25)", () => {
+test("Q16: albumin 2.0, level 6 → 11.8 mg/L (site, and literature with assay temperature unknown or 37 °C: Winter); 10.0 mg/L (literature, 25 °C assay: Anderson 0.25)", () => {
   const q = { alb: 2.0, i_level: 6, i_route: "maint", i_hours: 10, i_eff: NaN, i_form: "inj" };
   near(run(M.interpCalc, { ...site, ...q }, 6).Cnb, 11.8, 0.05);
-  near(run(M.interpCalc, { ...base, ...q }, 6).Cnb, 10, 1e-9);
+  near(run(M.interpCalc, { ...base, ...q }, 6).Cnb, 11.8, 0.05, "unknown temperature → Winter-Tozer (safety default)");
+  near(run(M.interpCalc, { ...base, ...q, assayT: "37" }, 6).Cnb, 11.8, 0.05);
+  near(run(M.interpCalc, { ...base, ...q, assayT: "25" }, 6).Cnb, 10, 1e-9);
 });
 
 test("Q17: steady-state time estimate is 35.7 days at 18 mg/L on 350 mg/day, 60 kg", () => {
@@ -151,11 +153,11 @@ test("albumin at or above normal is not corrected; HD at normal albumin: correct
   near(M.patientModel({ ...site, alb: 4.8, renal: "hd" }, 10).factor, 0.9 * 0.48 + 0.1, 1e-9);
   assert.equal(M.patientModel({ ...base, alb: 4.8, renal: "hd" }, 10).factor, 1, "0.2 × 4.8 + 0.1 = 1.06, capped");
 });
-test("valproate at or below 20 mg/L falls back to the albumin correction (Winter in site, Anderson in literature)", () => {
+test("valproate at or below 20 mg/L falls back to the albumin correction (Winter in site; Anderson in literature with a 25 °C assay)", () => {
   const pm = M.patientModel({ ...site, bind: "vpa", vpa: 15, alb: 3 }, 10);
   near(pm.factor, 0.9 * (3 / 4.4) + 0.1, 1e-9);
   assert.ok(pm.alerts.some((a) => /needs no valproate correction/.test(a.text)));
-  near(M.patientModel({ ...base, bind: "vpa", vpa: 15, alb: 3 }, 10).factor, 0.85, 1e-9);
+  near(M.patientModel({ ...base, bind: "vpa", vpa: 15, alb: 3, assayT: "25" }, 10).factor, 0.85, 1e-9);
 });
 test("free level uses the paired total, or the tab's level when the pair is blank", () => {
   near(M.patientModel({ ...base, bind: "free", free: 2, freeTot: 10 }, 99).factor, 0.5, 1e-9);
@@ -456,16 +458,24 @@ test("Model setting: literature is the default; site reproduces the workbook; th
   const p80 = M.patientModel({ ...base, age: 85 }, 10);
   assert.equal(p80.pop.vm, 6); near(p80.VmPopSd / p80.VmPop, 0.35, 1e-12, "prior CV ≥ 0.35 at ≥ 80 y"); assert.equal(p80.popSrc, "elderly80");
 });
-test("binding defaults: Anderson 0.25 (non-ESRD), Kane 0.29 (ICU), Soriano 0.2 (ESRD); Winter and Sheiner-Tozer selectable; capped at 1", () => {
+test("binding defaults (signed off 2026-10-25): non-ESRD by free-assay temperature — 25 °C Anderson 0.25 (ICU Kane 0.29), 37 °C or unknown Winter-Tozer; Soriano 0.2 in ESRD at any temperature; capped at 1", () => {
   const f = (o) => M.albuminFactor({ model: "literature", renal: "normal", icu: false, eq: "auto", ...o });
-  assert.equal(f({ alb: 3 }).use, "anderson"); near(f({ alb: 3 }).factor, 0.85, 1e-12);
-  assert.equal(f({ alb: 3, icu: true }).use, "kane"); near(f({ alb: 3, icu: true }).factor, 0.97, 1e-12);
-  assert.equal(f({ alb: 3, renal: "hd" }).use, "soriano"); near(f({ alb: 3, renal: "hd" }).factor, 0.7, 1e-12);
+  const wt = 0.9 * 3 / 4.4 + 0.1;
+  for (const assay of [undefined, "unknown", "37"]) {
+    assert.equal(f({ alb: 3, assay }).use, "winter", `assay ${assay}: Winter-Tozer`); near(f({ alb: 3, assay }).factor, wt, 1e-12);
+    assert.equal(f({ alb: 3, assay, icu: true }).use, "winter", `assay ${assay}, ICU: Winter-Tozer`);
+  }
+  assert.ok(f({ alb: 3 }).factor < f({ alb: 3, assay: "25" }).factor, "Winter-Tozer gives the higher corrected level (smaller factor)");
+  assert.equal(f({ alb: 3, assay: "25" }).use, "anderson"); near(f({ alb: 3, assay: "25" }).factor, 0.85, 1e-12);
+  assert.equal(f({ alb: 3, assay: "25", icu: true }).use, "kane"); near(f({ alb: 3, assay: "25", icu: true }).factor, 0.97, 1e-12);
+  for (const assay of ["unknown", "37", "25"]) { assert.equal(f({ alb: 3, renal: "hd", assay }).use, "soriano"); near(f({ alb: 3, renal: "hd", assay }).factor, 0.7, 1e-12); }
   near(f({ alb: 3, eq: "st" }).factor, 0.7, 1e-12); near(f({ alb: 3, renal: "hd", eq: "st" }).factor, 0.4, 1e-12);
   near(f({ alb: 3, eq: "winter" }).factor, 0.9 * 3 / 4.4 + 0.1, 1e-12);
-  assert.equal(f({ alb: 4.4 }).factor, 1); assert.ok(f({ alb: 4.4 }).clamped);
+  assert.equal(f({ alb: 4.4, assay: "25" }).factor, 1); assert.ok(f({ alb: 4.4, assay: "25" }).clamped);
+  assert.equal(f({ alb: 4.4 }).factor, 1); assert.equal(f({ alb: 5 }).factor, 1, "Winter-Tozer: no upward correction at or above normal albumin");
   assert.equal(f({ alb: 3, model: "site" }).use, "winter", "site model default is Winter");
-  for (const k of ["anderson", "kane", "soriano", "albClamp", "elderly80"]) assert.equal(M.SRC[k].verify, true, `${k} carries a verify badge`);
+  for (const k of ["soriano", "albClamp", "elderly80"]) assert.equal(M.SRC[k].verify, true, `${k} carries a verify badge`);
+  for (const k of ["anderson", "kane", "assayTemp"]) assert.equal(M.SRC[k].verify, false, `${k}: coefficient verified (Barra 2020 full text)`);
   for (const k of ["gravesCloyd", "elderlyLit", "mapSS"]) assert.equal(M.SRC[k].verify, false, `${k} approved, primary verified`);
   assert.match(M.SRC.kane.ref, /2013/); assert.doesNotMatch(M.SRC.kane.label + M.SRC.kane.ref, /2016/);
   assert.match(M.SRC.gravesCloyd.ref, /3824428/);
@@ -484,9 +494,10 @@ test("decision Q1: dialysis or CrCl < 10 → Soriano capped at 1 with a mandator
   }
   assert.equal(M.patientModel({ ...base, renal: "hd", alb: 4.8 }, 10).factor, 1, "capped at 1");
 });
-test("decision Q1: CrCl 10–25 not on dialysis → standard (Anderson) correction, no ESRD equation; free level required if Alb < 3.5", () => {
+test("decision Q1: CrCl 10–25 not on dialysis → standard (non-ESRD) correction, no ESRD equation; free level required if Alb < 3.5", () => {
   const pm = M.patientModel({ ...base, renal: "mid", alb: 3 }, 10);
-  assert.equal(pm.albEq, "anderson"); near(pm.factor, 0.85, 1e-12);
+  assert.equal(pm.albEq, "winter"); near(pm.factor, 0.9 * 3 / 4.4 + 0.1, 1e-12);
+  assert.equal(M.patientModel({ ...base, renal: "mid", alb: 3, assayT: "25" }, 10).albEq, "anderson");
   assert.ok(pm.alerts.some((a) => a.lvl === "crit" && /required with albumin below/.test(a.text)));
   const hi = M.patientModel({ ...base, renal: "mid", alb: 3.8 }, 10);
   assert.ok(hi.alerts.some((a) => a.lvl === "warn" && /free level is recommended/.test(a.text)));
@@ -514,7 +525,7 @@ test("decision: one-level Bayesian is the literature default in Adjust, Km 4 (Wi
   assert.equal(s.method, "km"); near(s.Vm, 414, 0.5); near(s.plan.exact, 355, 0.5);
 });
 test("parameters are fitted on binding-corrected levels (spec §10): two SS levels at albumin 3.0", () => {
-  const p = { ...base, alb: 3, t_mode: "ss", t_form1: "susp", t_dose1: 300, t_tau1: 24, t_lvl1: 8 * 0.85, t_form2: "susp", t_dose2: 350, t_tau2: 24, t_lvl2: 20 * 0.85, t_target: 15 };
+  const p = { ...base, alb: 3, assayT: "25", t_mode: "ss", t_form1: "susp", t_dose1: 300, t_tau1: 24, t_lvl1: 8 * 0.85, t_form2: "susp", t_dose2: 350, t_tau2: 24, t_lvl2: 20 * 0.85, t_target: 15 };
   const o = run(M.twoCalc, p, p.t_lvl2);
   near(o.C1, 8, 1e-9); near(o.Km, 2.5, 1e-9); near(o.Vm, 393.75, 1e-9);
 });
@@ -591,7 +602,7 @@ test("dose history: no levels gives a population prediction; levels are binding-
   const o = run(M.historyCalc, p, NaN);
   assert.equal(o.fit, null); near(o.Km, 4, 1e-12);
   assert.ok(o.alerts.some((a) => /population prediction/.test(a.text)));
-  const q = { ...p, alb: 2.0, h_levels: [{ t: 64, c: 6 }] };
+  const q = { ...p, alb: 2.0, assayT: "25", h_levels: [{ t: 64, c: 6 }] };
   near(run(M.historyCalc, q, 6).obs[0].c, 10, 1e-9, "6 ÷ (0.25·2 + 0.1)");
   assert.ok(run(M.historyCalc, { ...p, h_dose: NaN }, NaN).invalid);
 });
@@ -604,4 +615,12 @@ test("Start tab reports time to fractions of steady state", () => {
   const o = run(M.startCalc, { ...base, s_load: "none", s_loadTarget: 20, s_slow: false, s_form: "cap", s_tau: 12, s_target: 15 }, NaN);
   assert.deepEqual(o.plan.fractions.map((x) => x.f), M.FRACTIONS);
   assert.ok(o.plan.fractions.every((x, i, a) => i === 0 || x.days > a[i - 1].days));
+});
+
+test("unknown assay temperature: an info note says Winter-Tozer is used and how to choose Anderson; none at normal albumin, in ESRD, at 25 °C or in the site model", () => {
+  const note = (p) => M.patientModel(p, 10).alerts.some((a) => /assay temperature not set/.test(a.text));
+  assert.ok(note({ ...base, alb: 3 }));
+  assert.ok(!note({ ...base, alb: 4.6 })); assert.ok(!note({ ...base, alb: 3, renal: "hd" }));
+  assert.ok(!note({ ...base, alb: 3, assayT: "25" })); assert.ok(!note({ ...base, alb: 3, assayT: "37" }));
+  assert.ok(!note({ ...site, alb: 3 }));
 });

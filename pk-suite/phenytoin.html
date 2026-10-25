@@ -69,7 +69,7 @@ details p { margin: 0; }
     <div class="fields">
       <label class="wide">Model
         <select id="model">
-          <option value="literature" selected>Literature defaults: Anderson 0.25 (ICU 0.29, ESRD Soriano 0.2) binding, Vmax 6.0 at 60 y and older</option>
+          <option value="literature" selected>Literature defaults: Winter-Tozer binding (Anderson 0.25 / ICU 0.29 if the free assay is at 25 °C; ESRD Soriano 0.2), Vmax 6.0 at 60 y and older</option>
           <option value="site">Site workbook: Winter 0.9·Alb/4.4 + 0.1 (HD × 0.48), Vmax 7 at 60 y and older</option>
         </select>
       </label>
@@ -100,6 +100,13 @@ details p { margin: 0; }
           <option value="auto" selected>Model default</option>
           <option value="winter">Winter 0.9·Alb/4.4 + 0.1 (HD × 0.48)</option>
           <option value="st">Sheiner-Tozer 0.2·Alb + 0.1 (ESRD 0.1)</option>
+        </select>
+      </label>
+      <label id="assayRow">Free phenytoin assay temperature (ask your lab)
+        <select id="assayT">
+          <option value="unknown" selected>Unknown: Winter-Tozer (errs toward flagging toxicity)</option>
+          <option value="37">37 °C: Winter-Tozer</option>
+          <option value="25">25 °C (room temperature): Anderson 0.25, ICU Kane 0.29</option>
         </select>
       </label>
       <label id="freeRow" hidden>Free level <span class="ig"><input id="free" type="number" min="0" step="any" data-q="phenFree" data-patient><button type="button" class="ub" data-for="free"></button></span></label>
@@ -336,8 +343,8 @@ details p { margin: 0; }
       <div class="body">
         <p><b>Units.</b> Every field has its own unit; click the unit to switch it, and the value converts. CA, US and UK set every field and the results to that country's usual units. The model runs in mg/L, g/dL, inches and kg. Phenytoin µmol/L = mg/L × 3.964 (MW 252.27): 10–20 mg/L is 40–80 µmol/L, free 1–2 mg/L is 4–8 µmol/L. Valproic acid µmol/L = mg/L × 6.934. Albumin g/L ÷ 10 = g/dL. Km stays in mg/L.</p>
         <p><b>Salt factor.</b> S = 0.92 for phenytoin sodium capsules, IV phenytoin and fosphenytoin (mg PE); S = 1.0 for chewable tablets and suspension. F = 1. Products are not interchangeable mg for mg.</p>
-        <p><b>Model setting.</b> <i>Literature defaults</i> (the default) use the values recommended in the suite literature review: Anderson 0.25 binding (0.29 in ICU, Soriano 0.2 in ESRD) and Vmax 6.0 mg/kg/day at 60 y and older. <i>Site workbook</i> reproduces pkineticdrugdosing.com and its workbooks: Winter binding and Vmax 7 at 60 y and older. The active model is shown on every result card. Values marked <span class="src verify">verify</span> come from outside the site, from secondary sources, or are suite policy; hover a badge for its source.</p>
-        <p><b>Binding</b>, with factor = measured total ÷ normal-binding level and <code>C<sub>NB</sub> = C / factor</code> (Alb in g/dL). Literature default: Anderson 1997 <code>0.25·Alb + 0.1</code>; ICU (Kane 2013) <code>0.29·Alb + 0.1</code>; dialysis or CrCl &lt; 10 mL/min (Soriano 2017) <code>0.2·Alb + 0.1</code>, always with a mandatory free-level banner. CrCl 10–25 without dialysis keeps the standard equation, because binding there is unpredictable rather than ESRD-like (Winter, Liponi 1984); a free level is recommended, and required with albumin below 3.5 g/dL. The legacy ESRD forms (Winter 0.48, 0.1·Alb + 0.1) are options only: they over-predict the free fraction by 75–200% in dialysis patients (Soriano 2017; Palumbo 2026, PMID 42557917). These coefficients were confirmed through a secondary source (ClinCalc), so they carry a verify badge. Selectable: Winter (Eq 14.2, 14.3) <code>0.9·Alb/4.4 + 0.1</code>, hemodialysis <code>0.9 × 0.48 × Alb/4.4 + 0.1</code>; classic Sheiner-Tozer <code>0.2·Alb + 0.1</code> (ESRD <code>0.1·Alb + 0.1</code>). The factor is capped at 1, so normal albumin is never corrected upward (suite policy). Measured free level: <code>factor = 0.1 ÷ (free/total)</code>. Valproate &gt; 20 mg/L (Eq 14.8): <code>(0.095 + 0.001 × VPA) × C / 0.1</code>. No equation is reliable in ICU patients or in renal failure with low albumin (Montgomery 2019, Barra 2020), so the tool asks for a measured free level there. Patient-specific reported range is 10–20 mg/L × the binding factor (Eq 14.4–14.7). Every fit uses binding-corrected levels.</p>
+        <p><b>Model setting.</b> <i>Literature defaults</i> (the default) use the values recommended in the suite literature review: Winter-Tozer binding unless the free assay is at 25 °C (then Anderson 0.25, or 0.29 in ICU), Soriano 0.2 in ESRD, and Vmax 6.0 mg/kg/day at 60 y and older. <i>Site workbook</i> reproduces pkineticdrugdosing.com and its workbooks: Winter binding and Vmax 7 at 60 y and older. The active model is shown on every result card. Values marked <span class="src verify">verify</span> come from outside the site, from secondary sources, or are suite policy; hover a badge for its source.</p>
+        <p><b>Binding</b>, with factor = measured total ÷ normal-binding level and <code>C<sub>NB</sub> = C / factor</code> (Alb in g/dL). Literature default, not on dialysis: it depends on the temperature at which the lab measures free phenytoin. At 25 °C (room temperature): Anderson 1997 <code>0.25·Alb + 0.1</code>, or Kane 2013 <code>0.29·Alb + 0.1</code> in ICU. At 37 °C, or when the temperature is unknown: Winter-Tozer <code>0.9·Alb/4.4 + 0.1</code>. Anderson's coefficient was derived for room-temperature assays; with a 37 °C assay the original Winter-Tozer had the smallest bias and Anderson and Kane under-predicted free levels (Barra 2020, PMID 32049893). When the temperature is unknown the tool uses Winter-Tozer because it gives the higher corrected level, so it errs toward flagging toxicity. Dialysis or CrCl &lt; 10 mL/min (Soriano 2017) <code>0.2·Alb + 0.1</code>, always with a mandatory free-level banner. CrCl 10–25 without dialysis keeps the standard equation, because binding there is unpredictable rather than ESRD-like (Winter, Liponi 1984); a free level is recommended, and required with albumin below 3.5 g/dL. The legacy ESRD forms (Winter 0.48, 0.1·Alb + 0.1) are options only: they over-predict the free fraction by 75–200% in dialysis patients (Soriano 2017; Palumbo 2026, PMID 42557917). The Anderson and Kane coefficients are confirmed in the published literature (Barra 2020); Soriano's 0.2 is from ClinCalc and is corroborated by Palumbo 2026 (0.201 in dialysis patients), so it keeps a verify badge. Selectable: Winter (Eq 14.2, 14.3) <code>0.9·Alb/4.4 + 0.1</code>, hemodialysis <code>0.9 × 0.48 × Alb/4.4 + 0.1</code>; classic Sheiner-Tozer <code>0.2·Alb + 0.1</code> (ESRD <code>0.1·Alb + 0.1</code>). The factor is capped at 1, so normal albumin is never corrected upward (suite policy). Measured free level: <code>factor = 0.1 ÷ (free/total)</code>. Valproate &gt; 20 mg/L (Eq 14.8): <code>(0.095 + 0.001 × VPA) × C / 0.1</code>. No equation is reliable in ICU patients or in renal failure with low albumin (Montgomery 2019, Barra 2020), so the tool asks for a measured free level there. Patient-specific reported range is 10–20 mg/L × the binding factor (Eq 14.4–14.7). Every fit uses binding-corrected levels.</p>
         <p><b>Weights and volume.</b> IBW (Devine) 50 (M) or 45.5 (F) + 2.3 kg per inch over 60 (actual weight under 152 cm). Vd = 0.65 L/kg (1 L/kg under 1 year); above IBW, IBW + 1.33(TBW − IBW). Vmax per kg uses the lesser of IBW and actual weight.</p>
         <p><b>Population values</b> (Murphy 2005, from your workbook): 0.5–3 y Km 6.6 (SD 4.2), Vmax 14 (4.2); 4–6 y 6.8 (3.5), 10.9 (3); 7–9 y 6.5 (3), 10.1 (2.6); 10–17 y 5.7 (2.7), 8.3 (2.8); 18–59 y 4.3 (3.5), 7 (3); ≥ 60 y 5.8 (2.3), 7 (3) in the site model; the literature model uses Vmax 6.0 (SD 1.9) at 60 y and older (Bauer &amp; Blouin 1982, studied at 60–79 y). There are no data at 80 y and older: 6.0 is kept, flagged, with a prior CV of at least 0.35. The pediatric values match Bauer &amp; Blouin 1983. Winter assumes Km 4 for adults. CYP2C9 intermediate and poor metabolizers: Vmax × 0.75 and × 0.5.</p>
         <p><b>One level</b> (Eq 14.30–14.31): <code>Vmax = R(Km + C)/C</code>, <code>R = S·F·Dose·24/τ</code>; dose <code>Vmax·T/((Km + T)·S)</code>; <code>Css = Km·R/(Vmax − R)</code>. <b>Two steady-state levels</b> (Eq 14.36): <code>Km = (R2 − R1)/(R1/C1 − R2/C2)</code>. <b>Not at steady state</b>: mass balance (Eq 14.33–14.34) <code>eliminated/day = R − (C2 − C1)·V/t</code>, <code>Vmax = eliminated × (Km + Cavg)/Cavg</code>; or a Bayesian fit minimizing <code>((C2 − C2pred)/(0.1·C2))² + ((Km − Km<sub>pop</sub>)/SD)² + ((Vmax − Vmax<sub>pop</sub>)/SD)²</code>. <b>After stopping</b> (Eq 14.25): <code>Vmax = V·[Km·ln(C1/C2) + (C1 − C2)]/t</code>. Two steady-state pairs whose level does not rise more than proportionally to the dose are rejected (the workbook hides them with ABS()).</p>
@@ -406,8 +413,9 @@ const SRC = {
   vdInfant: { label: "Vd 1 L/kg under 1 year (site)", ref: "specs/phenytoin.md §3.2; primary not verified", verify: true },
   vdObese: { label: "Vd weight IBW + 1.33·(TBW − IBW); Vmax on min(IBW, TBW)", ref: "specs/phenytoin.md §3.2, §4.1", verify: false },
   winterBinding: { label: "Winter Eq 14.2/14.3: 0.9·Alb/4.4 + 0.1; ESRD on HD 0.9·0.48·Alb/4.4 + 0.1", ref: "Winter 6e; Liponi 1984 (PMID 6538287)", verify: false },
-  anderson: { label: "Anderson 1997 revised Winter-Tozer 0.25·Alb + 0.1", ref: "PMID 9066931; coefficient via ClinCalc (lit 1c)", verify: true },
-  kane: { label: "Kane, Bress, Tesoro 2013 neuro-ICU 0.29·Alb + 0.1", ref: "Ann Pharmacother 2013;47:628, PMID 23606554; coefficient via ClinCalc", verify: true },
+  anderson: { label: "Anderson 1997 revised Winter-Tozer 0.25·Alb + 0.1, for free levels measured at 25 °C", ref: "PMID 9066931; coefficient verified in Barra 2020 full text (PMC7377971)", verify: false },
+  kane: { label: "Kane, Bress, Tesoro 2013 neuro-ICU 0.29·Alb + 0.1", ref: "Ann Pharmacother 2013;47:628, PMID 23606554; coefficient verified in Barra 2020 full text (PMC7377971)", verify: false },
+  assayTemp: { label: "Assay temperature decides the non-ESRD coefficient: Anderson 0.25 was derived for free levels measured at 25 °C; with a 37 °C assay the original Winter-Tozer had the smallest bias and Anderson/Kane under-predicted free levels (Barra 2020). Unknown → Winter-Tozer, which gives the higher corrected level (safety default, signed off 2026-10-25)", ref: "PMID 9066931; Barra 2020, PMID 32049893", verify: false },
   soriano: { label: "Soriano 2017 ESRD 0.2·Alb + 0.1", ref: "PMID 28470115; coefficient via ClinCalc (lit 1c)", verify: true },
   sheinerTozer: { label: "Sheiner-Tozer 0.2·Alb + 0.1 (ESRD 0.1·Alb + 0.1)", ref: "Kiang & Ensom 2016 (PMID 26825643)", verify: false },
   albClamp: { label: "Binding factor capped at 1 (no correction at or above normal albumin)", ref: "suite policy; not in sources", verify: true },
@@ -433,12 +441,14 @@ const SRC = {
 };
 
 // Albumin-based binding factor (measured total ÷ normal-binding equivalent).
-// eq: 'auto' (model default) | 'winter' | 'st' (classic Sheiner-Tozer). Literature auto = Anderson 0.25, ICU Kane 0.29,
-// dialysis or CrCl < 10 Soriano 0.2 (capped at 1). CrCl 10–25 not on dialysis keeps the non-ESRD equation (Winter/Liponi).
-function albuminFactor({ alb, renal, icu, eq, model }) {
+// eq: 'auto' (model default) | 'winter' | 'st' (classic Sheiner-Tozer). assay: free-phenytoin assay temperature
+// 'unknown' (default) | '37' | '25'. Literature auto: dialysis or CrCl < 10 → Soriano 0.2 (capped at 1); otherwise a 25 °C
+// assay → Anderson 0.25 (ICU Kane 0.29), and 37 °C or unknown → Winter-Tozer, the higher corrected level (safety default).
+// CrCl 10–25 not on dialysis keeps the non-ESRD equation (Winter/Liponi).
+function albuminFactor({ alb, renal, icu, eq, model, assay }) {
   // ESRD form: on dialysis (both models); CrCl < 10 not on dialysis also uses it in the literature model (decisions Q1).
   const hd = renal === "hd" || (renal === "lt10" && model !== "site");
-  let use = eq && eq !== "auto" ? eq : model === "site" ? "winter" : hd ? "soriano" : icu ? "kane" : "anderson";
+  let use = eq && eq !== "auto" ? eq : model === "site" ? "winter" : hd ? "soriano" : assay === "25" ? (icu ? "kane" : "anderson") : "winter";
   if (use === "winter") {
     const ratio = Math.min(alb / 4.4, 1), h = hd ? 0.48 : 1;
     return { use, src: "winterBinding", factor: 0.9 * h * ratio + 0.1,
@@ -504,8 +514,10 @@ function patientModel(p, primaryLevel) {
     bindSrc = "vpa";
     warn("info", "Valproate correction assumes simultaneous levels and no other binding change (no hypoalbuminemia, no renal failure).");
   } else {
-    const a = albuminFactor({ alb: p.alb, renal: p.renal, icu: p.icu, eq: p.albEq, model });
+    const a = albuminFactor({ alb: p.alb, renal: p.renal, icu: p.icu, eq: p.albEq, model, assay: p.assayT });
     factor = a.factor; bindLabel = a.label; bindSrc = a.src; albEq = a.use;
+    if (model === "literature" && (!p.albEq || p.albEq === "auto") && a.use === "winter" && p.alb < 4.4 && (p.assayT || "unknown") === "unknown")
+      warn("info", "Free-phenytoin assay temperature not set, so the Winter-Tozer correction is used: it gives the higher corrected level and errs toward flagging toxicity (Barra 2020). If your lab measures free phenytoin at 25 °C (room temperature), choose that setting to use Anderson 0.25.");
     if (p.bind === "vpa") warn("info", "A valproic acid level at or below 20 mg/L (139 µmol/L) needs no valproate correction, so the albumin correction was used.");
     if (p.alb < 2) warn("warn", "Albumin is below 20 g/L (2 g/dL). The albumin correction is unreliable at this level; a measured free level is preferred.");
     if (a.use === "anderson" && (p.renal === "hd" || p.renal === "lt10")) warn("info", "Anderson's equation was not derived in ESRD.");
@@ -1701,6 +1713,7 @@ function render() {
   $("km").disabled = p.kmMode !== "custom";
   if (p.kmMode !== "custom") $("km").value = p.kmMode === "winter" ? 4 : (popFor(p.age, p.model) || { km: 4.3 }).km;
   $("albEqRow").hidden = p.bind === "free";
+  $("assayRow").hidden = p.bind === "free" || p.model === "site";
   renderStrip(p);
   const lim = PKUI.checkLimits({ age: p.age, wtKg: p.wt, htCm: p.ht * 2.54, scr: p.scr > 0 ? p.scr : NaN, sex: p.sex }, { set: "all", cg: p.scr > 0 && p.age >= 18 });
   if (PKUI.limitGate($("result"), lim, render)) { $("result").innerHTML = ""; currentNote = ""; return; }

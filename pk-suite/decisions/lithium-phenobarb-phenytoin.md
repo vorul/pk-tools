@@ -142,6 +142,8 @@ Rationale:
 
 **RECOMMENDED DEFAULT**: Anderson 0.25 for non-ESRD.
 
+**Superseded 2026-10-25 (pharmacist sign-off, safety-oriented):** the coefficient follows the lab's free-phenytoin assay temperature. Anderson's 0.25 was derived for room-temperature (25 °C) free assays (Anderson 1997 abstract). With a 37 °C assay, the original Winter-Tozer had the smallest bias and Anderson and Kane under-predicted free levels; Winter-Tozer missed about half of the supratherapeutic free levels in ICU patients (Barra 2020, PMID 32049893, full text PMC7377971, which also confirms the 0.25 and 0.29 coefficients). The tool therefore has a setting: 25 °C → Anderson 0.25 (ICU Kane 0.29); 37 °C or unknown → Winter-Tozer, the default, because it gives the higher corrected level and errs toward flagging toxicity. Dialysis and CrCl < 10 stay on Soriano 0.2 with the mandatory free-level banner (also signed off): both HD cohorts (Soriano 2017; Palumbo 2026, CF 0.201 vs 0.1, MPE −74% vs −198%) show the legacy 0.1 / Winter 0.48 form over-predicts free levels much more.
+
 Alternatives:
 - Kane 0.29 preset ("neuro-ICU"), which also performed better in Palumbo's active-seizure group.
 - Cheng 0.275.

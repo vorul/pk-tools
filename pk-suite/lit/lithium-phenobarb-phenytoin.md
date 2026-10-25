@@ -129,8 +129,9 @@ Rationale:
 ```text
 Pop Vmax/Km (mg/kg/day, mg/L): 0.5–<4 y 14/6.6; 4–<7 10.9/6.8; 7–<10 10.1/6.5; 10–<18 8.3/5.7
   (Bauer & Blouin 1983); 18–59 y 7/4.3 (option Winter 7/4); ≥60 y 6.0/5.8 (Bauer & Blouin 1982)
-Binding: default non-ESRD  Cnb = C/(0.25·Alb + 0.1)   [Anderson 1997]
-         option ICU         Cnb = C/(0.29·Alb + 0.1)   [Kane 2013]
+Binding: non-ESRD, free assay 37 °C or unknown (default)  Cnb = C/(0.9·Alb/4.4 + 0.1)  [Winter-Tozer; signed off 2026-10-25]
+         non-ESRD, free assay 25 °C   Cnb = C/(0.25·Alb + 0.1)   [Anderson 1997]
+         option ICU (25 °C)  Cnb = C/(0.29·Alb + 0.1)   [Kane 2013]
          legacy             Cnb = C/(0.9·Alb/4.4 + 0.1) ≈ C/(0.2·Alb + 0.1) [Winter/Sheiner-Tozer]
          ESRD/HD default    Cnb = C/(0.2·Alb + 0.1)    [Soriano 2017]; legacy 0.1·Alb+0.1 (= Winter 0.48)
          → always prefer measured free level; force it for ICU + low Alb, CrCl<25 + low Alb, displacing drugs
